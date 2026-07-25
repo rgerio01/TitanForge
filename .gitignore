@@ -1,0 +1,88 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+release/
+out/
+
+# Environment variables (NUNCA COMMITAR CHAVES!)
+.env
+.env.local
+.env.development
+.env.production
+.env.efi
+certificado.p12
+
+# Claude Code MCP config (contém GITHUB_PERSONAL_ACCESS_TOKEN)
+.mcp.json
+.claude/settings.local.json
+.agents/
+skills-lock.json
+
+# SDK externo (não pertence ao nosso repo)
+sdk-php-apis-efi/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+tmp/
+temp/
+
+# Credenciais SENSÍVEIS (NUNCA comitar)
+credentials.json
+secrets.json
+*.key
+*.pem
+*.p12
+
+# Cache
+.cache/
+.parcel-cache/
+.webpack/
+
+# TypeScript
+*.tsbuildinfo
+
+# Backup
+*.bak
+*.backup
+
+# Scripts auxiliares de release (contêm lógica de upload, podem ter credenciais)
+release-publisher.mjs
+release-upload.mjs
+release-update.mjs
+release-payload.json
+release-result.json
+test-release.json
+repo-info.json
+releases.json
+assets.json
+
+# Específico do projeto
+ARENA.zip
+*.dll
+steam_backup/
+
+# Electron específico
+.electron/
+
+# Coverage e testes
+coverage/
+.nyc_output/
