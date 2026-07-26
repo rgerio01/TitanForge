@@ -6,7 +6,7 @@ type Stage =
   | { kind: 'idle' }
   | { kind: 'available'; currentVersion: string; newVersion: string }
   | { kind: 'downloading'; percent: number; transferred: number; total: number; bytesPerSecond: number }
-  | { kind: 'downloaded'; version: string; secondsLeft: number }
+  | { kind: 'downloaded'; version: string; path: string | null }
   | { kind: 'error'; message: string };
 
 const formatBytes = (b: number) => {
@@ -37,7 +37,7 @@ const UpdateModal: React.FC = () => {
       setOpen(true);
     });
     window.electron.onUpdateDownloaded((data) => {
-      setStage({ kind: 'downloaded', version: data.version, secondsLeft: 5 });
+      setStage({ kind: 'downloaded', version: data.version, path: data.path ?? null });
       setOpen(true);
     });
     window.electron.onUpdateError((data) => {
@@ -45,18 +45,6 @@ const UpdateModal: React.FC = () => {
       setOpen(true);
     });
   }, []);
-
-  // Countdown automático no estágio "downloaded" — main process reinicia em 5s.
-  useEffect(() => {
-    if (stage.kind !== 'downloaded') return;
-    const t = setInterval(() => {
-      setStage((s) => {
-        if (s.kind !== 'downloaded') return s;
-        return { ...s, secondsLeft: Math.max(0, s.secondsLeft - 1) };
-      });
-    }, 1000);
-    return () => clearInterval(t);
-  }, [stage.kind]);
 
   if (!open || stage.kind === 'idle') return null;
 
@@ -92,7 +80,7 @@ const UpdateModal: React.FC = () => {
             />
           )}
           {stage.kind === 'downloaded' && (
-            <DownloadedView version={stage.version} secondsLeft={stage.secondsLeft} />
+            <DownloadedView version={stage.version} path={stage.path} />
           )}
           {stage.kind === 'error' && (
             <ErrorView message={stage.message} onClose={() => setOpen(false)} />
@@ -176,9 +164,9 @@ const DownloadingView: React.FC<{ percent: number; transferred: number; total: n
   </>
 );
 
-const DownloadedView: React.FC<{ version: string; secondsLeft: number }> = ({ version, secondsLeft }) => (
+const DownloadedView: React.FC<{ version: string; path: string | null }> = ({ version, path }) => (
   <>
-    <Header label="Atualização obrigatória" />
+    <Header label="Atualização baixada" />
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
       <span style={{
         width: 18, height: 18, borderRadius: 4,
@@ -189,12 +177,21 @@ const DownloadedView: React.FC<{ version: string; secondsLeft: number }> = ({ ve
         <IconCheck size={11} />
       </span>
       <p style={{ fontSize: 12.5, color: 'var(--text-primary)', margin: 0 }}>
-        v{version} pronta
+        v{version} baixada
       </p>
     </div>
-    <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-      O launcher reinicia em <strong style={{ color: 'var(--accent)' }}>{secondsLeft}s</strong> pra aplicar a atualização.
+    <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '0 0 10px', lineHeight: 1.5 }}>
+      Não instalada automaticamente{path ? <> — salva em <span style={{ fontFamily: 'ui-monospace, monospace', color: 'var(--text-primary)' }}>{path}</span></> : ''}.
     </p>
+    <button
+      onClick={() => window.electron.openUpdatesFolder?.().catch(() => {})}
+      style={{
+        padding: '5px 14px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.35)',
+        borderRadius: 6, color: '#4ade80', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'Syne, sans-serif',
+      }}
+    >
+      Abrir pasta
+    </button>
   </>
 );
 

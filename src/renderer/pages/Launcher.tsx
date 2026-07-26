@@ -168,7 +168,7 @@ const Launcher: React.FC<LauncherProps> = ({ licenseKey, hwid, onLogout }) => {
 
 
   // Estados de atualização do launcher
-  const [appUpdate, setAppUpdate] = useState<{ newVersion: string; downloading: boolean; pct: number; ready: boolean; countdown: number } | null>(null);
+  const [appUpdate, setAppUpdate] = useState<{ newVersion: string; downloading: boolean; pct: number; ready: boolean } | null>(null);
 
   // Estados para Meus Jogos (home)
   const [myGames, setMyGames] = useState<Array<{ appid: string; name: string | null; thumb: string | null }>>([]);
@@ -564,34 +564,21 @@ const Launcher: React.FC<LauncherProps> = ({ licenseKey, hwid, onLogout }) => {
     }
   }, [licenseInfo, onLogout]);
 
-  // Listeners do autoUpdater
+  // Listeners do autoUpdater — só baixa e avisa, nunca instala sozinho
   useEffect(() => {
     window.electron.onUpdateAvailable((data) => {
-      setAppUpdate({ newVersion: data.newVersion, downloading: true, pct: 0, ready: false, countdown: 5 });
+      setAppUpdate({ newVersion: data.newVersion, downloading: true, pct: 0, ready: false });
     });
     window.electron.onUpdateDownloadProgress((data) => {
       setAppUpdate(prev => prev ? { ...prev, pct: Math.round(data.percent) } : prev);
     });
     window.electron.onUpdateDownloaded((data) => {
-      setAppUpdate(prev => prev ? { ...prev, downloading: false, ready: true, countdown: 5 } : { newVersion: data.version, downloading: false, pct: 100, ready: true, countdown: 5 });
+      setAppUpdate(prev => prev ? { ...prev, downloading: false, ready: true } : { newVersion: data.version, downloading: false, pct: 100, ready: true });
     });
     window.electron.onUpdateError(() => {
       // Silencia erros de update para não atrapalhar o usuário
     });
   }, []);
-
-  // Countdown quando atualização está pronta
-  useEffect(() => {
-    if (!appUpdate?.ready) return;
-    if (appUpdate.countdown <= 0) {
-      window.electron.installAndRestart?.().catch(() => {});
-      return;
-    }
-    const t = setTimeout(() => {
-      setAppUpdate(prev => prev ? { ...prev, countdown: prev.countdown - 1 } : prev);
-    }, 1000);
-    return () => clearTimeout(t);
-  }, [appUpdate?.ready, appUpdate?.countdown]);
 
   // Removido: Contador de tempo restante (não há mais licenças mensais)
 
@@ -1588,7 +1575,7 @@ const Launcher: React.FC<LauncherProps> = ({ licenseKey, hwid, onLogout }) => {
             <div style={{ flex: 1, minWidth: 0 }}>
               {appUpdate.ready ? (
                 <span style={{ fontSize: '12px', fontWeight: 600, color: '#4ade80' }}>
-                  Atualização {appUpdate.newVersion} pronta — reiniciando em {appUpdate.countdown}s
+                  Atualização {appUpdate.newVersion} baixada — não instalada automaticamente
                 </span>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1603,10 +1590,10 @@ const Launcher: React.FC<LauncherProps> = ({ licenseKey, hwid, onLogout }) => {
             </div>
             {appUpdate.ready && (
               <button
-                onClick={() => window.electron.installAndRestart?.().catch(() => {})}
+                onClick={() => window.electron.openUpdatesFolder?.().catch(() => {})}
                 style={{ flexShrink: 0, padding: '5px 14px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: '6px', color: '#4ade80', fontSize: '11px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Syne, sans-serif' }}
               >
-                Reiniciar Agora
+                Abrir pasta
               </button>
             )}
             {!appUpdate.ready && (

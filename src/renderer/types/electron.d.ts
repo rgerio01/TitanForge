@@ -207,16 +207,15 @@ export interface ElectronAPI {
   depotboxBatchDownloadAndExtract: (downloadUrl: string, appIds: string[], gameNames: Record<string, string>) => Promise<{ success: boolean; filesExtracted?: { lua: number; manifest: number }; error?: string }>;
   onDepotboxDownloadProgress: (callback: (data: { appId?: string; appIds?: string[]; percent: number; loaded: number; total: number }) => void) => void;
 
-  // Auto-Update API
-  restartAndUpdate: () => Promise<{ success: boolean; error?: string }>;
+  // Auto-Update API — só baixa e avisa, nunca instala sozinho
   getAppVersion: () => Promise<{ version: string }>;
   checkForUpdatesManually: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
-  installAndRestart: () => Promise<{ success: boolean; error?: string }>;
+  openUpdatesFolder: () => Promise<{ success: boolean; message?: string }>;
   onUpdateChecking: (callback: () => void) => void;
   onUpdateAvailable: (callback: (data: { currentVersion: string; newVersion: string }) => void) => void;
   onUpdateNotAvailable: (callback: () => void) => void;
   onUpdateDownloadProgress: (callback: (data: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => void) => void;
-  onUpdateDownloaded: (callback: (data: { version: string }) => void) => void;
+  onUpdateDownloaded: (callback: (data: { version: string; path: string | null }) => void) => void;
   onUpdateError: (callback: (data: { message: string }) => void) => void;
 }
 

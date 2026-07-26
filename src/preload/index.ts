@@ -214,10 +214,9 @@ const api = {
   // AUTO-UPDATE API
   // ============================================
 
-  restartAndUpdate: () => ipcRenderer.invoke('restart-and-update'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   checkForUpdatesManually: () => ipcRenderer.invoke('check-for-updates-manually'),
-  installAndRestart: () => ipcRenderer.invoke('restart-and-update'),
+  openUpdatesFolder: () => ipcRenderer.invoke('open-updates-folder'),
 
   onUpdateChecking: (callback: () => void) => {
     ipcRenderer.on('update-checking', () => callback());

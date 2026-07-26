@@ -67,6 +67,7 @@ async function emitLicenseSnapshot() {
 }
 
 let mainWindow: BrowserWindow | null = null;
+let lastDownloadedUpdatePath: string | null = null;
 
 // Anti-burla: Variáveis para controle de integridade da DLL
 let dllIntegrityTimer: NodeJS.Timeout | null = null;
@@ -86,7 +87,9 @@ function configureAutoUpdater() {
     : {};
 
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  // Nunca instala sozinho — só baixa e avisa. Instalação fica manual (usuário decide),
+  // ver 'update-downloaded' abaixo e o botão "Abrir pasta" no UpdateModal.
+  autoUpdater.autoInstallOnAppQuit = false;
   // Sem certificado de code signing — desabilita verificação de assinatura
   (autoUpdater as any).verifyUpdateCodeSignature = false;
   (autoUpdater as any).disableWebInstaller = false;
@@ -121,20 +124,14 @@ function configureAutoUpdater() {
     });
   });
 
-  autoUpdater.on('update-downloaded', (info) => {
-    console.log('✅ Atualização baixada:', info.version, '— reinício forçado em 5s');
+  autoUpdater.on('update-downloaded', (info: any) => {
+    const downloadedPath: string | undefined = info.downloadedFile;
+    lastDownloadedUpdatePath = downloadedPath || null;
+    console.log('✅ Atualização baixada (não instalada automaticamente):', info.version, downloadedPath);
     mainWindow?.webContents.send('update-downloaded', {
       version: info.version,
+      path: downloadedPath || null,
     });
-    // Atualização OBRIGATÓRIA: aplica e reinicia automaticamente.
-    // O renderer mostra countdown de 5s pro usuário ver o que tá acontecendo.
-    setTimeout(() => {
-      try {
-        autoUpdater.quitAndInstall(true, true); // silent=true, restartAfterInstall=true
-      } catch (e) {
-        console.error('Falha ao reiniciar pra atualizar:', e);
-      }
-    }, 5000);
   });
 
   autoUpdater.on('error', (error) => {
@@ -3762,6 +3759,16 @@ ipcMain.handle('restart-and-update', async () => {
 
 ipcMain.handle('get-app-version', () => {
   return { version: app.getVersion() };
+});
+
+// Abre o Explorer com o instalador baixado já selecionado — única forma de "usar"
+// a atualização baixada. Nada no app chama restart-and-update/quitAndInstall sozinho.
+ipcMain.handle('open-updates-folder', async () => {
+  if (!lastDownloadedUpdatePath || !fs.existsSync(lastDownloadedUpdatePath)) {
+    return { success: false, message: 'Arquivo da atualização não encontrado' };
+  }
+  shell.showItemInFolder(lastDownloadedUpdatePath);
+  return { success: true };
 });
 
 ipcMain.handle('check-for-updates-manually', async () => {
