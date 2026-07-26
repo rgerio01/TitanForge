@@ -1,0 +1,14 @@
+{
+  "name": "titanforge-build-tools",
+  "version": "1.0.0",
+  "description": "Ferramentas locais de empacotamento do TitanForge Launcher",
+  "author": "TitanForge Team",
+  "private": true,
+  "dependencies": {
+    "@electron/asar": "*",
+    "rcedit": "*"
+  },
+  "devDependencies": {
+    "electron-builder": "24.13.3"
+  }
+}
