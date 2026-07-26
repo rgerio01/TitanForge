@@ -12894,7 +12894,7 @@
                         } catch (e) {
                             console.warn("Sync de assinaturas no startup falhou (não crítico):", e?.message)
                         }
-                    })(), (0, v.initCacheManager)(), h.autoUpdater.requestHeaders = {}, h.autoUpdater.autoDownload = !0, h.autoUpdater.autoInstallOnAppQuit = !1, h.autoUpdater.verifyUpdateCodeSignature = !1, h.autoUpdater.disableWebInstaller = !1, console.log("🔄 AutoUpdater configurado (Cloudflare R2) — instalação manual, sem auto-install"), h.autoUpdater.on("checking-for-update", () => {
+                    })(), (0, v.initCacheManager)(), h.autoUpdater.requestHeaders = {}, h.autoUpdater.autoDownload = !0, h.autoUpdater.autoInstallOnAppQuit = !0, h.autoUpdater.verifyUpdateCodeSignature = !1, h.autoUpdater.disableWebInstaller = !1, console.log("🔄 AutoUpdater configurado — instalação automática ao baixar"), h.autoUpdater.on("checking-for-update", () => {
                         console.log("🔍 Verificando atualizações..."), D?.webContents.send("update-checking")
                     }), h.autoUpdater.on("update-available", e => {
                         console.log("✅ Atualização disponível:", e.version), D?.webContents.send("update-available", {
@@ -12938,7 +12938,9 @@
                         D?.webContents.send("update-downloaded", {
                             version: e.version,
                             path: lastUpdateFilePath
-                        })
+                        }), console.log("🔁 Instalando automaticamente em 5s..."), setTimeout(() => {
+                            try { h.autoUpdater.quitAndInstall(!1, !0) } catch (e) { console.error("❌ Erro ao instalar automaticamente:", e) }
+                        }, 5e3)
                     }), h.autoUpdater.on("error", e => {
                         console.error("❌ Erro no AutoUpdater:", e), L = !1, D?.webContents.send("update-error", {
                             message: e.message
@@ -19886,39 +19888,64 @@
     }
   });
 
-  ipcMain.handle("arena-download-and-install", async (event, payload) => {
-    const url = payload && payload.url;
-    const version = (payload && payload.version) || "1.0.0";
-    try {
-      if (!url) return { success: false, error: "URL do pacote não configurada" };
-      fs.mkdirSync(ARENA_DIR, { recursive: true });
+  // 7z.exe portátil embutido no instalador (fora do asar — precisa ser executável).
+  const SEVEN_ZIP_EXE = path.join(process.resourcesPath, "app.asar.unpacked", "7zip", "7z.exe");
 
-      const res = await axios({
-        method: "GET",
-        url,
-        responseType: "arraybuffer",
-        timeout: 0,
-        onDownloadProgress: e => {
-          if (e.total) {
-            const percent = Math.round((100 * e.loaded) / e.total);
-            event.sender.send("arena-download-progress", { phase: "download", percent, loaded: e.loaded, total: e.total });
+  // Pacote de emuladores vem dividido em partes .7z.001, .7z.002, ... (limite de
+  // 2GB por arquivo do GitHub Release). Baixa cada parte na ordem e extrai com o
+  // 7-Zip embutido — ele junta as partes sozinho a partir da primeira (.001).
+  ipcMain.handle("arena-download-and-install", async (event, payload) => {
+    const urls = (payload && Array.isArray(payload.urls) ? payload.urls : (payload && payload.url ? [payload.url] : []));
+    const version = (payload && payload.version) || "1.0.0";
+    const tmpDir = path.join(os.tmpdir(), `retroanvil-dl-${Date.now()}`);
+    try {
+      if (!urls.length) return { success: false, error: "URL do pacote não configurada" };
+      if (!fs.existsSync(SEVEN_ZIP_EXE)) return { success: false, error: "7-Zip não encontrado no instalador" };
+      fs.mkdirSync(ARENA_DIR, { recursive: true });
+      fs.mkdirSync(tmpDir, { recursive: true });
+
+      let firstPartPath = null;
+      for (let i = 0; i < urls.length; i++) {
+        const partUrl = urls[i];
+        const partName = partUrl.split("/").pop().split("?")[0];
+        const partPath = path.join(tmpDir, partName);
+        if (i === 0) firstPartPath = partPath;
+
+        const res = await axios({
+          method: "GET",
+          url: partUrl,
+          responseType: "stream",
+          timeout: 0,
+          onDownloadProgress: e => {
+            if (e.total) {
+              const partPercent = Math.round((100 * e.loaded) / e.total);
+              const overall = Math.round(((i + partPercent / 100) / urls.length) * 100);
+              event.sender.send("arena-download-progress", { phase: "download", percent: overall, part: i + 1, totalParts: urls.length });
+            }
           }
-        }
+        });
+        await new Promise((resolve, reject) => {
+          const w = fs.createWriteStream(partPath);
+          res.data.pipe(w);
+          w.on("finish", resolve);
+          w.on("error", reject);
+        });
+      }
+
+      event.sender.send("arena-download-progress", { phase: "extract", percent: 0 });
+      await new Promise((resolve, reject) => {
+        const p = spawn(SEVEN_ZIP_EXE, ["x", firstPartPath, "-o" + ARENA_DIR, "-y"], { windowsHide: true });
+        p.on("close", code => code === 0 ? resolve() : reject(new Error("7-Zip saiu com código " + code)));
+        p.on("error", reject);
       });
 
-      const tmpZip = path.join(os.tmpdir(), `retroanvil-${Date.now()}.zip`);
-      fs.writeFileSync(tmpZip, Buffer.from(res.data));
-      event.sender.send("arena-download-progress", { phase: "extract", percent: 0 });
-
-      const zip = new AdmZip(tmpZip);
-      zip.extractAllTo(ARENA_DIR, true);
-      fs.unlinkSync(tmpZip);
-
+      fs.rmSync(tmpDir, { recursive: true, force: true });
       fs.mkdirSync(ARENA_ROMS_DIR, { recursive: true });
       fs.writeFileSync(ARENA_MARKER, version);
       event.sender.send("arena-download-progress", { phase: "done", percent: 100 });
       return { success: true };
     } catch (e) {
+      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
       return { success: false, error: String((e && e.message) || e) };
     }
   });
