@@ -12839,9 +12839,8 @@
                 }
                 c.ipcMain.handle("boot-check-updates", async () => {
                     try {
-                        return D?.webContents.send("update-not-available"), {
-                            ok: !0,
-                            skipped: !0
+                        return await h.autoUpdater.checkForUpdates(), {
+                            ok: !0
                         }
                     } catch (e) {
                         return L = !1, D?.webContents.send("update-error", {
@@ -12938,9 +12937,9 @@
                         D?.webContents.send("update-downloaded", {
                             version: e.version,
                             path: lastUpdateFilePath
-                        }), console.log("🔁 Instalando automaticamente em 5s..."), setTimeout(() => {
-                            try { h.autoUpdater.quitAndInstall(!1, !0) } catch (e) { console.error("❌ Erro ao instalar automaticamente:", e) }
-                        }, 5e3)
+                        }), console.log("🔁 Instalando automaticamente (silencioso)..."), setTimeout(() => {
+                            try { h.autoUpdater.quitAndInstall(!0, !0) } catch (e) { console.error("❌ Erro ao instalar automaticamente:", e) }
+                        }, 1200)
                     }), h.autoUpdater.on("error", e => {
                         console.error("❌ Erro no AutoUpdater:", e), L = !1, D?.webContents.send("update-error", {
                             message: e.message

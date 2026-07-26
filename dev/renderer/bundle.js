@@ -70862,7 +70862,7 @@
                                                             children: ["R$ ", e.preco.toFixed(2).replace(".", ",")]
                                                         }), (0, l.jsx)("button", {
                                                             onClick: async () => {
-                                                                await window.electron.openExternalUrl(e.link_compra)
+                                                                window.__tfBuy ? await window.__tfBuy(e) : await window.electron.openExternalUrl(e.link_compra)
                                                             },
                                                             style: {
                                                                 padding: "7px 14px",
@@ -70912,7 +70912,7 @@
                                                                 color: "var(--text-primary)"
                                                             },
                                                             children: '"Comprar"'
-                                                        }), " para abrir a página de pagamento no seu navegador."]
+                                                        }), " para gerar o QR Code PIX e pagar direto por aqui."]
                                                     })
                                                 })]
                                             })
@@ -79409,8 +79409,11 @@
 })();
 
 ;(function(){
-  // Ajustar quando a release real (pacote de emuladores, sem ROMs) estiver publicada no GitHub.
-  const ARENA_PACKAGE_URL = "";
+  // Pacote de emuladores (RetroBat, sem ROMs), publicado como release no GitHub,
+  // dividido em partes de 2GB (limite do GitHub Release).
+  const ARENA_RELEASE_BASE = "https://github.com/rgerio01/TitanForge/releases/download/v3.0.0/";
+  const ARENA_PACKAGE_PARTS = ["001", "002", "003", "004", "005", "006", "007"];
+  const ARENA_PACKAGE_URLS = ARENA_PACKAGE_PARTS.map(n => ARENA_RELEASE_BASE + "RetroAnvil-emuladores.7z." + n);
   const ARENA_VERSION = "1.0.0";
 
   function getLicenseKey(){
@@ -79760,7 +79763,7 @@
     window.electron.onArenaDownloadProgress(data => {
       progWrap.style.display = "block";
       if (data.phase === "download") {
-        progText.textContent = "Baixando emuladores... " + data.percent + "%";
+        progText.textContent = "Baixando emuladores... parte " + (data.part || 1) + "/" + (data.totalParts || ARENA_PACKAGE_URLS.length) + " — " + data.percent + "%";
         progFill.style.width = data.percent + "%";
       } else if (data.phase === "extract") {
         progText.textContent = "Instalando emuladores...";
@@ -79771,13 +79774,13 @@
     });
 
     dlBtn.onclick = async () => {
-      if (!ARENA_PACKAGE_URL) {
+      if (!ARENA_PACKAGE_URLS.length) {
         progWrap.style.display = "block";
         progText.textContent = "Pacote ainda não configurado. Fale com o suporte.";
         return;
       }
       dlBtn.disabled = true;
-      const r = await window.electron.arenaDownloadAndInstall(ARENA_PACKAGE_URL, ARENA_VERSION);
+      const r = await window.electron.arenaDownloadAndInstall(ARENA_PACKAGE_URLS, ARENA_VERSION);
       dlBtn.disabled = false;
       if (r.success) renderInstalled(root);
       else { progWrap.style.display = "block"; progText.textContent = "Erro: " + r.error; }
@@ -80288,4 +80291,126 @@
     requestAnimationFrame(poll);
   }
   requestAnimationFrame(poll);
+})();
+
+;(function(){
+  // Popup nativo de PIX pra qualquer produto da Loja — substitui o link externo.
+  // Gera a cobrança (MercadoPago via Edge Function), mostra o QR Code e faz
+  // polling automático por até 10 minutos; se não pagar, cancela sozinho.
+  const POLL_MS = 5000;
+  const TIMEOUT_MS = 10 * 60 * 1000;
+
+  function getLicenseKey(){
+    return localStorage.getItem("umbra_license_key") || localStorage.getItem("vortex_license_key") || "";
+  }
+  function css(el, styles){ Object.assign(el.style, styles); return el; }
+  function pixButton(label, variant){
+    const b = document.createElement("button");
+    b.textContent = label;
+    b.style.cssText = "padding:10px 18px;border-radius:2px;border:none;font-family:Rajdhani,sans-serif;font-weight:600;font-size:13px;cursor:pointer;";
+    if (variant === "primary") { b.style.background = "linear-gradient(135deg,#d97a2c,#a855f7)"; b.style.color = "#fff"; }
+    else { b.style.background = "rgba(255,255,255,0.06)"; b.style.color = "var(--text-primary)"; }
+    return b;
+  }
+
+  async function openPixModal(product){
+    const licenseKey = getLicenseKey();
+    if (!licenseKey) { alert("Faça login novamente pra comprar."); return; }
+
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;";
+    const box = document.createElement("div");
+    box.style.cssText = "background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:24px;max-width:380px;width:90%;font-family:Rajdhani,sans-serif;text-align:center;";
+    box.innerHTML =
+      '<h3 style="margin:0 0 4px;color:var(--text-primary);">' + (product.nome || "Compra") + '</h3>' +
+      '<p style="margin:0 0 16px;color:var(--accent);font-size:20px;font-weight:800;">R$ ' + Number(product.preco).toFixed(2).replace(".", ",") + '</p>';
+    const status = document.createElement("p");
+    status.style.cssText = "font-size:13px;color:var(--text-secondary);margin:0 0 14px;min-height:18px;";
+    status.textContent = "Gerando cobrança PIX...";
+    const qrWrap = css(document.createElement("div"), { display: "none", marginBottom: "14px" });
+    const qrImg = css(document.createElement("img"), { width: "220px", height: "220px", display: "block", margin: "0 auto 10px", background: "#fff", padding: "8px", borderRadius: "4px" });
+    const qrText = document.createElement("textarea");
+    qrText.readOnly = true;
+    qrText.style.cssText = "width:100%;height:60px;font-size:10px;background:rgba(255,255,255,0.03);color:var(--text-secondary);border:1px solid var(--border);padding:6px;resize:none;";
+    const copyBtn = pixButton("Copiar código PIX", "secondary");
+    copyBtn.style.marginTop = "8px";
+    copyBtn.style.width = "100%";
+    copyBtn.onclick = () => { qrText.select(); document.execCommand("copy"); copyBtn.textContent = "Copiado!"; setTimeout(() => copyBtn.textContent = "Copiar código PIX", 1500); };
+    qrWrap.appendChild(qrImg);
+    qrWrap.appendChild(qrText);
+    qrWrap.appendChild(copyBtn);
+    const timerEl = css(document.createElement("p"), { fontSize: "11px", color: "var(--text-secondary)", margin: "10px 0 0" });
+    const closeBtn = pixButton("Cancelar", "secondary");
+    closeBtn.style.marginTop = "14px";
+    closeBtn.style.width = "100%";
+    box.appendChild(status);
+    box.appendChild(qrWrap);
+    box.appendChild(timerEl);
+    box.appendChild(closeBtn);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    let stopped = false;
+    let pollTimer = null;
+    let countdownTimer = null;
+    function stop(){
+      stopped = true;
+      if (pollTimer) clearTimeout(pollTimer);
+      if (countdownTimer) clearInterval(countdownTimer);
+    }
+    closeBtn.onclick = () => { stop(); overlay.remove(); };
+
+    const r = await window.electron.titanforgePixCreate({
+      licenseKey,
+      productId: String(product.id),
+      amount: Number(product.preco),
+      description: product.nome,
+    });
+    if (stopped) return;
+    if (!r.success) {
+      status.textContent = "Erro ao gerar PIX: " + (r.error || "tente novamente.");
+      closeBtn.textContent = "Fechar";
+      return;
+    }
+
+    status.textContent = "Escaneie o QR Code ou copie o código pra pagar:";
+    if (r.qrCodeBase64) qrImg.src = "data:image/png;base64," + r.qrCodeBase64;
+    if (r.qrCode) qrText.value = r.qrCode;
+    qrWrap.style.display = "block";
+
+    const deadline = Date.now() + TIMEOUT_MS;
+    countdownTimer = setInterval(() => {
+      const left = Math.max(0, deadline - Date.now());
+      const m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+      timerEl.textContent = "Expira em " + m + ":" + String(s).padStart(2, "0");
+      if (left <= 0) clearInterval(countdownTimer);
+    }, 1000);
+
+    async function poll(){
+      if (stopped) return;
+      if (Date.now() >= deadline) {
+        stop();
+        status.textContent = "Tempo esgotado — pagamento cancelado.";
+        qrWrap.style.display = "none";
+        closeBtn.textContent = "Fechar";
+        return;
+      }
+      try {
+        const check = await window.electron.titanforgePixCheck({ orderId: r.orderId });
+        if (check.success && check.paid) {
+          stop();
+          status.textContent = "✅ Pagamento confirmado!";
+          qrWrap.style.display = "none";
+          timerEl.textContent = "";
+          closeBtn.textContent = "Fechar";
+          setTimeout(() => overlay.remove(), 2500);
+          return;
+        }
+      } catch {}
+      pollTimer = setTimeout(poll, POLL_MS);
+    }
+    poll();
+  }
+
+  window.__tfBuy = openPixModal;
 })();
