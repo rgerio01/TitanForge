@@ -64861,7 +64861,7 @@
                     value: !0
                 }), t.supabase = void 0;
                 const r = a(7);
-                t.supabase = (0, r.createClient)("https://wjbqxsjpikeqmvupctbf.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqYnF4c2pwaWtlcW12dXBjdGJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4MTQ4NzAsImV4cCI6MjA3NTM5MDg3MH0.Kl5QfJL8jfdztugbi_KDLdsZkS4u_8X2H84l3kK1BMs")
+                t.supabase = (0, r.createClient)("https://kgdcvterplxmbslznnfp.supabase.co", "sb_publishable_z06J05iYrjmGg57TjBXQkQ_quKLggJB")
             },
             6167: (e, t, a) => {
                 "use strict";

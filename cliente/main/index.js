@@ -14544,7 +14544,7 @@
                                     data: n,
                                     fetchedAt: e
                                 }, n
-                            }(), [r, o, i] = await Promise.all([O.from("bypass_overrides").select("appid, visible, tier, extra_steps"), O.from("bypass_settings").select("default_tier, default_visible").eq("id", 1).maybeSingle(), O.from("fixes_translations").select("appid, filename, extra_steps_pt")]), a = new Map((r.data || []).map(e => [String(e.appid), e])), s = new Map((i.data || []).map(e => [`${e.appid}|${e.filename}`, e.extra_steps_pt])), c = o.data || {
+                            }(), [r, o, i] = await Promise.all([TF.from("bypass_overrides").select("appid, visible, tier, extra_steps"), TF.from("bypass_settings").select("default_tier, default_visible").eq("id", 1).maybeSingle(), TF.from("fixes_translations").select("appid, filename, extra_steps_pt")]), a = new Map((r.data || []).map(e => [String(e.appid), e])), s = new Map((i.data || []).map(e => [`${e.appid}|${e.filename}`, e.extra_steps_pt])), c = o.data || {
                                 default_tier: "premium",
                                 default_visible: !1
                             }, l = [];
