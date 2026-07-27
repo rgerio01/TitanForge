@@ -67366,10 +67366,6 @@
                             label: "Todos os Jogos",
                             icon: (0, l.jsx)(u.IconSearch, {})
                         }, {
-                            id: "request-game",
-                            label: "Solicitar Jogo",
-                            icon: (0, l.jsx)(u.IconSend, {})
-                        }, {
                             id: "bypass",
                             label: "Bypass",
                             icon: (0, l.jsx)(u.IconShield, {}),
