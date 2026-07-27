@@ -80012,13 +80012,61 @@
     container.appendChild(editEl);
 
     async function createLicense() {
-      const key = prompt("Chave da nova licença (ex: CLIENTE-1234):");
-      if (!key) return;
+      const result = await newLicenseModal();
+      if (!result) return;
+      const { key, nome, licenseType, flags } = result;
+      const cols = ["key", "nome", "license_type", ...LICENSE_FLAGS];
+      const vals = [key, nome || null, licenseType, ...LICENSE_FLAGS.map(f => flags[f] ? "enable" : "disable")];
+      const placeholders = vals.map((_, i) => `$${i + 1}`).join(", ");
       try {
-        await q("insert into public.licenses (key) values ($1)", [key.trim().toUpperCase()]);
-        searchInp.value = key.trim().toUpperCase();
+        await q(`insert into public.licenses (${cols.join(", ")}) values (${placeholders})`, vals);
+        searchInp.value = key;
         doSearch();
       } catch (e) { alert("Erro: " + e.message); }
+    }
+
+    function newLicenseModal() {
+      return new Promise(resolve => {
+        const overlay = el("div", { style: { position: "fixed", inset: "0", background: "rgba(0,0,0,0.75)", zIndex: "9999", display: "flex", alignItems: "center", justifyContent: "center" } });
+        const box = el("div", { style: { background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "4px", padding: "20px", maxWidth: "380px", width: "90%", fontFamily: "Rajdhani, sans-serif", maxHeight: "85vh", overflowY: "auto" } });
+        box.appendChild(el("h4", { style: { margin: "0 0 10px", color: "var(--text-primary)" } }, ["Nova licença"]));
+
+        box.appendChild(label("Chave"));
+        const keyI = input("ex: CLIENTE-1234");
+        box.appendChild(keyI);
+
+        box.appendChild(label("Nome (opcional)"));
+        const nomeI = input("Nome do cliente");
+        box.appendChild(nomeI);
+
+        box.appendChild(label("Tipo de licença (1=mensal, 2=vitalícia, 3=teste)"));
+        const typeSel = el("select", { style: { width: "100%", padding: "8px", background: "rgba(255,255,255,0.03)", color: "#fff", border: "1px solid var(--border)" } },
+          [1, 2, 3].map(t => { const o = el("option", { value: t }, [String(t)]); if (t === 2) o.selected = true; return o; }));
+        box.appendChild(typeSel);
+
+        box.appendChild(label("Permissões"));
+        const toggles = {};
+        LICENSE_FLAGS.forEach(f => {
+          const t = toggle(false, f);
+          toggles[f] = t;
+          box.appendChild(t);
+        });
+
+        const row = el("div", { style: { display: "flex", gap: "8px", marginTop: "14px" } });
+        const finish = value => { overlay.remove(); resolve(value); };
+        row.appendChild(btn("Cancelar", () => finish(null)));
+        row.appendChild(btn("Criar", () => {
+          const key = keyI.value.trim().toUpperCase();
+          if (!key) { keyI.focus(); return; }
+          const flags = {};
+          LICENSE_FLAGS.forEach(f => { flags[f] = toggles[f]._checkbox.checked; });
+          finish({ key, nome: nomeI.value.trim(), licenseType: Number(typeSel.value), flags });
+        }, "primary"));
+        box.appendChild(row);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        keyI.focus();
+      });
     }
 
     async function doSearch() {
