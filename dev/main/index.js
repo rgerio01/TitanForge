@@ -12644,7 +12644,7 @@
                         const {
                             data: n,
                             error: r
-                        } = await O.from("terms_acceptances").select("terms_version").eq("license_key", e).gte("terms_version", t?.version || 1).limit(1);
+                        } = await TF.from("terms_acceptances").select("terms_version").eq("license_key", e).gte("terms_version", t?.version || 1).limit(1);
                         return r ? (console.error("terms-status:", r.message), {
                             accepted: !1,
                             error: r.message
@@ -12666,7 +12666,7 @@
                         };
                         const {
                             error: n
-                        } = await O.from("terms_acceptances").upsert({
+                        } = await TF.from("terms_acceptances").upsert({
                             license_key: e,
                             terms_version: t?.version || 1,
                             hwid: C.hwid,
