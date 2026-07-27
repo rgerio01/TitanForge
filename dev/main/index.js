@@ -20196,11 +20196,13 @@
     try {
       const res = await axios.post(`${TF_URL}/functions/v1/pix-create`, payload, {
         headers: { apikey: TF_ANON, Authorization: `Bearer ${TF_ANON}`, "Content-Type": "application/json" },
-        validateStatus: () => true
+        validateStatus: () => true,
+        timeout: 20000
       });
       return res.data;
     } catch (err) {
-      return { success: false, error: String((err && err.message) || err) };
+      const timedOut = err && (err.code === "ECONNABORTED" || /timeout/i.test(err.message || ""));
+      return { success: false, error: timedOut ? "Tempo de conexão esgotado. Tente novamente." : String((err && err.message) || err) };
     }
   });
 
@@ -20208,11 +20210,13 @@
     try {
       const res = await axios.post(`${TF_URL}/functions/v1/pix-check`, payload, {
         headers: { apikey: TF_ANON, Authorization: `Bearer ${TF_ANON}`, "Content-Type": "application/json" },
-        validateStatus: () => true
+        validateStatus: () => true,
+        timeout: 20000
       });
       return res.data;
     } catch (err) {
-      return { success: false, error: String((err && err.message) || err) };
+      const timedOut = err && (err.code === "ECONNABORTED" || /timeout/i.test(err.message || ""));
+      return { success: false, error: timedOut ? "Tempo de conexão esgotado." : String((err && err.message) || err) };
     }
   });
 })();

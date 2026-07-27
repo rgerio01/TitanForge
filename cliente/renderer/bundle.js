@@ -79838,6 +79838,11 @@
     if (!r.success) {
       status.textContent = "Erro ao gerar PIX: " + (r.error || "tente novamente.");
       closeBtn.textContent = "Fechar";
+      const retryBtn = pixButton("Tentar novamente", "primary");
+      retryBtn.style.marginTop = "8px";
+      retryBtn.style.width = "100%";
+      retryBtn.onclick = () => { stop(); overlay.remove(); openPixModal(product); };
+      box.insertBefore(retryBtn, closeBtn);
       return;
     }
 
