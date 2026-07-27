@@ -185,7 +185,7 @@
                 },
                 arenaCheckInstalled: () => e.ipcRenderer.invoke("arena-check-installed"),
                 arenaDownloadAndInstall: (r, n) => e.ipcRenderer.invoke("arena-download-and-install", {
-                    url: r,
+                    urls: r,
                     version: n
                 }),
                 arenaLaunch: () => e.ipcRenderer.invoke("arena-launch"),
@@ -198,6 +198,8 @@
                     sourceFolder: r
                 }),
                 arenaListGames: () => e.ipcRenderer.invoke("arena-list-games"),
+                arenaRomsPathGet: () => e.ipcRenderer.invoke("arena-roms-path-get"),
+                arenaRomsPathSet: () => e.ipcRenderer.invoke("arena-roms-path-set"),
                 arenaLaunchGame: r => e.ipcRenderer.invoke("arena-launch-game", r),
                 titanforgePixCreate: r => e.ipcRenderer.invoke("titanforge-pix-create", r),
                 titanforgePixCheck: r => e.ipcRenderer.invoke("titanforge-pix-check", r)

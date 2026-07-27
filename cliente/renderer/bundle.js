@@ -79656,6 +79656,28 @@
     container.appendChild(grid);
   }
 
+  async function romsPathControl() {
+    const wrap = css(document.createElement("div"), { display: "flex", alignItems: "center", gap: "10px", margin: "10px 0", flexWrap: "wrap" });
+    const label = document.createElement("span");
+    label.style.cssText = "font-size:11.5px;color:var(--text-secondary);";
+    const changeBtn = button("Alterar pasta das ROMs", "secondary");
+    changeBtn.style.padding = "6px 12px";
+    changeBtn.style.fontSize = "11.5px";
+
+    async function refresh() {
+      const info = await window.electron.arenaRomsPathGet();
+      label.textContent = "Pasta das ROMs: " + info.path;
+    }
+    changeBtn.onclick = async () => {
+      const r = await window.electron.arenaRomsPathSet();
+      if (r.success) await refresh();
+    };
+    await refresh();
+    wrap.appendChild(label);
+    wrap.appendChild(changeBtn);
+    return wrap;
+  }
+
   async function renderInstalled(root){
     root.innerHTML = "";
     const c = card(
@@ -79679,6 +79701,7 @@
 
     c.appendChild(addBtn);
     c.appendChild(controllerConfigBtn(status));
+    c.appendChild(await romsPathControl());
     c.appendChild(status);
     c.appendChild(consolesEl);
     root.appendChild(c);
@@ -79731,6 +79754,7 @@
       else { progWrap.style.display = "block"; progText.textContent = "Erro: " + r.error; }
     };
 
+    c.appendChild(await romsPathControl());
     c.appendChild(dlBtn);
     c.appendChild(progWrap);
     root.appendChild(c);

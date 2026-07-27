@@ -19791,7 +19791,29 @@
   const ARENA_MARKER = path.join(ARENA_DIR, ".installed");
   const ARENA_EXE_NAME = "RetroBat.exe";
   const ARENA_EXE = path.join(ARENA_DIR, ARENA_EXE_NAME);
-  const ARENA_ROMS_DIR = path.join(ARENA_DIR, "roms");
+  const ARENA_ROMS_DIR_DEFAULT = path.join(ARENA_DIR, "roms");
+  const ARENA_ROMS_CONFIG_PATH = path.join(app.getPath("userData"), "retroanvil-roms-path.json");
+  function getArenaRomsDir() {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(ARENA_ROMS_CONFIG_PATH, "utf-8"));
+      if (cfg && cfg.romsPath && fs.existsSync(cfg.romsPath)) return cfg.romsPath;
+    } catch {}
+    return ARENA_ROMS_DIR_DEFAULT;
+  }
+  ipcMain.handle("arena-roms-path-get", () => ({ path: getArenaRomsDir(), isDefault: getArenaRomsDir() === ARENA_ROMS_DIR_DEFAULT }));
+  ipcMain.handle("arena-roms-path-set", async (event, win) => {
+    try {
+      const focused = require("electron").BrowserWindow.getFocusedWindow();
+      const result = await dialog.showOpenDialog(focused, { properties: ["openDirectory", "createDirectory"], title: "Escolha a pasta para as ROMs" });
+      if (result.canceled || !result.filePaths[0]) return { success: false };
+      const chosen = result.filePaths[0];
+      fs.mkdirSync(chosen, { recursive: true });
+      fs.writeFileSync(ARENA_ROMS_CONFIG_PATH, JSON.stringify({ romsPath: chosen }, null, 2));
+      return { success: true, path: chosen };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
 
   // Mapeamento heurístico extensão -> pasta de sistema (roms/<sistema>).
   // Ajustar depois pra bater exatamente com o es_systems.cfg real do pacote.
@@ -19937,7 +19959,7 @@
       });
 
       fs.rmSync(tmpDir, { recursive: true, force: true });
-      fs.mkdirSync(ARENA_ROMS_DIR, { recursive: true });
+      fs.mkdirSync(getArenaRomsDir(), { recursive: true });
       fs.writeFileSync(ARENA_MARKER, version);
       event.sender.send("arena-download-progress", { phase: "done", percent: 100 });
       return { success: true };
@@ -19968,7 +19990,7 @@
       if (!launch) return { success: false, error: "Sistema não suportado: " + system };
       if (!fs.existsSync(ARENA_EMULATOR_LAUNCHER)) return { success: false, error: "Emuladores não instalados" };
 
-      const sysDir = path.join(ARENA_ROMS_DIR, system);
+      const sysDir = path.join(getArenaRomsDir(), system);
       const romPath = path.join(sysDir, file);
       // Impede que um "file" malicioso (ex.: "..\\..\\algo") escape da pasta de roms do sistema.
       if (path.dirname(romPath) !== sysDir || !fs.existsSync(romPath)) {
@@ -20065,7 +20087,7 @@
         const ext = path.extname(file).toLowerCase();
         const system = resolveSystemForFile(file, ext);
         if (!system) { skipped++; continue; }
-        const destDir = path.join(ARENA_ROMS_DIR, system);
+        const destDir = path.join(getArenaRomsDir(), system);
         fs.mkdirSync(destDir, { recursive: true });
         const destFile = path.join(destDir, path.basename(file));
         if (fs.existsSync(destFile)) { skipped++; continue; }
@@ -20086,11 +20108,12 @@
 
   ipcMain.handle("arena-list-games", async () => {
     try {
-      if (!fs.existsSync(ARENA_ROMS_DIR)) return { games: [] };
+      const romsDir = getArenaRomsDir();
+      if (!fs.existsSync(romsDir)) return { games: [] };
       const games = [];
-      const systems = fs.readdirSync(ARENA_ROMS_DIR, { withFileTypes: true }).filter(d => d.isDirectory());
+      const systems = fs.readdirSync(romsDir, { withFileTypes: true }).filter(d => d.isDirectory());
       for (const sys of systems) {
-        const sysDir = path.join(ARENA_ROMS_DIR, sys.name);
+        const sysDir = path.join(romsDir, sys.name);
         const NON_GAME_EXT = new Set([".txt",".xml",".nfo",".db",".cfg",".ini",".png",".jpg",".jpeg",".url",".log",".bak",".md5",".sha1",".dat"]);
         const files = fs.readdirSync(sysDir, { withFileTypes: true }).filter(f => {
           if (!f.isFile()) return false;
