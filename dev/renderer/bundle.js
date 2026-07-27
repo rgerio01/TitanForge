@@ -66895,12 +66895,7 @@
                         currentGame: ""
                     }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
                         const r = q[a];
-                        r && $a({
-                            type: r.productType,
-                            name: r.name,
-                            description: r.description,
-                            price: r.price
-                        })
+                        r && window.__tfBuy && window.__tfBuy({ id: a, nome: r.name, preco: r.price })
                     }, Ka = (0, c.useMemo)(() => 3 === se?.license_type, [se]), Xa = (0, c.useMemo)(() => !(ce || se && "suspended" !== se.status && "active" === se.status), [se, ce]), Za = (0, c.useMemo)(() => Xa || Ka, [Xa, Ka]);
                     (0, c.useEffect)(() => {
                         (async () => {
