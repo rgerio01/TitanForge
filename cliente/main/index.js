@@ -13650,117 +13650,32 @@
                             success: !1,
                             error: "Preencha nome, e-mail e telefone"
                         };
-                        const e = t.nome.trim().slice(0, 120),
-                            n = t.email.trim().toLowerCase().slice(0, 120),
-                            r = t.numero.trim().slice(0, 30);
-                        if (!/^[^@]+@[^@]+\.[^@]+$/.test(n)) return {
+                        const nome = t.nome.trim().slice(0, 120),
+                            email = t.email.trim().toLowerCase().slice(0, 120),
+                            numero = t.numero.trim().slice(0, 30);
+                        if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) return {
                             success: !1,
                             error: "E-mail inválido"
                         };
-                        const o = await q("licenca_vitalicia");
-                        if (!o) return {
-                            success: !1,
-                            error: "Plano indisponível"
-                        };
-                        let i = Number(o.price),
-                            a = null;
-                        if (t.couponCode && t.couponCode.trim()) {
-                            const {
-                                data: e,
-                                error: n
-                            } = await O.rpc("redeem_coupon", {
-                                p_code: t.couponCode.trim(),
-                                p_product_type: "licenca_vitalicia"
-                            });
-                            if (n) throw n;
-                            const r = Array.isArray(e) ? e[0] : e;
-                            if (!r?.ok) return {
-                                success: !1,
-                                error: r?.msg || "Cupom inválido"
-                            };
-                            const s = r.d_type,
-                                c = Number(r.d_value),
-                                l = "percent" === s ? Number(o.price) * (1 - c / 100) : Number(o.price) - c;
-                            a = t.couponCode.trim().toUpperCase(), i = l <= 0 ? 0 : Math.max(.01, +l.toFixed(2))
+                        const { data: pixResp, error: pixErr } = await TF.functions.invoke("pix-create", {
+                            body: { productId: "signup_vitalicia", nome, email, numero }
+                        });
+                        if (pixErr || !pixResp || !pixResp.success) {
+                            return { success: !1, error: (pixResp && pixResp.error) || "Não foi possível gerar o PIX" };
                         }
-                        if (0 === i) {
-                            const {
-                                data: o,
-                                error: i
-                            } = await G({
-                                p_nome: e,
-                                p_email: n,
-                                p_numero: r,
-                                p_referred_by: t.referredBy || null,
-                                p_license_type: 2
-                            });
-                            if (i) throw i;
-                            const a = Array.isArray(o) ? o[0] : o;
-                            if (t.referredBy) try {
-                                await O.rpc("register_referral", {
-                                    p_referred_license_key: a.license_key,
-                                    p_referrer_friend_code: t.referredBy
-                                })
-                            } catch {}
-                            return {
-                                success: !0,
-                                free: !0,
-                                licenseKey: a.license_key,
-                                friendCode: a.friend_code
-                            }
-                        }
-                        const s = await (0, w.createPixCharge)({
-                                amount: i,
-                                description: `Umbra - Licença Vitalícia (${e.split(" ")[0]})`,
-                                payerName: e
-                            }),
-                            {
-                                data: c,
-                                error: l
-                            } = await O.from("pix_orders").insert({
-                                license_key: "PENDING-" + s.txid.slice(0, 12),
-                                product_type: "licenca_vitalicia",
-                                product_ref: JSON.stringify({
-                                    nome: e,
-                                    email: n,
-                                    numero: r,
-                                    referredBy: t.referredBy || null
-                                }),
-                                product_name: "Licença Vitalícia TitanForge",
-                                amount: i,
-                                original_amount: Number(o.price),
-                                coupon_code: a,
-                                txid: s.txid,
-                                status: "pending",
-                                qr_code_text: s.qrCodeText,
-                                qr_code_image: s.qrCodeImage
-                            }).select().single();
-                        return l ? (console.error("signup-create-pix insert:", l), {
-                            success: !1,
-                            error: "Não foi possível criar o pedido"
-                        }) : ((0, _.notifyDenuvoOrder)({
-                            status: "created",
-                            licenseKey: c.license_key,
-                            licenseName: e,
-                            gameName: "Licença Vitalícia",
-                            gameId: "signup",
-                            amount: i,
-                            originalAmount: Number(o.price),
-                            couponCode: a,
-                            txid: s.txid
-                        }).catch(() => {}), {
+                        return {
                             success: !0,
                             free: !1,
                             order: {
-                                txid: s.txid,
-                                amount: i,
-                                originalAmount: Number(o.price),
-                                qrCodeText: s.qrCodeText,
-                                qrCodeImage: s.qrCodeImage,
-                                expiresAt: s.expiresAt,
-                                couponCode: a
+                                txid: String(pixResp.orderId),
+                                amount: pixResp.amount,
+                                originalAmount: pixResp.amount,
+                                qrCodeText: pixResp.qrCode || "",
+                                qrCodeImage: pixResp.qrCodeBase64 || "",
+                                expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+                                couponCode: null
                             }
-                        })
+                        }
                     } catch (e) {
                         return console.error("signup-create-pix:", e?.message || e), {
                             success: !1,
@@ -13932,70 +13847,11 @@
                     }
                 }), c.ipcMain.handle("signup-check-status", async (e, t) => {
                     try {
-                        const e = await (0, w.getChargeStatus)(t);
-                        if (!e.paid) return {
-                            success: !0,
-                            paid: !1
-                        };
-                        const {
-                            data: n
-                        } = await O.from("pix_orders").select("*").eq("txid", t).single();
-                        if (!n) return {
-                            success: !1,
-                            paid: !1,
-                            error: "Pedido não encontrado"
-                        };
-                        if ("fulfilled" === n.status && n.license_key && !n.license_key.startsWith("PENDING-")) return {
-                            success: !0,
-                            paid: !0,
-                            licenseKey: n.license_key
-                        };
-                        let r = {};
-                        try {
-                            r = JSON.parse(n.product_ref || "{}")
-                        } catch {}
-                        const {
-                            data: o,
-                            error: i
-                        } = await G({
-                            p_nome: r.nome || "Usuário",
-                            p_email: r.email || "",
-                            p_numero: r.numero || "",
-                            p_referred_by: r.referredBy || null,
-                            p_license_type: 2
-                        });
-                        if (i) return console.error("signup-check-status create license:", i), {
-                            success: !1,
-                            paid: !0,
-                            error: "Falha ao criar licença"
-                        };
-                        const a = Array.isArray(o) ? o[0] : o;
-                        if (await O.from("pix_orders").update({
-                                license_key: a.license_key,
-                                status: "fulfilled",
-                                paid_at: e.paidAt || (new Date).toISOString(),
-                                fulfilled_at: (new Date).toISOString()
-                            }).eq("txid", t), r.referredBy) try {
-                            await O.rpc("register_referral", {
-                                p_referred_license_key: a.license_key,
-                                p_referrer_friend_code: r.referredBy
-                            })
-                        } catch {}
-                        return (0, _.notifyDenuvoOrder)({
-                            status: "paid",
-                            licenseKey: a.license_key,
-                            licenseName: r.nome,
-                            gameName: "Licença Vitalícia (cadastro novo)",
-                            gameId: "signup",
-                            amount: Number(n.amount),
-                            originalAmount: Number(n.original_amount),
-                            couponCode: n.coupon_code,
-                            txid: n.txid
-                        }).catch(() => {}), {
-                            success: !0,
-                            paid: !0,
-                            licenseKey: a.license_key
-                        }
+                        const { data: checkResp, error: checkErr } = await TF.functions.invoke("pix-check", { body: { orderId: t } });
+                        if (checkErr || !checkResp) return { success: !1, paid: !1, error: "Falha ao consultar pagamento" };
+                        if (!checkResp.paid) return { success: !0, paid: !1 };
+                        if (checkResp.error) return { success: !1, paid: !0, error: checkResp.error };
+                        return { success: !0, paid: !0, licenseKey: checkResp.licenseKey };
                     } catch (e) {
                         return console.error("signup-check-status:", e?.message || e), {
                             success: !1,
