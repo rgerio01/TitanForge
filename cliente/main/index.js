@@ -12784,7 +12784,7 @@
                     const {
                         data: t,
                         error: n
-                    } = await O.from("denuvo_games").select("*").eq("game_id", e).eq("active", !0).single();
+                    } = await TF.from("denuvo_games").select("*").eq("game_id", e).eq("active", !0).single();
                     return n || !t ? null : t
                 }
                 async function W() {
@@ -13004,7 +13004,7 @@
                         const {
                             data: e,
                             error: t
-                        } = await O.from("denuvo_games").select("*").eq("active", !0).order("name", {
+                        } = await TF.from("denuvo_games").select("*").eq("active", !0).order("name", {
                             ascending: !0
                         });
                         if (t) throw t;
@@ -13514,15 +13514,27 @@
                         }
                         o = Math.max(.01, +d.toFixed(2))
                     }
-                    const a = await (0, w.createPixCharge)({
+                    const { data: pixResp, error: pixErr } = await TF.functions.invoke("pix-create", {
+                        body: {
+                            licenseKey: e.licenseKey,
+                            productId: r || e.productType,
                             amount: o,
-                            description: `Umbra - ${n.slice(0,60)}`,
-                            payerName: e.licenseName || void 0
-                        }),
-                        {
+                            description: `TitanForge - ${n.slice(0,60)}`
+                        }
+                    });
+                    if (pixErr || !pixResp || !pixResp.success) {
+                        return { success: !1, error: (pixResp && pixResp.error) || "Não foi possível gerar o PIX" };
+                    }
+                    const a = {
+                        txid: String(pixResp.orderId),
+                        qrCodeText: pixResp.qrCode || "",
+                        qrCodeImage: pixResp.qrCodeBase64 || "",
+                        expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString()
+                    };
+                    const {
                             data: s,
                             error: c
-                        } = await O.from("pix_orders").insert({
+                        } = await TF.from("pix_orders").insert({
                             license_key: e.licenseKey,
                             product_type: e.productType,
                             product_ref: r,
@@ -13996,7 +14008,7 @@
                         const {
                             data: e,
                             error: n
-                        } = await O.from("keyvortex").select("friend_code, referred_by, referral_count, referral_balance").ilike("key", t).single();
+                        } = await TF.from("licenses").select("friend_code, referred_by, referral_count, referral_balance").ilike("key", t).single();
                         return n || !e ? {
                             success: !1
                         } : {
@@ -14016,7 +14028,7 @@
                         const {
                             data: e,
                             error: n
-                        } = await O.from("referrals").select("referred_license_key, status, bonus_amount, created_at").eq("referrer_friend_code", t).order("created_at", {
+                        } = await TF.from("referrals").select("referred_license_key, status, bonus_amount, created_at").eq("referrer_friend_code", t).order("created_at", {
                             ascending: !1
                         }).limit(50);
                         if (n) throw n;
@@ -14040,7 +14052,7 @@
                         const {
                             data: n,
                             error: r
-                        } = await O.from("keyvortex").select("friend_code, nome").eq("friend_code", e).single();
+                        } = await TF.from("licenses").select("friend_code, nome").eq("friend_code", e).single();
                         return r || !n ? {
                             success: !1,
                             message: "Código inválido"
@@ -14077,7 +14089,7 @@
                         const {
                             data: e,
                             error: n
-                        } = await O.rpc("request_referral_redemption", {
+                        } = await TF.rpc("request_referral_redemption", {
                             p_license_key: t.licenseKey,
                             p_pix_key: t.pixKey.trim(),
                             p_pix_key_type: t.pixKeyType || null
@@ -14093,7 +14105,7 @@
                         };
                         const {
                             data: o
-                        } = await O.from("keyvortex").select("nome, friend_code").ilike("key", t.licenseKey).single(), i = "https://discord.com/api/webhooks/1498815571423400036/LdIkrfIbpKNMghjUs1t6kj8eQLcNhtb0WfiRD66uxdhP5bb6yLCvyaiF-AkZuNJJs-s8";
+                        } = await TF.from("licenses").select("nome, friend_code").ilike("key", t.licenseKey).single(), i = "https://discord.com/api/webhooks/1498815571423400036/LdIkrfIbpKNMghjUs1t6kj8eQLcNhtb0WfiRD66uxdhP5bb6yLCvyaiF-AkZuNJJs-s8";
                         if (i) try {
                             await d.default.post(i, {
                                 embeds: [{
@@ -14153,20 +14165,20 @@
                     try {
                         const {
                             data: e
-                        } = await O.from("keyvortex").select("friend_code").ilike("key", t).single();
+                        } = await TF.from("licenses").select("friend_code").ilike("key", t).single();
                         if (!e?.friend_code) return {
                             success: !1
                         };
                         const {
                             data: n,
                             error: r
-                        } = await O.rpc("available_referrals_count", {
+                        } = await TF.rpc("available_referrals_count", {
                             p_friend_code: e.friend_code
                         });
                         if (r) throw r;
                         const {
                             data: o
-                        } = await O.from("referral_redemptions").select("id, amount, status, pix_key, created_at, paid_at").eq("friend_code", e.friend_code).order("created_at", {
+                        } = await TF.from("referral_redemptions").select("id, amount, status, pix_key, created_at, paid_at").eq("friend_code", e.friend_code).order("created_at", {
                             ascending: !1
                         }).limit(20);
                         return {
@@ -14198,20 +14210,21 @@
                     }
                 }), c.ipcMain.handle("denuvo-check-status", async (e, t) => {
                     try {
-                        const e = await (0, w.getChargeStatus)(t);
-                        if (e.paid) {
+                        const { data: checkResp, error: checkErr } = await TF.functions.invoke("pix-check", { body: { orderId: t } });
+                        if (checkErr || !checkResp) return { success: !1, paid: !1, error: "Falha ao consultar pagamento" };
+                        if (checkResp.paid) {
                             const {
                                 data: n
-                            } = await O.from("pix_orders").select("*").eq("txid", t).single();
-                            n && "pending" === n.status && await O.from("pix_orders").update({
+                            } = await TF.from("pix_orders").select("*").eq("txid", t).single();
+                            n && "pending" === n.status && await TF.from("pix_orders").update({
                                 status: "paid",
-                                paid_at: e.paidAt || (new Date).toISOString()
+                                paid_at: (new Date).toISOString()
                             }).eq("txid", t)
                         }
                         return {
                             success: !0,
-                            paid: e.paid,
-                            status: e.status
+                            paid: !!checkResp.paid,
+                            status: checkResp.status
                         }
                     } catch (e) {
                         return {
@@ -14225,7 +14238,7 @@
                         const {
                             data: e,
                             error: n
-                        } = await O.from("pix_orders").select("*").eq("license_key", t).eq("product_type", "denuvo").order("created_at", {
+                        } = await TF.from("pix_orders").select("*").eq("license_key", t).eq("product_type", "denuvo").order("created_at", {
                             ascending: !1
                         }).limit(20);
                         if (n) throw n;

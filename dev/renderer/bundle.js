@@ -67361,6 +67361,11 @@
                             label: "Todos os Jogos",
                             icon: (0, l.jsx)(u.IconSearch, {})
                         }, {
+                            id: "denuvo",
+                            label: "Remover Denuvo",
+                            icon: (0, l.jsx)(u.IconLock, {}),
+                            flame: !0
+                        }, {
                             id: "bypass",
                             label: "Bypass",
                             icon: (0, l.jsx)(u.IconShield, {}),
@@ -67416,6 +67421,10 @@
                             label: "Atualizações",
                             icon: (0, l.jsx)(u.IconBell, {}),
                             badge: Be
+                        }, {
+                            id: "indique",
+                            label: "Indique e Ganhe",
+                            icon: (0, l.jsx)(u.IconGift, {})
                         }, {
                             id: "tutoriais",
                             label: "Tutoriais",
@@ -80221,6 +80230,42 @@
     try { return new Date(v).toLocaleString("pt-BR"); } catch { return String(v); }
   }
 
+  const FEATURE_FLAG_LABELS = {
+    denuvo_removal: "Remover Denuvo (mostrar no Cliente)",
+    indique_ganhe: "Indique e Ganhe (mostrar no Cliente)",
+  };
+
+  async function renderRecursos(container) {
+    container.innerHTML = "";
+    const wrap = card([]);
+    wrap.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Recursos"]));
+    wrap.appendChild(el("p", { style: { margin: "0 0 12px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Controla o que aparece no menu do app Cliente. No Dev essas telas sempre ficam visíveis."]));
+    const status = msgBox();
+
+    const rows = await q("select key, enabled from public.feature_flags order by key");
+    rows.forEach(row => {
+      const line = el("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid var(--border)" } });
+      line.appendChild(el("span", { style: { fontSize: "13px", color: "var(--text-primary)" } }, [FEATURE_FLAG_LABELS[row.key] || row.key]));
+      const t = toggle(row.enabled, "");
+      t.style.padding = "0";
+      t.addEventListener("change", async () => {});
+      t._checkbox.addEventListener("change", async () => {
+        try {
+          await q("update public.feature_flags set enabled = $1, updated_at = now() where key = $2", [t._checkbox.checked, row.key]);
+          status.textContent = "Salvo.";
+        } catch (e) {
+          t._checkbox.checked = !t._checkbox.checked;
+          status.textContent = "Erro: " + e.message;
+        }
+      });
+      line.appendChild(t);
+      wrap.appendChild(line);
+    });
+
+    wrap.appendChild(status);
+    container.appendChild(wrap);
+  }
+
   async function renderPagamentos(container) {
     container.innerHTML = "";
     const wrap = card([]);
@@ -80320,7 +80365,8 @@
       { id: "conexao", label: "Conexão", render: renderConexao },
       { id: "licencas", label: "Licenças", render: renderLicencas },
       { id: "loja", label: "Loja", render: renderLoja },
-      { id: "pagamentos", label: "Pagamentos", render: renderPagamentos }
+      { id: "pagamentos", label: "Pagamentos", render: renderPagamentos },
+      { id: "recursos", label: "Recursos", render: renderRecursos }
     ];
     const tabBar = el("div", { style: { display: "flex", gap: "6px", marginBottom: "14px" } });
     const body = el("div");

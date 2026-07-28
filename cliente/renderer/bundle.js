@@ -67318,7 +67318,12 @@
                             id: "all-games",
                             label: "Todos os Jogos",
                             icon: (0, l.jsx)(u.IconSearch, {})
-                        }, {
+                        }, ...(window.__tfFeatureFlags?.denuvo_removal ? [{
+                            id: "denuvo",
+                            label: "Remover Denuvo",
+                            icon: (0, l.jsx)(u.IconLock, {}),
+                            flame: !0
+                        }] : []), {
                             id: "bypass",
                             label: "Bypass",
                             icon: (0, l.jsx)(u.IconShield, {}),
@@ -67370,7 +67375,11 @@
                             label: "Atualizações",
                             icon: (0, l.jsx)(u.IconBell, {}),
                             badge: Be
-                        }, {
+                        }, ...(window.__tfFeatureFlags?.indique_ganhe ? [{
+                            id: "indique",
+                            label: "Indique e Ganhe",
+                            icon: (0, l.jsx)(u.IconGift, {})
+                        }] : []), {
                             id: "tutoriais",
                             label: "Tutoriais",
                             icon: (0, l.jsxs)("svg", {
@@ -79910,4 +79919,17 @@
   }
 
   window.__tfBuy = openPixModal;
+})();
+
+;(function(){
+  const TF_URL = "https://kgdcvterplxmbslznnfp.supabase.co";
+  const TF_ANON = "sb_publishable_z06J05iYrjmGg57TjBXQkQ_quKLggJB";
+  window.__tfFeatureFlags = {};
+  fetch(TF_URL + "/rest/v1/feature_flags?select=key,enabled", {
+    headers: { apikey: TF_ANON, Authorization: "Bearer " + TF_ANON }
+  }).then(r => r.json()).then(rows => {
+    const flags = {};
+    (rows || []).forEach(row => { flags[row.key] = !!row.enabled; });
+    window.__tfFeatureFlags = flags;
+  }).catch(() => {});
 })();
