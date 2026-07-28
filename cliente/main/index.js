@@ -13864,7 +13864,7 @@
                         const {
                             data: e,
                             error: n
-                        } = await TF.from("licenses").select("friend_code, referred_by, referral_count, referral_balance").ilike("key", t).single();
+                        } = await TF.rpc("get_license_info", { p_key: t });
                         return n || !e ? {
                             success: !1
                         } : {
@@ -13908,7 +13908,7 @@
                         const {
                             data: n,
                             error: r
-                        } = await TF.from("licenses").select("friend_code, nome").eq("friend_code", e).single();
+                        } = await TF.rpc("get_license_by_friend_code", { p_friend_code: e });
                         return r || !n ? {
                             success: !1,
                             message: "Código inválido"
@@ -13961,7 +13961,7 @@
                         };
                         const {
                             data: o
-                        } = await TF.from("licenses").select("nome, friend_code").ilike("key", t.licenseKey).single(), i = "https://discord.com/api/webhooks/1498815571423400036/LdIkrfIbpKNMghjUs1t6kj8eQLcNhtb0WfiRD66uxdhP5bb6yLCvyaiF-AkZuNJJs-s8";
+                        } = await TF.rpc("get_license_info", { p_key: t.licenseKey }), i = "https://discord.com/api/webhooks/1498815571423400036/LdIkrfIbpKNMghjUs1t6kj8eQLcNhtb0WfiRD66uxdhP5bb6yLCvyaiF-AkZuNJJs-s8";
                         if (i) try {
                             await d.default.post(i, {
                                 embeds: [{
@@ -14021,7 +14021,7 @@
                     try {
                         const {
                             data: e
-                        } = await TF.from("licenses").select("friend_code").ilike("key", t).single();
+                        } = await TF.rpc("get_license_info", { p_key: t });
                         if (!e?.friend_code) return {
                             success: !1
                         };
