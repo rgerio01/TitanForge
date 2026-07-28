@@ -13528,7 +13528,7 @@
                     const a = {
                         txid: String(pixResp.orderId),
                         qrCodeText: pixResp.qrCode || "",
-                        qrCodeImage: pixResp.qrCodeBase64 || "",
+                        qrCodeImage: pixResp.qrCodeBase64 ? ("data:image/png;base64," + pixResp.qrCodeBase64) : "",
                         expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString()
                     };
                     const {
@@ -13671,7 +13671,7 @@
                                 amount: pixResp.amount,
                                 originalAmount: pixResp.amount,
                                 qrCodeText: pixResp.qrCode || "",
-                                qrCodeImage: pixResp.qrCodeBase64 || "",
+                                qrCodeImage: pixResp.qrCodeBase64 ? ("data:image/png;base64," + pixResp.qrCodeBase64) : "",
                                 expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
                                 couponCode: null
                             }
