@@ -148,7 +148,7 @@
                     e.ipcRenderer.on("download-progress", (e, n) => r(n))
                 },
                 ensureHidDll: () => e.ipcRenderer.invoke("ensure-hid-dll"),
-                installUmbraHook: () => e.ipcRenderer.invoke("install-umbra-hook"),
+                installTitanForgeHook: () => e.ipcRenderer.invoke("install-umbra-hook"),
                 onUmbraHookProgress: r => {
                     e.ipcRenderer.on("umbra-hook-progress", (e, n) => r(n))
                 },
