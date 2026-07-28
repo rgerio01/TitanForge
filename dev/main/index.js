@@ -20151,7 +20151,7 @@
 })();
 
 ;(function(){
-  const { ipcMain, app } = require("electron");
+  const { ipcMain, app, dialog, BrowserWindow } = require("electron");
   const path = require("path");
   const fs = require("fs");
   const axios = require("axios");
@@ -20223,13 +20223,47 @@
   // Apenas consulta o feed publico do Umbra Launcher (produto antecessor) pra referencia
   // do admin comparar versoes. NAO baixa nem instala nada — o TitanForge nunca atualiza
   // a partir desse servidor.
+  const UMBRA_LAUNCHER_BASE = "https://pub-7b2c9f84ebb840e49793c4c956b5cf22.r2.dev/umbra/win/";
+
   ipcMain.handle("check-umbra-launcher-version", async () => {
     try {
-      const res = await axios.get("https://pub-7b2c9f84ebb840e49793c4c956b5cf22.r2.dev/umbra/win/latest.yml", { timeout: 10000 });
+      const res = await axios.get(UMBRA_LAUNCHER_BASE + "latest.yml", { timeout: 10000 });
       const text = String(res.data);
       const version = (text.match(/^version:\s*(.+)$/m) || [])[1];
       const releaseDate = (text.match(/^releaseDate:\s*'?([^'\n]+)'?/m) || [])[1];
-      return { success: true, version: version || null, releaseDate: releaseDate || null };
+      const fileName = (text.match(/^path:\s*(.+)$/m) || [])[1];
+      return { success: true, version: version || null, releaseDate: releaseDate || null, fileName: fileName || null };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  // Baixa o instalador do Umbra Launcher pro admin comparar/inspecionar. So salva
+  // no disco onde o usuario escolher — nunca executa nem instala automaticamente.
+  ipcMain.handle("download-umbra-launcher-installer", async (event, fileName) => {
+    try {
+      if (!fileName) return { success: false, error: "Nome do arquivo ausente" };
+      const win = BrowserWindow.fromWebContents(event.sender);
+      const saveResult = await dialog.showSaveDialog(win, {
+        title: "Salvar instalador do Umbra Launcher",
+        defaultPath: fileName,
+        filters: [{ name: "Instalador", extensions: ["exe"] }]
+      });
+      if (saveResult.canceled || !saveResult.filePath) return { success: false, canceled: true };
+
+      const res = await axios({
+        method: "GET",
+        url: UMBRA_LAUNCHER_BASE + encodeURIComponent(fileName),
+        responseType: "stream",
+        timeout: 0
+      });
+      await new Promise((resolve, reject) => {
+        const w = fs.createWriteStream(saveResult.filePath);
+        res.data.pipe(w);
+        w.on("finish", resolve);
+        w.on("error", reject);
+      });
+      return { success: true, savedTo: saveResult.filePath };
     } catch (e) {
       return { success: false, error: String((e && e.message) || e) };
     }

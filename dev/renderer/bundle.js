@@ -80269,13 +80269,29 @@
     umbraCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Umbra Launcher (referência)"]));
     umbraCard.appendChild(el("p", { style: { margin: "0 0 12px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Só consulta a versão publicada no servidor do produto antecessor, pra você comparar e decidir se porta alguma correção. O TitanForge nunca baixa nem atualiza a partir dali."]));
     const umbraStatus = msgBox();
+    const umbraBtnRow = el("div", { style: { display: "flex", gap: "8px" } });
+    const umbraDownloadBtn = btn("Baixar instalador", async () => {}, "secondary");
+    umbraDownloadBtn.style.display = "none";
+    let umbraFileName = null;
     const umbraBtn = btn("Verificar versão no servidor", async () => {
       umbraStatus.textContent = "Consultando...";
+      umbraDownloadBtn.style.display = "none";
       const r = await window.electron.checkUmbraLauncherVersion();
       if (!r.success) { umbraStatus.textContent = "Erro: " + r.error; return; }
       umbraStatus.textContent = `Versão no servidor: ${r.version || "?"} (lançada em ${fmtDate(r.releaseDate)})`;
+      if (r.fileName) { umbraFileName = r.fileName; umbraDownloadBtn.style.display = ""; }
     });
-    umbraCard.appendChild(umbraBtn);
+    umbraDownloadBtn.onclick = async () => {
+      if (!umbraFileName) return;
+      umbraStatus.textContent = "Baixando... escolha onde salvar.";
+      const r = await window.electron.downloadUmbraLauncherInstaller(umbraFileName);
+      if (r.canceled) { umbraStatus.textContent = "Download cancelado."; return; }
+      if (!r.success) { umbraStatus.textContent = "Erro ao baixar: " + r.error; return; }
+      umbraStatus.textContent = "Salvo em: " + r.savedTo;
+    };
+    umbraBtnRow.appendChild(umbraBtn);
+    umbraBtnRow.appendChild(umbraDownloadBtn);
+    umbraCard.appendChild(umbraBtnRow);
     umbraCard.appendChild(umbraStatus);
     container.appendChild(umbraCard);
   }

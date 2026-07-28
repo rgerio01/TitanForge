@@ -211,6 +211,7 @@
                     path: r
                 }),
                 checkUmbraLauncherVersion: () => e.ipcRenderer.invoke("check-umbra-launcher-version"),
+                downloadUmbraLauncherInstaller: r => e.ipcRenderer.invoke("download-umbra-launcher-installer", r),
                 titanforgePixCreate: r => e.ipcRenderer.invoke("titanforge-pix-create", r),
                 titanforgePixCheck: r => e.ipcRenderer.invoke("titanforge-pix-check", r)
             };
