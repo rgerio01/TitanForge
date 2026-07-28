@@ -80345,9 +80345,16 @@
 
     async function load(src) {
       resultsEl.innerHTML = "Carregando...";
-      const r = await window.electron.adminRestQuery(`${src}?select=*&order=created_at.desc&limit=100`);
-      if (!r.success) { resultsEl.textContent = "Erro: " + r.error; return; }
-      const rows = r.rows || [];
+      const sql = src === "denuvo_orders"
+        ? "select * from public.pix_orders where product_type = 'denuvo' order by created_at desc limit 100"
+        : `select * from public.${src} order by created_at desc limit 100`;
+      let rows;
+      try {
+        rows = await q(sql);
+      } catch (e) {
+        resultsEl.textContent = "Erro: " + e.message;
+        return;
+      }
       resultsEl.innerHTML = "";
       if (!rows.length) { resultsEl.textContent = "Nenhum registro."; return; }
       const table = el("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "12.5px" } });
