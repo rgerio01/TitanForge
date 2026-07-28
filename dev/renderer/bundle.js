@@ -80264,6 +80264,20 @@
 
     wrap.appendChild(status);
     container.appendChild(wrap);
+
+    const umbraCard = card([]);
+    umbraCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Umbra Launcher (referência)"]));
+    umbraCard.appendChild(el("p", { style: { margin: "0 0 12px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Só consulta a versão publicada no servidor do produto antecessor, pra você comparar e decidir se porta alguma correção. O TitanForge nunca baixa nem atualiza a partir dali."]));
+    const umbraStatus = msgBox();
+    const umbraBtn = btn("Verificar versão no servidor", async () => {
+      umbraStatus.textContent = "Consultando...";
+      const r = await window.electron.checkUmbraLauncherVersion();
+      if (!r.success) { umbraStatus.textContent = "Erro: " + r.error; return; }
+      umbraStatus.textContent = `Versão no servidor: ${r.version || "?"} (lançada em ${fmtDate(r.releaseDate)})`;
+    });
+    umbraCard.appendChild(umbraBtn);
+    umbraCard.appendChild(umbraStatus);
+    container.appendChild(umbraCard);
   }
 
   async function renderPagamentos(container) {

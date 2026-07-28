@@ -20219,6 +20219,21 @@
       return { success: false, error: String((err && err.response && err.response.data && err.response.data.message) || (err && err.message) || err) };
     }
   });
+
+  // Apenas consulta o feed publico do Umbra Launcher (produto antecessor) pra referencia
+  // do admin comparar versoes. NAO baixa nem instala nada — o TitanForge nunca atualiza
+  // a partir desse servidor.
+  ipcMain.handle("check-umbra-launcher-version", async () => {
+    try {
+      const res = await axios.get("https://pub-7b2c9f84ebb840e49793c4c956b5cf22.r2.dev/umbra/win/latest.yml", { timeout: 10000 });
+      const text = String(res.data);
+      const version = (text.match(/^version:\s*(.+)$/m) || [])[1];
+      const releaseDate = (text.match(/^releaseDate:\s*'?([^'\n]+)'?/m) || [])[1];
+      return { success: true, version: version || null, releaseDate: releaseDate || null };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
 })();
 
 ;(function(){
