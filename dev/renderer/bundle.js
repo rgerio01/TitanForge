@@ -67009,6 +67009,10 @@
                             window.removeEventListener("steam-data-loaded", t)
                         }
                     }, []), (0, c.useEffect)(() => {
+                        "updates" === r && (0, x.getUpdates)().then(e => {
+                            Re(e), De((0, x.hasUnreadUpdates)(e))
+                        }).catch(console.error)
+                    }, [r]), (0, c.useEffect)(() => {
                         const e = localStorage.getItem("installed_bypasses");
                         if (e) try {
                             Ze(JSON.parse(e))
