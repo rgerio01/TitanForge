@@ -80568,48 +80568,56 @@
     redemptionsHistCard.appendChild(redemptionsHistBody);
     container.appendChild(redemptionsHistCard);
 
-    const [allCodesData, byReferrerData, allReferralsData, redemptionsHistData] = await Promise.all([
-      q(`
-        select key as license_key, nome, friend_code, email, numero
-        from public.licenses
-        where friend_code is not null
-        order by nome nulls last
-      `),
-      q(`
-        select
-          l.friend_code,
-          l.nome,
-          l.key as license_key,
-          l.acquired_via_app,
-          count(rf.id) filter (where rf.status = 'rewarded') as total_valid,
-          count(rf.id) filter (where rf.status = 'rewarded' and rf.redeemed_in_redemption is null) as available_points,
-          coalesce((select count(*) from public.referral_redemptions rr where rr.friend_code = l.friend_code and rr.status = 'paid'), 0) as redemptions_paid,
-          coalesce((select sum(amount) from public.referral_redemptions rr where rr.friend_code = l.friend_code and rr.status = 'paid'), 0) as total_paid_amount
-        from public.licenses l
-        left join public.referrals rf on rf.referrer_friend_code = l.friend_code
-        group by l.friend_code, l.nome, l.key, l.acquired_via_app
-        having count(rf.id) > 0
-        order by total_valid desc
-      `),
-      q(`
-        select
-          rf.id, rf.created_at, rf.status, rf.redeemed_in_redemption,
-          rf.referrer_friend_code, lr.nome as referrer_nome,
-          rf.referred_license_key, ld.nome as referred_nome
-        from public.referrals rf
-        left join public.licenses lr on lr.friend_code = rf.referrer_friend_code
-        left join public.licenses ld on ld.key = rf.referred_license_key
-        order by rf.created_at desc
-        limit 500
-      `),
-      q(`
-        select id, friend_code, l.nome, amount, pix_key, pix_key_type, referrals_used, status, created_at, paid_at
-        from public.referral_redemptions rr
-        left join public.licenses l on l.friend_code = rr.friend_code
-        order by rr.created_at desc
-        limit 300
-      `)
-    ]);
+    let allCodesData = [], byReferrerData = [], allReferralsData = [], redemptionsHistData = [];
+    const loadErrorBox = msgBox();
+    try {
+      [allCodesData, byReferrerData, allReferralsData, redemptionsHistData] = await Promise.all([
+        q(`
+          select key as license_key, nome, friend_code, email, numero
+          from public.licenses
+          where friend_code is not null
+          order by nome nulls last
+        `),
+        q(`
+          select
+            l.friend_code,
+            l.nome,
+            l.key as license_key,
+            l.acquired_via_app,
+            count(rf.id) filter (where rf.status = 'rewarded') as total_valid,
+            count(rf.id) filter (where rf.status = 'rewarded' and rf.redeemed_in_redemption is null) as available_points,
+            coalesce((select count(*) from public.referral_redemptions rr where rr.friend_code = l.friend_code and rr.status = 'paid'), 0) as redemptions_paid,
+            coalesce((select sum(amount) from public.referral_redemptions rr where rr.friend_code = l.friend_code and rr.status = 'paid'), 0) as total_paid_amount
+          from public.licenses l
+          left join public.referrals rf on rf.referrer_friend_code = l.friend_code
+          group by l.friend_code, l.nome, l.key, l.acquired_via_app
+          having count(rf.id) > 0
+          order by total_valid desc
+        `),
+        q(`
+          select
+            rf.id, rf.created_at, rf.status, rf.redeemed_in_redemption,
+            rf.referrer_friend_code, lr.nome as referrer_nome,
+            rf.referred_license_key, ld.nome as referred_nome
+          from public.referrals rf
+          left join public.licenses lr on lr.friend_code = rf.referrer_friend_code
+          left join public.licenses ld on ld.key = rf.referred_license_key
+          order by rf.created_at desc
+          limit 500
+        `),
+        q(`
+          select rr.id, rr.friend_code, l.nome, rr.amount, rr.pix_key, rr.pix_key_type, rr.referrals_used, rr.status, rr.created_at, rr.paid_at
+          from public.referral_redemptions rr
+          left join public.licenses l on l.friend_code = rr.friend_code
+          order by rr.created_at desc
+          limit 300
+        `)
+      ]);
+    } catch (e) {
+      loadErrorBox.textContent = "Erro ao carregar: " + e.message;
+      loadErrorBox.style.color = "#ff4d8a";
+      container.appendChild(loadErrorBox);
+    }
 
     function renderFilteredTables() {
       const term = searchInp.value.trim().toLowerCase();
