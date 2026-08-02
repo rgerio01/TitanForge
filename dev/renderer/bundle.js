@@ -9014,7 +9014,7 @@
                                             color: "var(--text-primary)",
                                             margin: "4px 0 0"
                                         },
-                                        children: "R$ 50,00 a cada 4 indicações"
+                                        children: "R$ 60,00 a cada 4 indicações"
                                     })]
                                 }), (0, r.jsxs)("span", {
                                     style: {
@@ -9068,7 +9068,7 @@
                                     letterSpacing: "0.02em",
                                     boxShadow: z ? "0 4px 16px rgba(74,222,128,0.30)" : "none"
                                 },
-                                children: z ? "💸 Resgatar R$ 50,00 via PIX" : `Faltam ${Math.max(0,4-h)} ${4-h==1?"indicação":"indicações"}`
+                                children: z ? "💸 Resgatar R$ 60,00 via PIX" : `Faltam ${Math.max(0,4-h)} ${4-h==1?"indicação":"indicações"}`
                             })]
                         }), t && (0, r.jsxs)("div", {
                             style: {
@@ -9113,7 +9113,7 @@
                                     t: "Seu amigo digita o código no cadastro do TitanForge"
                                 }, {
                                     n: "3",
-                                    t: "A cada 4 amigos que adquirirem licença, você resgata R$ 50,00 via PIX"
+                                    t: "A cada 4 amigos que adquirirem licença, você resgata R$ 60,00 via PIX"
                                 }].map((e, t, a) => (0, r.jsxs)("div", {
                                     style: {
                                         display: "flex",
@@ -9382,7 +9382,7 @@
                                             color: "var(--text-primary)",
                                             margin: "0 0 4px"
                                         },
-                                        children: "R$ 50,00 via PIX"
+                                        children: "R$ 60,00 via PIX"
                                     }), (0, r.jsx)("p", {
                                         style: {
                                             fontSize: 12,
@@ -80432,6 +80432,123 @@
     container.appendChild(umbraCard);
   }
 
+  async function renderIndicacoes(container) {
+    container.innerHTML = "";
+
+    const cfgRows = await q("select key, amount from public.pricing where key in ('referral_reward', 'referral_threshold')");
+    const cfgMap = {};
+    cfgRows.forEach(r => { cfgMap[r.key] = Number(r.amount); });
+    const rewardAmount = cfgMap.referral_reward || 60;
+    const thresholdAmount = cfgMap.referral_threshold || 4;
+
+    const cfgCard = card([]);
+    cfgCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Configuração do programa"]));
+    cfgCard.appendChild(el("p", { style: { margin: "0 0 12px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Valor pago e quantidade de indicações necessárias por resgate. Mudar aqui já vale para novos resgates, sem precisar de build nova."]));
+    const cfgRow = el("div", { style: { display: "flex", gap: "16px", flexWrap: "wrap" } });
+    const rewardWrap = el("div", {});
+    rewardWrap.appendChild(label("Valor por resgate (R$)"));
+    const rewardInp = input("60.00", String(rewardAmount));
+    rewardInp.style.width = "120px";
+    rewardWrap.appendChild(rewardInp);
+    const thresholdWrap = el("div", {});
+    thresholdWrap.appendChild(label("Indicações por resgate"));
+    const thresholdInp = input("4", String(thresholdAmount));
+    thresholdInp.style.width = "120px";
+    thresholdWrap.appendChild(thresholdInp);
+    cfgRow.appendChild(rewardWrap);
+    cfgRow.appendChild(thresholdWrap);
+    cfgCard.appendChild(cfgRow);
+    const cfgStatus = msgBox();
+    cfgCard.appendChild(el("div", { style: { marginTop: "10px" } }, [
+      btn("Salvar", async () => {
+        const rv = parseFloat(rewardInp.value.replace(",", "."));
+        const tv = parseInt(thresholdInp.value, 10);
+        if (!rv || rv <= 0 || !tv || tv <= 0) { cfgStatus.textContent = "Valores inválidos."; return; }
+        try {
+          await q("update public.pricing set amount = $1, updated_at = now() where key = 'referral_reward'", [rv]);
+          await q("update public.pricing set amount = $1, updated_at = now() where key = 'referral_threshold'", [tv]);
+          cfgStatus.textContent = "Salvo — R$ " + rv.toFixed(2).replace(".", ",") + " a cada " + tv + " indicações.";
+        } catch (e) {
+          cfgStatus.textContent = "Erro: " + e.message;
+        }
+      })
+    ]));
+    cfgCard.appendChild(cfgStatus);
+    container.appendChild(cfgCard);
+
+    const statsRows = await q(`
+      select
+        (select count(*) from public.referrals where status = 'rewarded') as total_rewarded,
+        (select count(distinct referrer_friend_code) from public.referrals) as total_referrers,
+        (select count(*) from public.referral_redemptions where status = 'pending') as total_pending,
+        (select coalesce(sum(amount), 0) from public.referral_redemptions where status = 'pending') as total_pending_amount,
+        (select count(*) from public.referral_redemptions where status = 'paid') as total_paid,
+        (select coalesce(sum(amount), 0) from public.referral_redemptions where status = 'paid') as total_paid_amount
+    `);
+    const stats = statsRows[0] || {};
+    const statsCard = card([]);
+    statsCard.appendChild(el("h3", { style: { margin: "0 0 12px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Resumo"]));
+    const statsGrid = el("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" } });
+    const statBox = (lbl, val) => el("div", { style: { padding: "10px 12px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", borderRadius: "6px" } }, [
+      el("div", { style: { fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" } }, [lbl]),
+      el("div", { style: { fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" } }, [val])
+    ]);
+    statsGrid.appendChild(statBox("Indicações válidas", String(stats.total_rewarded || 0)));
+    statsGrid.appendChild(statBox("Indicadores ativos", String(stats.total_referrers || 0)));
+    statsGrid.appendChild(statBox("Resgates pendentes", String(stats.total_pending || 0)));
+    statsGrid.appendChild(statBox("Valor pendente", "R$ " + Number(stats.total_pending_amount || 0).toFixed(2).replace(".", ",")));
+    statsGrid.appendChild(statBox("Resgates pagos", String(stats.total_paid || 0)));
+    statsGrid.appendChild(statBox("Total já pago", "R$ " + Number(stats.total_paid_amount || 0).toFixed(2).replace(".", ",")));
+    statsCard.appendChild(statsGrid);
+    container.appendChild(statsCard);
+
+    const pendingCard = card([]);
+    pendingCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Resgates pendentes (PIX a enviar)"]));
+    pendingCard.appendChild(el("p", { style: { margin: "0 0 12px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Envie o PIX manualmente pela sua conta e depois clique em \"Marcar como enviado\"."]));
+    const pendingStatus = msgBox();
+    const pending = await q("select rr.id, rr.friend_code, rr.amount, rr.pix_key, rr.pix_key_type, rr.referrals_used, rr.created_at, l.nome from public.referral_redemptions rr left join public.licenses l on l.friend_code = rr.friend_code where rr.status = 'pending' order by rr.created_at asc");
+    if (!pending.length) {
+      pendingCard.appendChild(el("p", { style: { color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Nenhum resgate pendente."]));
+    } else {
+      pending.forEach(row => {
+        const line = el("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "10px 0", borderBottom: "1px solid var(--border)", flexWrap: "wrap" } });
+        const info = el("div", {}, [
+          el("div", { style: { fontSize: "13px", color: "var(--text-primary)", fontWeight: "600" } }, [(row.nome || row.friend_code) + " — R$ " + Number(row.amount).toFixed(2).replace(".", ",")]),
+          el("div", { style: { fontSize: "11.5px", color: "var(--text-secondary)" } }, ["Código: " + row.friend_code + " · Chave PIX (" + (row.pix_key_type || "?") + "): " + row.pix_key + " · " + row.referrals_used + " indicações · " + fmtDate(row.created_at)])
+        ]);
+        const markPaidBtn = btn("Marcar como enviado", async () => {
+          try {
+            await q("update public.referral_redemptions set status = 'paid', paid_at = now() where id = $1", [row.id]);
+            pendingStatus.textContent = "Resgate de " + (row.nome || row.friend_code) + " marcado como pago.";
+            renderIndicacoes(container);
+          } catch (e) {
+            pendingStatus.textContent = "Erro: " + e.message;
+          }
+        });
+        line.appendChild(info);
+        line.appendChild(markPaidBtn);
+        pendingCard.appendChild(line);
+      });
+    }
+    pendingCard.appendChild(pendingStatus);
+    container.appendChild(pendingCard);
+
+    const recentCard = card([]);
+    recentCard.appendChild(el("h3", { style: { margin: "0 0 12px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Indicações recentes"]));
+    const recent = await q("select rf.referrer_friend_code, rf.created_at, lr.nome as referrer_nome, ld.nome as referred_nome from public.referrals rf left join public.licenses lr on lr.friend_code = rf.referrer_friend_code left join public.licenses ld on ld.key = rf.referred_license_key order by rf.created_at desc limit 20");
+    if (!recent.length) {
+      recentCard.appendChild(el("p", { style: { color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Nenhuma indicação registrada ainda."]));
+    } else {
+      recent.forEach(row => {
+        const line = el("div", { style: { display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: "12.5px" } });
+        line.appendChild(el("span", { style: { color: "var(--text-primary)" } }, [(row.referrer_nome || row.referrer_friend_code) + " indicou " + (row.referred_nome || "—")]));
+        line.appendChild(el("span", { style: { color: "var(--text-secondary)" } }, [fmtDate(row.created_at)]));
+        recentCard.appendChild(line);
+      });
+    }
+    container.appendChild(recentCard);
+  }
+
   async function renderPagamentos(container) {
     container.innerHTML = "";
     const wrap = card([]);
@@ -80539,7 +80656,8 @@
       { id: "licencas", label: "Licenças", render: renderLicencas },
       { id: "loja", label: "Loja", render: renderLoja },
       { id: "pagamentos", label: "Pagamentos", render: renderPagamentos },
-      { id: "recursos", label: "Recursos", render: renderRecursos }
+      { id: "recursos", label: "Recursos", render: renderRecursos },
+      { id: "indicacoes", label: "Indicações", render: renderIndicacoes }
     ];
     const tabBar = el("div", { style: { display: "flex", gap: "6px", marginBottom: "14px" } });
     const body = el("div");

@@ -13665,8 +13665,9 @@
                             success: !1,
                             error: "E-mail inválido"
                         };
+                        const referredBy = t.referredBy ? String(t.referredBy).trim().toUpperCase().slice(0, 20) : null;
                         const { data: pixResp, error: pixErr } = await TF.functions.invoke("pix-create", {
-                            body: { productId: "signup_vitalicia", nome, email, numero }
+                            body: { productId: "signup_vitalicia", nome, email, numero, referredBy }
                         });
                         if (pixErr || !pixResp || !pixResp.success) {
                             return { success: !1, error: (pixResp && pixResp.error) || "Não foi possível gerar o PIX" };

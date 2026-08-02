@@ -8978,7 +8978,7 @@
                                             color: "var(--text-primary)",
                                             margin: "4px 0 0"
                                         },
-                                        children: "R$ 50,00 a cada 4 indicações"
+                                        children: "R$ 60,00 a cada 4 indicações"
                                     })]
                                 }), (0, r.jsxs)("span", {
                                     style: {
@@ -9032,7 +9032,7 @@
                                     letterSpacing: "0.02em",
                                     boxShadow: z ? "0 4px 16px rgba(74,222,128,0.30)" : "none"
                                 },
-                                children: z ? "💸 Resgatar R$ 50,00 via PIX" : `Faltam ${Math.max(0,4-h)} ${4-h==1?"indicação":"indicações"}`
+                                children: z ? "💸 Resgatar R$ 60,00 via PIX" : `Faltam ${Math.max(0,4-h)} ${4-h==1?"indicação":"indicações"}`
                             })]
                         }), t && (0, r.jsxs)("div", {
                             style: {
@@ -9077,7 +9077,7 @@
                                     t: "Seu amigo digita o código no cadastro do TitanForge"
                                 }, {
                                     n: "3",
-                                    t: "A cada 4 amigos que adquirirem licença, você resgata R$ 50,00 via PIX"
+                                    t: "A cada 4 amigos que adquirirem licença, você resgata R$ 60,00 via PIX"
                                 }].map((e, t, a) => (0, r.jsxs)("div", {
                                     style: {
                                         display: "flex",
@@ -9346,7 +9346,7 @@
                                             color: "var(--text-primary)",
                                             margin: "0 0 4px"
                                         },
-                                        children: "R$ 50,00 via PIX"
+                                        children: "R$ 60,00 via PIX"
                                     }), (0, r.jsx)("p", {
                                         style: {
                                             fontSize: 12,
