@@ -66370,7 +66370,34 @@
                         const k = (0, c.useMemo)(() => g.slice(0, d), [g, d]),
                             x = (0, c.useRef)(null),
                             v = (0, c.useRef)(null),
-                            b = (0, c.useRef)(null);
+                            b = (0, c.useRef)(null),
+                            [hoverAppid, setHoverAppid] = (0, c.useState)(null),
+                            [trailerUrl, setTrailerUrl] = (0, c.useState)(null),
+                            activeHoverRef = (0, c.useRef)(null),
+                            hoverTimerRef = (0, c.useRef)(null),
+                            trailerVideoRef = (0, c.useRef)(null),
+                            hlsInstanceRef = (0, c.useRef)(null),
+                            startTrailerHover = appid => {
+                                hoverTimerRef.current && clearTimeout(hoverTimerRef.current), hoverTimerRef.current = setTimeout(() => {
+                                    activeHoverRef.current = appid, setHoverAppid(appid), setTrailerUrl(null), window.electron.getGameTrailer(appid).then(r => {
+                                        activeHoverRef.current === appid && r && r.url && setTrailerUrl(r.url)
+                                    }).catch(() => {})
+                                }, 450)
+                            },
+                            endTrailerHover = () => {
+                                hoverTimerRef.current && clearTimeout(hoverTimerRef.current), activeHoverRef.current = null, setHoverAppid(null), setTrailerUrl(null)
+                            };
+                        (0, c.useEffect)(() => {
+                            if (hlsInstanceRef.current && (hlsInstanceRef.current.destroy(), hlsInstanceRef.current = null), !trailerUrl || !trailerVideoRef.current) return;
+                            const videoEl = trailerVideoRef.current;
+                            if (window.Hls && window.Hls.isSupported()) {
+                                const hls = new window.Hls({ maxBufferLength: 8, maxMaxBufferLength: 15 });
+                                hls.loadSource(trailerUrl), hls.attachMedia(videoEl), hlsInstanceRef.current = hls, hls.on(window.Hls.Events.MANIFEST_PARSED, () => { videoEl.play().catch(() => {}) })
+                            } else videoEl.canPlayType("application/vnd.apple.mpegurl") && (videoEl.src = trailerUrl, videoEl.play().catch(() => {}));
+                            return () => {
+                                hlsInstanceRef.current && (hlsInstanceRef.current.destroy(), hlsInstanceRef.current = null)
+                            }
+                        }, [trailerUrl]);
                         return (0, c.useEffect)(() => {
                             if (b.current && (b.current.disconnect(), b.current = null), d >= g.length) return;
                             const e = v.current,
@@ -66591,16 +66618,25 @@
                                                     color: "#ff4d8a"
                                                 },
                                                 children: "DENUVO"
-                                            }), (0, l.jsx)("div", {
+                                            }), (0, l.jsxs)("div", {
                                                 className: "thumb-wrap",
-                                                children: (0, l.jsx)("img", {
+                                                style: { position: "relative" },
+                                                onMouseEnter: () => startTrailerHover(e.appid),
+                                                onMouseLeave: endTrailerHover,
+                                                children: [(0, l.jsx)("img", {
                                                     src: e.header_image,
                                                     alt: e.name,
                                                     loading: "lazy",
-                                                    onError: e => {
-                                                        e.target.src = "https://ryuu.lol/manifests/placeholder.png"
+                                                    onError: t => {
+                                                        t.target.src = "https://ryuu.lol/manifests/placeholder.png"
                                                     }
-                                                })
+                                                }), hoverAppid === e.appid && trailerUrl && (0, l.jsx)("video", {
+                                                    ref: trailerVideoRef,
+                                                    muted: !0,
+                                                    loop: !0,
+                                                    playsInline: !0,
+                                                    style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 1, background: "#000" }
+                                                })]
                                             }), (0, l.jsxs)("div", {
                                                 className: "game-info",
                                                 children: [(0, l.jsx)("div", {
