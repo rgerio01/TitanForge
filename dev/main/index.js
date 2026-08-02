@@ -14333,6 +14333,36 @@
                         return console.error("❌ Erro ao carregar banco de dados de jogos:", e), []
                     }
                 });
+                const gameDetailsCache = new Map;
+                c.ipcMain.handle("get-game-details", async (e, appid) => {
+                    try {
+                        if (!appid) return { success: !1 };
+                        const cached = gameDetailsCache.get(String(appid));
+                        if (cached && Date.now() - cached.fetchedAt < 36e5) return { success: !0, ...cached.data };
+                        const r = await d.default.get("https://store.steampowered.com/api/appdetails", {
+                            params: { appids: appid, l: "portuguese" },
+                            timeout: 8e3,
+                            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" }
+                        });
+                        const entry = r.data && r.data[String(appid)];
+                        if (!entry || !entry.success || !entry.data) return { success: !1 };
+                        const gdata = entry.data;
+                        const movies = gdata.movies;
+                        const trailerUrl = movies && movies[0] && (movies[0].hls_h264 || movies[0].dash_h264) || null;
+                        const screenshots = Array.isArray(gdata.screenshots) ? gdata.screenshots.slice(0, 12).map(s => ({ thumb: s.path_thumbnail, full: s.path_full })) : [];
+                        const result = {
+                            shortDescription: gdata.short_description || "",
+                            genres: Array.isArray(gdata.genres) ? gdata.genres.map(g => g.description) : [],
+                            releaseDate: (gdata.release_date && gdata.release_date.date) || null,
+                            screenshots,
+                            trailerUrl
+                        };
+                        gameDetailsCache.set(String(appid), { data: result, fetchedAt: Date.now() });
+                        return { success: !0, ...result };
+                    } catch (e) {
+                        return { success: !1 };
+                    }
+                });
                 const gameTrailerCache = new Map;
                 c.ipcMain.handle("get-game-trailer", async (e, appid) => {
                     try {

@@ -66292,6 +66292,74 @@
                 Object.defineProperty(t, "__esModule", {
                     value: !0
                 });
+                function GameDetailsModal({ appid, gameName, headerImage, onClose, onInstall, installLabel, installDisabled }) {
+                    const [gdmDetails, gdmSetDetails] = c.useState(null),
+                        [gdmLoading, gdmSetLoading] = c.useState(!0),
+                        [gdmActiveShot, gdmSetActiveShot] = c.useState(null),
+                        gdmVideoRef = c.useRef(null),
+                        gdmHlsRef = c.useRef(null);
+                    c.useEffect(() => {
+                        let alive = !0;
+                        window.electron.getGameDetails(appid).then(r => {
+                            alive && r && r.success && gdmSetDetails(r)
+                        }).finally(() => { alive && gdmSetLoading(!1) });
+                        return () => { alive = !1 }
+                    }, [appid]);
+                    c.useEffect(() => {
+                        if (gdmHlsRef.current && (gdmHlsRef.current.destroy(), gdmHlsRef.current = null), !gdmDetails || !gdmDetails.trailerUrl || !gdmVideoRef.current) return;
+                        const videoEl = gdmVideoRef.current;
+                        if (window.Hls && window.Hls.isSupported()) {
+                            const hls = new window.Hls({ maxBufferLength: 8, maxMaxBufferLength: 15 });
+                            hls.loadSource(gdmDetails.trailerUrl), hls.attachMedia(videoEl), gdmHlsRef.current = hls, hls.on(window.Hls.Events.MANIFEST_PARSED, () => { videoEl.play().catch(() => {}) })
+                        } else videoEl.canPlayType("application/vnd.apple.mpegurl") && (videoEl.src = gdmDetails.trailerUrl, videoEl.play().catch(() => {}));
+                        return () => { gdmHlsRef.current && (gdmHlsRef.current.destroy(), gdmHlsRef.current = null) }
+                    }, [gdmDetails]);
+                    return (0, l.jsx)("div", {
+                        style: { position: "fixed", inset: 0, zIndex: 999997, background: "rgba(5,5,7,0.92)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" },
+                        onClick: onClose,
+                        children: (0, l.jsxs)("div", {
+                            className: "card",
+                            onClick: e => e.stopPropagation(),
+                            style: { width: "100%", maxWidth: "640px", maxHeight: "88vh", overflowY: "auto", padding: 0, borderColor: "rgba(217,122,44,0.3)" },
+                            children: [
+                                (0, l.jsxs)("div", {
+                                    style: { position: "relative", width: "100%", aspectRatio: "16/9", background: "#000", borderRadius: "10px 10px 0 0", overflow: "hidden" },
+                                    children: [
+                                        gdmDetails && gdmDetails.trailerUrl
+                                            ? (0, l.jsx)("video", { ref: gdmVideoRef, muted: !0, loop: !0, playsInline: !0, controls: !0, style: { width: "100%", height: "100%", objectFit: "cover" } })
+                                            : (0, l.jsx)("img", { src: headerImage, alt: gameName, style: { width: "100%", height: "100%", objectFit: "cover" } }),
+                                        (0, l.jsx)("button", { onClick: onClose, className: "btn-ghost", style: { position: "absolute", top: 10, right: 10, padding: "6px 10px" }, children: "✕" })
+                                    ]
+                                }),
+                                (0, l.jsxs)("div", {
+                                    style: { padding: "18px 22px 22px" },
+                                    children: [
+                                        (0, l.jsx)("h2", { style: { fontSize: 17, fontWeight: 800, color: "#fff", margin: "0 0 6px", fontFamily: "Rajdhani, sans-serif" }, children: gameName }),
+                                        gdmDetails && gdmDetails.genres && gdmDetails.genres.length ? (0, l.jsx)("p", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 10px" }, children: gdmDetails.genres.join(" · ") + (gdmDetails.releaseDate ? " · " + gdmDetails.releaseDate : "") }) : null,
+                                        gdmLoading
+                                            ? (0, l.jsx)("p", { style: { fontSize: 12.5, color: "var(--text-secondary)" }, children: "Carregando..." })
+                                            : (0, l.jsx)("p", { style: { fontSize: 12.5, color: "rgba(255,255,255,0.65)", lineHeight: 1.55, margin: "0 0 16px" }, children: (gdmDetails && gdmDetails.shortDescription) || "Sinopse indisponível para este jogo." }),
+                                        gdmDetails && gdmDetails.screenshots && gdmDetails.screenshots.length ? (0, l.jsx)("div", {
+                                            style: { display: "flex", gap: 8, overflowX: "auto", marginBottom: 18, paddingBottom: 4 },
+                                            children: gdmDetails.screenshots.map((s, i) => (0, l.jsx)("img", { src: s.thumb, onClick: () => gdmSetActiveShot(s.full), style: { height: 70, borderRadius: 6, cursor: "pointer", flexShrink: 0 } }, i))
+                                        }) : null,
+                                        (0, l.jsx)("button", {
+                                            onClick: onInstall,
+                                            disabled: installDisabled,
+                                            style: { width: "100%", padding: "12px 14px", background: "linear-gradient(135deg, #d97a2c, #ff2d78)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 700, cursor: installDisabled ? "not-allowed" : "pointer", opacity: installDisabled ? .6 : 1, fontFamily: "Rajdhani, sans-serif" },
+                                            children: installLabel
+                                        })
+                                    ]
+                                }),
+                                gdmActiveShot && (0, l.jsx)("div", {
+                                    style: { position: "fixed", inset: 0, zIndex: 999999, background: "rgba(0,0,0,0.9)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 },
+                                    onClick: () => gdmSetActiveShot(null),
+                                    children: (0, l.jsx)("img", { src: gdmActiveShot, style: { maxWidth: "100%", maxHeight: "100%", borderRadius: 8 } })
+                                })
+                            ]
+                        })
+                    })
+                }
                 const l = a(4848),
                     c = a(6540),
                     d = a(3947),
@@ -66386,7 +66454,9 @@
                             },
                             endTrailerHover = () => {
                                 hoverTimerRef.current && clearTimeout(hoverTimerRef.current), activeHoverRef.current = null, setHoverAppid(null), setTrailerUrl(null)
-                            };
+                            },
+                            [detailsGame, setDetailsGame] = (0, c.useState)(null),
+                            [detailsInstalling, setDetailsInstalling] = (0, c.useState)(!1);
                         (0, c.useEffect)(() => {
                             if (hlsInstanceRef.current && (hlsInstanceRef.current.destroy(), hlsInstanceRef.current = null), !trailerUrl || !trailerVideoRef.current) return;
                             const videoEl = trailerVideoRef.current;
@@ -66659,19 +66729,8 @@
                                                         borderColor: "rgba(22,163,74,0.25)",
                                                         color: "#4ade80"
                                                     } : {},
-                                                    onClick: async () => {
-                                                        if (!t && !a)
-                                                            if (r) {
-                                                                f(t => new Set(t).add(e.appid));
-                                                                try {
-                                                                    await n(e.appid, e.name)
-                                                                } finally {
-                                                                    f(t => {
-                                                                        const a = new Set(t);
-                                                                        return a.delete(e.appid), a
-                                                                    })
-                                                                }
-                                                            } else i()
+                                                    onClick: () => {
+                                                        !t && !a && setDetailsGame(e)
                                                     },
                                                     children: a ? (0, l.jsxs)(l.Fragment, {
                                                         children: [(0, l.jsx)(h.Loader2, {
@@ -66717,6 +66776,22 @@
                                         }
                                     }, e))
                                 })]
+                            }), detailsGame && (0, l.jsx)(GameDetailsModal, {
+                                appid: detailsGame.appid,
+                                gameName: detailsGame.name,
+                                headerImage: detailsGame.header_image,
+                                onClose: () => setDetailsGame(null),
+                                installLabel: !r ? "Adquira para instalar" : detailsInstalling ? "Instalando..." : "Instalar",
+                                installDisabled: !r || detailsInstalling,
+                                onInstall: async () => {
+                                    if (!r) return void i();
+                                    setDetailsInstalling(!0);
+                                    try {
+                                        await n(detailsGame.appid, detailsGame.name), setDetailsGame(null)
+                                    } finally {
+                                        setDetailsInstalling(!1)
+                                    }
+                                }
                             })]
                         })
                     };
@@ -66744,6 +66819,7 @@
                         endTrailerHover = () => {
                             trailerHoverTimerRef.current && clearTimeout(trailerHoverTimerRef.current), trailerHoverActiveRef.current = null, setTrailerHoverAppid(null), setTrailerHoverUrl(null)
                         },
+                        [detailsGame, setDetailsGame] = c.useState(null),
                         sentinelaRef = c.useRef(null);
                     c.useEffect(() => {
                         if (trailerHoverHlsRef.current && (trailerHoverHlsRef.current.destroy(), trailerHoverHlsRef.current = null), !trailerHoverUrl || !trailerHoverVideoRef.current) return;
@@ -66916,7 +66992,7 @@
                                                 borderColor: "rgba(74,222,128,0.30)",
                                                 color: "#4ade80"
                                             } : {},
-                                            onClick: () => instalarJogo(e),
+                                            onClick: () => setDetailsGame(e),
                                             children: instalando.has(e.appid) ? (0, l.jsxs)(l.Fragment, {
                                                 children: [(0, l.jsx)(h.Loader2, {
                                                     className: "animate-spin",
@@ -66949,6 +67025,16 @@
                                 },
                                 children: "Carregando mais..."
                             })]
+                        }), detailsGame && (0, l.jsx)(GameDetailsModal, {
+                            appid: detailsGame.appid,
+                            gameName: detailsGame.name,
+                            headerImage: detailsGame.header_image,
+                            onClose: () => setDetailsGame(null),
+                            installLabel: instalados.has(detailsGame.appid) ? "Já instalado" : instalando.has(detailsGame.appid) ? "Instalando..." : "Instalar",
+                            installDisabled: instalados.has(detailsGame.appid) || instalando.has(detailsGame.appid),
+                            onInstall: () => {
+                                instalarJogo(detailsGame), setDetailsGame(null)
+                            }
                         })]
                     })
                 };
@@ -67253,7 +67339,8 @@
                         },
                         endAddGameTrailerHover = () => {
                             addGameTrailerTimerRef.current && clearTimeout(addGameTrailerTimerRef.current), addGameTrailerActiveRef.current = null, setAddGameTrailerAppid(null), setAddGameTrailerUrl(null)
-                        };
+                        },
+                        [addGameDetailsGame, setAddGameDetailsGame] = (0, c.useState)(null);
                     c.useEffect(() => {
                         if (addGameTrailerHlsRef.current && (addGameTrailerHlsRef.current.destroy(), addGameTrailerHlsRef.current = null), !addGameTrailerUrl || !addGameTrailerVideoRef.current) return;
                         const videoEl = addGameTrailerVideoRef.current;
