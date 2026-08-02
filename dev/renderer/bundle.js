@@ -66728,7 +66728,34 @@
                         [instalando, setInstalando] = c.useState(new Set),
                         [instalados, setInstalados] = c.useState(new Set),
                         [erroInstalacao, setErroInstalacao] = c.useState(null),
+                        [trailerHoverAppid, setTrailerHoverAppid] = c.useState(null),
+                        [trailerHoverUrl, setTrailerHoverUrl] = c.useState(null),
+                        trailerHoverActiveRef = c.useRef(null),
+                        trailerHoverTimerRef = c.useRef(null),
+                        trailerHoverVideoRef = c.useRef(null),
+                        trailerHoverHlsRef = c.useRef(null),
+                        startTrailerHover = appid => {
+                            trailerHoverTimerRef.current && clearTimeout(trailerHoverTimerRef.current), trailerHoverTimerRef.current = setTimeout(() => {
+                                trailerHoverActiveRef.current = appid, setTrailerHoverAppid(appid), setTrailerHoverUrl(null), window.electron.getGameTrailer(appid).then(r => {
+                                    trailerHoverActiveRef.current === appid && r && r.url && setTrailerHoverUrl(r.url)
+                                }).catch(() => {})
+                            }, 450)
+                        },
+                        endTrailerHover = () => {
+                            trailerHoverTimerRef.current && clearTimeout(trailerHoverTimerRef.current), trailerHoverActiveRef.current = null, setTrailerHoverAppid(null), setTrailerHoverUrl(null)
+                        },
                         sentinelaRef = c.useRef(null);
+                    c.useEffect(() => {
+                        if (trailerHoverHlsRef.current && (trailerHoverHlsRef.current.destroy(), trailerHoverHlsRef.current = null), !trailerHoverUrl || !trailerHoverVideoRef.current) return;
+                        const videoEl = trailerHoverVideoRef.current;
+                        if (window.Hls && window.Hls.isSupported()) {
+                            const hls = new window.Hls({ maxBufferLength: 8, maxMaxBufferLength: 15 });
+                            hls.loadSource(trailerHoverUrl), hls.attachMedia(videoEl), trailerHoverHlsRef.current = hls, hls.on(window.Hls.Events.MANIFEST_PARSED, () => { videoEl.play().catch(() => {}) })
+                        } else videoEl.canPlayType("application/vnd.apple.mpegurl") && (videoEl.src = trailerHoverUrl, videoEl.play().catch(() => {}));
+                        return () => {
+                            trailerHoverHlsRef.current && (trailerHoverHlsRef.current.destroy(), trailerHoverHlsRef.current = null)
+                        }
+                    }, [trailerHoverUrl]);
                     c.useEffect(() => {
                         let vivo = !0;
                         return C.getRyuuGames().then(lista => {
@@ -66840,9 +66867,12 @@
                                 className: "my-games-grid",
                                 children: visiveis.map(e => (0, l.jsxs)("div", {
                                     className: "my-game-card",
-                                    children: [(0, l.jsx)("div", {
+                                    children: [(0, l.jsxs)("div", {
                                         className: "thumb-wrap",
-                                        children: (0, l.jsx)("img", {
+                                        style: { position: "relative" },
+                                        onMouseEnter: () => startTrailerHover(e.appid),
+                                        onMouseLeave: endTrailerHover,
+                                        children: [(0, l.jsx)("img", {
                                             src: e.header_image || `https://cdn.cloudflare.steamstatic.com/steam/apps/${e.appid}/header.jpg`,
                                             alt: e.name,
                                             loading: "lazy",
@@ -66850,7 +66880,13 @@
                                                 const a = `https://cdn.cloudflare.steamstatic.com/steam/apps/${e.appid}/header.jpg`;
                                                 t.target.src !== a ? t.target.src = a : t.target.src = "https://ryuu.lol/manifests/placeholder.png"
                                             }
-                                        })
+                                        }), trailerHoverAppid === e.appid && trailerHoverUrl && (0, l.jsx)("video", {
+                                            ref: trailerHoverVideoRef,
+                                            muted: !0,
+                                            loop: !0,
+                                            playsInline: !0,
+                                            style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 1, background: "#000" }
+                                        })]
                                     }), (0, l.jsxs)("div", {
                                         className: "game-info",
                                         children: [(0, l.jsx)("div", {
@@ -67200,6 +67236,33 @@
                             t = document.querySelector(".content-area-add-game");
                         return t?.addEventListener("scroll", e), () => t?.removeEventListener("scroll", e)
                     }, [Nt, Ht]);
+                    const [addGameTrailerAppid, setAddGameTrailerAppid] = c.useState(null),
+                        [addGameTrailerUrl, setAddGameTrailerUrl] = c.useState(null),
+                        addGameTrailerActiveRef = c.useRef(null),
+                        addGameTrailerTimerRef = c.useRef(null),
+                        addGameTrailerVideoRef = c.useRef(null),
+                        addGameTrailerHlsRef = c.useRef(null),
+                        startAddGameTrailerHover = appid => {
+                            addGameTrailerTimerRef.current && clearTimeout(addGameTrailerTimerRef.current), addGameTrailerTimerRef.current = setTimeout(() => {
+                                addGameTrailerActiveRef.current = appid, setAddGameTrailerAppid(appid), setAddGameTrailerUrl(null), window.electron.getGameTrailer(appid).then(r => {
+                                    addGameTrailerActiveRef.current === appid && r && r.url && setAddGameTrailerUrl(r.url)
+                                }).catch(() => {})
+                            }, 450)
+                        },
+                        endAddGameTrailerHover = () => {
+                            addGameTrailerTimerRef.current && clearTimeout(addGameTrailerTimerRef.current), addGameTrailerActiveRef.current = null, setAddGameTrailerAppid(null), setAddGameTrailerUrl(null)
+                        };
+                    c.useEffect(() => {
+                        if (addGameTrailerHlsRef.current && (addGameTrailerHlsRef.current.destroy(), addGameTrailerHlsRef.current = null), !addGameTrailerUrl || !addGameTrailerVideoRef.current) return;
+                        const videoEl = addGameTrailerVideoRef.current;
+                        if (window.Hls && window.Hls.isSupported()) {
+                            const hls = new window.Hls({ maxBufferLength: 8, maxMaxBufferLength: 15 });
+                            hls.loadSource(addGameTrailerUrl), hls.attachMedia(videoEl), addGameTrailerHlsRef.current = hls, hls.on(window.Hls.Events.MANIFEST_PARSED, () => { videoEl.play().catch(() => {}) })
+                        } else videoEl.canPlayType("application/vnd.apple.mpegurl") && (videoEl.src = addGameTrailerUrl, videoEl.play().catch(() => {}));
+                        return () => {
+                            addGameTrailerHlsRef.current && (addGameTrailerHlsRef.current.destroy(), addGameTrailerHlsRef.current = null)
+                        }
+                    }, [addGameTrailerUrl]);
                     const Qa = async () => {
                         U({
                             type: "error",
@@ -68464,9 +68527,12 @@
                                                         const t = R.has(e.appid) ? null : e.thumb || `https://cdn.cloudflare.steamstatic.com/steam/apps/${e.appid}/header.jpg`;
                                                         return (0, l.jsxs)("div", {
                                                             className: "my-game-card",
-                                                            children: [(0, l.jsx)("div", {
+                                                            children: [(0, l.jsxs)("div", {
                                                                 className: "thumb-wrap",
-                                                                children: t ? (0, l.jsx)("img", {
+                                                                style: { position: "relative" },
+                                                                onMouseEnter: () => startAddGameTrailerHover(e.appid),
+                                                                onMouseLeave: endAddGameTrailerHover,
+                                                                children: [t ? (0, l.jsx)("img", {
                                                                     src: t,
                                                                     alt: e.name || e.appid,
                                                                     loading: "lazy",
@@ -68507,7 +68573,13 @@
                                                                         },
                                                                         children: e.appid
                                                                     })]
-                                                                })
+                                                                }), addGameTrailerAppid === e.appid && addGameTrailerUrl && (0, l.jsx)("video", {
+                                                                    ref: addGameTrailerVideoRef,
+                                                                    muted: !0,
+                                                                    loop: !0,
+                                                                    playsInline: !0,
+                                                                    style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 1, background: "#000" }
+                                                                })]
                                                             }), (0, l.jsxs)("div", {
                                                                 className: "game-info",
                                                                 children: [(0, l.jsx)("div", {

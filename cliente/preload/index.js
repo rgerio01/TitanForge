@@ -84,6 +84,7 @@
                 getHWID: () => e.ipcRenderer.invoke("get-hwid"),
                 loadGamesDatabase: () => e.ipcRenderer.invoke("load-games-database"),
                 fetchRyuuGames: () => e.ipcRenderer.invoke("fetch-ryuu-games"),
+                getGameTrailer: appid => e.ipcRenderer.invoke("get-game-trailer", appid),
                 fetchBypassCatalog: r => e.ipcRenderer.invoke("fetch-bypass-catalog", r),
                 fetchSteamGameData: r => e.ipcRenderer.invoke("fetch-steam-game-data", r),
                 detectSteamPath: () => e.ipcRenderer.invoke("detect-steam-path"),

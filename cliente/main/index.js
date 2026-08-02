@@ -14334,6 +14334,26 @@
                         return console.error("❌ Erro ao carregar banco de dados de jogos:", e), []
                     }
                 });
+                const gameTrailerCache = new Map;
+                c.ipcMain.handle("get-game-trailer", async (e, appid) => {
+                    try {
+                        if (!appid) return { success: !1 };
+                        const cached = gameTrailerCache.get(String(appid));
+                        if (cached && Date.now() - cached.fetchedAt < 36e5) return { success: !0, url: cached.url };
+                        const r = await d.default.get("https://store.steampowered.com/api/appdetails", {
+                            params: { appids: appid, l: "english" },
+                            timeout: 8e3,
+                            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" }
+                        });
+                        const entry = r.data && r.data[String(appid)];
+                        const movies = entry && entry.success && entry.data && entry.data.movies;
+                        const url = movies && movies[0] && (movies[0].hls_h264 || movies[0].dash_h264) || null;
+                        gameTrailerCache.set(String(appid), { url, fetchedAt: Date.now() });
+                        return url ? { success: !0, url } : { success: !1 };
+                    } catch (e) {
+                        return { success: !1 };
+                    }
+                });
                 let Z = null;
                 c.ipcMain.handle("fetch-ryuu-games", async () => {
                     console.log("🌐 [IPC] fetch-ryuu-games chamado");
