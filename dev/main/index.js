@@ -13642,6 +13642,14 @@
                             products: []
                         }
                     }
+                }), c.ipcMain.handle("get-signup-price", async () => {
+                    try {
+                        const { data, error } = await TF.from("pricing").select("amount").eq("key", "signup_vitalicia").single();
+                        if (error || !data) return { success: !1, amount: 60 };
+                        return { success: !0, amount: Number(data.amount) };
+                    } catch (e) {
+                        return { success: !1, amount: 60 };
+                    }
                 }), c.ipcMain.handle("signup-create-pix", async (e, t) => {
                     try {
                         if (!t.nome || !t.email || !t.numero) return {

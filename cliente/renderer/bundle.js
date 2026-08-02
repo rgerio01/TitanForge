@@ -77666,7 +77666,16 @@
                         status: "idle"
                     }), [_, q] = (0, n.useState)(null), [R, B] = (0, n.useState)(""), [D, O] = (0, n.useState)(""), [V, H] = (0, n.useState)(""), [F, N] = (0, n.useState)(""), [U, W] = (0, n.useState)(""), [$, G] = (0, n.useState)(""), [K, X] = (0, n.useState)(""), [Z, J] = (0, n.useState)(""), [Y, Q] = (0, n.useState)(""), [ee, te] = (0, n.useState)(""), [ae, re] = (0, n.useState)(""), [ne, ie] = (0, n.useState)(""), [oe, se] = (0, n.useState)(!1), [le, ce] = (0, n.useState)(!1), [de, he] = (0, n.useState)(1), [ue, pe] = (0, n.useState)([]), [ye, fe] = (0, n.useState)(!1), [me, ge] = (0, n.useState)(null), [ke, xe] = (0, n.useState)(!1), [ve, be] = (0, n.useState)(null), [we, Me] = (0, n.useState)(!1), [Se, Ce] = (0, n.useState)(0), [je, Le] = (0, n.useState)(!0);
                     (0, n.useEffect)(() => {
-                        Ce(50), Le(!1)
+                        let e = !0;
+                        return Le(!0), window.electron.getSignupPrice().then(t => {
+                            e && Ce(t && t.amount ? t.amount : 60)
+                        }).catch(() => {
+                            e && Ce(60)
+                        }).finally(() => {
+                            e && Le(!1)
+                        }), () => {
+                            e = !1
+                        }
                     }, []);
                     const Ie = T.discountedPrice ?? Se,
                         Ae = !0 === T.free,

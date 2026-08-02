@@ -57,6 +57,7 @@
                     code: r,
                     productType: n
                 }),
+                getSignupPrice: () => e.ipcRenderer.invoke("get-signup-price"),
                 signupCreatePix: r => e.ipcRenderer.invoke("signup-create-pix", r),
                 signupCreateCard: r => e.ipcRenderer.invoke("signup-create-card", r),
                 signupCheckStatus: r => e.ipcRenderer.invoke("signup-check-status", r),

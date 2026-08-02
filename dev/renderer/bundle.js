@@ -77712,7 +77712,16 @@
                         status: "idle"
                     }), [_, q] = (0, n.useState)(null), [R, B] = (0, n.useState)(""), [D, O] = (0, n.useState)(""), [V, H] = (0, n.useState)(""), [F, N] = (0, n.useState)(""), [U, W] = (0, n.useState)(""), [$, G] = (0, n.useState)(""), [K, X] = (0, n.useState)(""), [Z, J] = (0, n.useState)(""), [Y, Q] = (0, n.useState)(""), [ee, te] = (0, n.useState)(""), [ae, re] = (0, n.useState)(""), [ne, ie] = (0, n.useState)(""), [oe, se] = (0, n.useState)(!1), [le, ce] = (0, n.useState)(!1), [de, he] = (0, n.useState)(1), [ue, pe] = (0, n.useState)([]), [ye, fe] = (0, n.useState)(!1), [me, ge] = (0, n.useState)(null), [ke, xe] = (0, n.useState)(!1), [ve, be] = (0, n.useState)(null), [we, Me] = (0, n.useState)(!1), [Se, Ce] = (0, n.useState)(0), [je, Le] = (0, n.useState)(!0);
                     (0, n.useEffect)(() => {
-                        Ce(50), Le(!1)
+                        let e = !0;
+                        return Le(!0), window.electron.getSignupPrice().then(t => {
+                            e && Ce(t && t.amount ? t.amount : 60)
+                        }).catch(() => {
+                            e && Ce(60)
+                        }).finally(() => {
+                            e && Le(!1)
+                        }), () => {
+                            e = !1
+                        }
                     }, []);
                     const Ie = T.discountedPrice ?? Se,
                         Ae = !0 === T.free,
@@ -80258,6 +80267,31 @@
 
     wrap.appendChild(status);
     container.appendChild(wrap);
+
+    const priceCard = card([]);
+    priceCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Preço da Licença Vitalícia"]));
+    priceCard.appendChild(el("p", { style: { margin: "0 0 12px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Valor cobrado no cadastro de cliente novo. Mudar aqui atualiza o app na hora, sem precisar gerar nova versão."]));
+    const priceRow = await q("select amount from public.pricing where key = 'signup_vitalicia'");
+    const currentPrice = priceRow[0] ? Number(priceRow[0].amount) : 60;
+    const priceRowEl = el("div", { style: { display: "flex", alignItems: "center", gap: "8px" } });
+    const priceInp = input("60.00", String(currentPrice));
+    priceInp.style.width = "120px";
+    const priceStatus = msgBox();
+    priceRowEl.appendChild(el("span", { style: { color: "var(--text-secondary)", fontSize: "13px" } }, ["R$"]));
+    priceRowEl.appendChild(priceInp);
+    priceRowEl.appendChild(btn("Salvar", async () => {
+      const v = parseFloat(priceInp.value.replace(",", "."));
+      if (!v || v <= 0) { priceStatus.textContent = "Valor inválido."; return; }
+      try {
+        await q("update public.pricing set amount = $1, updated_at = now() where key = 'signup_vitalicia'", [v]);
+        priceStatus.textContent = "Salvo — R$ " + v.toFixed(2).replace(".", ",");
+      } catch (e) {
+        priceStatus.textContent = "Erro: " + e.message;
+      }
+    }));
+    priceCard.appendChild(priceRowEl);
+    priceCard.appendChild(priceStatus);
+    container.appendChild(priceCard);
 
     const umbraCard = card([]);
     umbraCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Umbra Launcher (referência)"]));
