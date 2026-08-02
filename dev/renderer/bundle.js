@@ -80533,20 +80533,160 @@
     pendingCard.appendChild(pendingStatus);
     container.appendChild(pendingCard);
 
-    const recentCard = card([]);
-    recentCard.appendChild(el("h3", { style: { margin: "0 0 12px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Indicações recentes"]));
-    const recent = await q("select rf.referrer_friend_code, rf.created_at, lr.nome as referrer_nome, ld.nome as referred_nome from public.referrals rf left join public.licenses lr on lr.friend_code = rf.referrer_friend_code left join public.licenses ld on ld.key = rf.referred_license_key order by rf.created_at desc limit 20");
-    if (!recent.length) {
-      recentCard.appendChild(el("p", { style: { color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Nenhuma indicação registrada ainda."]));
-    } else {
-      recent.forEach(row => {
-        const line = el("div", { style: { display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: "12.5px" } });
-        line.appendChild(el("span", { style: { color: "var(--text-primary)" } }, [(row.referrer_nome || row.referrer_friend_code) + " indicou " + (row.referred_nome || "—")]));
-        line.appendChild(el("span", { style: { color: "var(--text-secondary)" } }, [fmtDate(row.created_at)]));
-        recentCard.appendChild(line);
-      });
+    const searchCard = card([]);
+    searchCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Buscar"]));
+    searchCard.appendChild(el("p", { style: { margin: "0 0 10px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Filtra as 3 tabelas abaixo por nome, código de indicação ou chave de licença."]));
+    const searchInp = input("Nome, código (ex: JEFF3048) ou chave da licença...", "");
+    searchCard.appendChild(searchInp);
+    container.appendChild(searchCard);
+
+    const allCodesCard = card([]);
+    allCodesCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Nome × Código de indicação"]));
+    allCodesCard.appendChild(el("p", { style: { margin: "0 0 10px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Todo mundo tem um código, mesmo quem ainda não indicou ninguém — use pra conferir o código de alguém específico."]));
+    const allCodesBody = el("div");
+    allCodesCard.appendChild(allCodesBody);
+    container.appendChild(allCodesCard);
+
+    const byReferrerCard = card([]);
+    byReferrerCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Por indicador"]));
+    byReferrerCard.appendChild(el("p", { style: { margin: "0 0 10px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Cada linha é uma pessoa que já indicou alguém — de onde vêm os pontos e resgates."]));
+    const byReferrerBody = el("div");
+    byReferrerCard.appendChild(byReferrerBody);
+    container.appendChild(byReferrerCard);
+
+    const allReferralsCard = card([]);
+    allReferralsCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Todas as indicações"]));
+    allReferralsCard.appendChild(el("p", { style: { margin: "0 0 10px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Cada linha é 1 ponto: quem indicou, quem foi indicado, quando, e em qual resgate (se já usado)."]));
+    const allReferralsBody = el("div");
+    allReferralsCard.appendChild(allReferralsBody);
+    container.appendChild(allReferralsCard);
+
+    const redemptionsHistCard = card([]);
+    redemptionsHistCard.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Histórico completo de resgates"]));
+    redemptionsHistCard.appendChild(el("p", { style: { margin: "0 0 10px", color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Pendentes e já pagos — inclui a chave PIX usada em cada um."]));
+    const redemptionsHistBody = el("div");
+    redemptionsHistCard.appendChild(redemptionsHistBody);
+    container.appendChild(redemptionsHistCard);
+
+    const [allCodesData, byReferrerData, allReferralsData, redemptionsHistData] = await Promise.all([
+      q(`
+        select key as license_key, nome, friend_code, email, numero
+        from public.licenses
+        where friend_code is not null
+        order by nome nulls last
+      `),
+      q(`
+        select
+          l.friend_code,
+          l.nome,
+          l.key as license_key,
+          l.acquired_via_app,
+          count(rf.id) filter (where rf.status = 'rewarded') as total_valid,
+          count(rf.id) filter (where rf.status = 'rewarded' and rf.redeemed_in_redemption is null) as available_points,
+          coalesce((select count(*) from public.referral_redemptions rr where rr.friend_code = l.friend_code and rr.status = 'paid'), 0) as redemptions_paid,
+          coalesce((select sum(amount) from public.referral_redemptions rr where rr.friend_code = l.friend_code and rr.status = 'paid'), 0) as total_paid_amount
+        from public.licenses l
+        left join public.referrals rf on rf.referrer_friend_code = l.friend_code
+        group by l.friend_code, l.nome, l.key, l.acquired_via_app
+        having count(rf.id) > 0
+        order by total_valid desc
+      `),
+      q(`
+        select
+          rf.id, rf.created_at, rf.status, rf.redeemed_in_redemption,
+          rf.referrer_friend_code, lr.nome as referrer_nome,
+          rf.referred_license_key, ld.nome as referred_nome
+        from public.referrals rf
+        left join public.licenses lr on lr.friend_code = rf.referrer_friend_code
+        left join public.licenses ld on ld.key = rf.referred_license_key
+        order by rf.created_at desc
+        limit 500
+      `),
+      q(`
+        select id, friend_code, l.nome, amount, pix_key, pix_key_type, referrals_used, status, created_at, paid_at
+        from public.referral_redemptions rr
+        left join public.licenses l on l.friend_code = rr.friend_code
+        order by rr.created_at desc
+        limit 300
+      `)
+    ]);
+
+    function renderFilteredTables() {
+      const term = searchInp.value.trim().toLowerCase();
+      const matches = (...vals) => !term || vals.some(v => String(v || "").toLowerCase().includes(term));
+
+      allCodesBody.innerHTML = "";
+      const allCodesFiltered = allCodesData.filter(r => matches(r.nome, r.friend_code, r.license_key, r.email, r.numero));
+      if (!allCodesFiltered.length) {
+        allCodesBody.appendChild(el("p", { style: { color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Nenhum resultado."]));
+      } else {
+        const t = el("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "12.5px" } });
+        const head = el("tr", {});
+        ["Nome da pessoa", "Cód. Indicação", "Licença"].forEach(h => head.appendChild(el("td", { style: { padding: "6px 8px", color: "var(--accent)", fontWeight: 700, borderBottom: "1px solid var(--border)" } }, [h])));
+        t.appendChild(head);
+        allCodesFiltered.forEach(r => {
+          const tr = el("tr", { style: { borderBottom: "1px solid var(--border)" } });
+          [r.nome || "—", r.friend_code, r.license_key].forEach(v => tr.appendChild(el("td", { style: { padding: "6px 8px", color: "var(--text-secondary)", whiteSpace: "nowrap" } }, [v])));
+          t.appendChild(tr);
+        });
+        allCodesBody.appendChild(t);
+      }
+
+      byReferrerBody.innerHTML = "";
+      const byReferrerFiltered = byReferrerData.filter(r => matches(r.nome, r.friend_code, r.license_key));
+      if (!byReferrerFiltered.length) {
+        byReferrerBody.appendChild(el("p", { style: { color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Nenhum indicador encontrado."]));
+      } else {
+        const t = el("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "12.5px" } });
+        const head = el("tr", {});
+        ["Nome", "Código", "Comprou pelo app?", "Pontos válidos", "Disponíveis p/ resgate", "Resgates pagos", "Total já pago"].forEach(h => head.appendChild(el("td", { style: { padding: "6px 8px", color: "var(--accent)", fontWeight: 700, borderBottom: "1px solid var(--border)" } }, [h])));
+        t.appendChild(head);
+        byReferrerFiltered.forEach(r => {
+          const tr = el("tr", { style: { borderBottom: "1px solid var(--border)" } });
+          [r.nome || "—", r.friend_code, r.acquired_via_app ? "Sim" : "Não (criada no admin)", String(r.total_valid), String(r.available_points), String(r.redemptions_paid), "R$ " + Number(r.total_paid_amount).toFixed(2).replace(".", ",")].forEach(v => tr.appendChild(el("td", { style: { padding: "6px 8px", color: "var(--text-secondary)", whiteSpace: "nowrap" } }, [v])));
+          t.appendChild(tr);
+        });
+        byReferrerBody.appendChild(t);
+      }
+
+      allReferralsBody.innerHTML = "";
+      const allFiltered = allReferralsData.filter(r => matches(r.referrer_nome, r.referrer_friend_code, r.referred_nome, r.referred_license_key));
+      if (!allFiltered.length) {
+        allReferralsBody.appendChild(el("p", { style: { color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Nenhuma indicação encontrada."]));
+      } else {
+        const t = el("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "12.5px" } });
+        const head = el("tr", {});
+        ["Data", "Indicador", "Indicado", "Status", "Resgate"].forEach(h => head.appendChild(el("td", { style: { padding: "6px 8px", color: "var(--accent)", fontWeight: 700, borderBottom: "1px solid var(--border)" } }, [h])));
+        t.appendChild(head);
+        allFiltered.forEach(r => {
+          const tr = el("tr", { style: { borderBottom: "1px solid var(--border)" } });
+          [fmtDate(r.created_at), (r.referrer_nome || r.referrer_friend_code) + " (" + r.referrer_friend_code + ")", (r.referred_nome || r.referred_license_key) + " (" + r.referred_license_key + ")", r.status, r.redeemed_in_redemption ? String(r.redeemed_in_redemption).slice(0, 8) : "—"].forEach(v => tr.appendChild(el("td", { style: { padding: "6px 8px", color: "var(--text-secondary)", whiteSpace: "nowrap" } }, [v])));
+          t.appendChild(tr);
+        });
+        allReferralsBody.appendChild(t);
+      }
+
+      redemptionsHistBody.innerHTML = "";
+      const redFiltered = redemptionsHistData.filter(r => matches(r.nome, r.friend_code, r.pix_key));
+      if (!redFiltered.length) {
+        redemptionsHistBody.appendChild(el("p", { style: { color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Nenhum resgate encontrado."]));
+      } else {
+        const t = el("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: "12.5px" } });
+        const head = el("tr", {});
+        ["Indicador", "Valor", "Chave PIX", "Tipo", "Indicações", "Status", "Pedido em", "Pago em"].forEach(h => head.appendChild(el("td", { style: { padding: "6px 8px", color: "var(--accent)", fontWeight: 700, borderBottom: "1px solid var(--border)" } }, [h])));
+        t.appendChild(head);
+        redFiltered.forEach(r => {
+          const tr = el("tr", { style: { borderBottom: "1px solid var(--border)" } });
+          const statusLabel = r.status === "paid" ? "Pago" : r.status === "pending" ? "Pendente" : r.status;
+          [(r.nome || r.friend_code) + " (" + r.friend_code + ")", "R$ " + Number(r.amount).toFixed(2).replace(".", ","), r.pix_key, r.pix_key_type || "—", String(r.referrals_used), statusLabel, fmtDate(r.created_at), r.paid_at ? fmtDate(r.paid_at) : "—"].forEach(v => tr.appendChild(el("td", { style: { padding: "6px 8px", color: "var(--text-secondary)", whiteSpace: "nowrap" } }, [v])));
+          t.appendChild(tr);
+        });
+        redemptionsHistBody.appendChild(t);
+      }
     }
-    container.appendChild(recentCard);
+
+    searchInp.addEventListener("input", renderFilteredTables);
+    renderFilteredTables();
   }
 
   async function renderPagamentos(container) {
