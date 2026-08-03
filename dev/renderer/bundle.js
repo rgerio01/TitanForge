@@ -80170,13 +80170,151 @@
       renderConsoleGrid(root, consolesEl, status);
     };
 
+    const catalogBtn = button("Baixar ROMs", "primary");
+    catalogBtn.onclick = () => renderRomsCatalogConsoles(root);
+
     c.appendChild(addBtn);
+    c.appendChild(catalogBtn);
     c.appendChild(controllerConfigBtn(status));
     c.appendChild(await romsPathControl());
     c.appendChild(status);
     c.appendChild(consolesEl);
     root.appendChild(c);
     renderConsoleGrid(root, consolesEl, status);
+  }
+
+  async function renderRomsCatalogConsoles(root){
+    root.innerHTML = "";
+    const c = card(
+      '<h3 style="margin:0 0 8px;color:var(--text-primary);font-family:Rajdhani,sans-serif;">Catálogo de ROMs</h3>' +
+      '<p style="margin:0;color:var(--text-secondary);font-size:13px;">Escolha um console pra ver os jogos disponíveis, com capa e vídeo.</p>'
+    );
+    const backBtn = button("← Voltar", "secondary");
+    backBtn.onclick = () => renderInstalled(root);
+    c.appendChild(backBtn);
+    const status = document.createElement("p");
+    status.style.cssText = "font-size:12px;color:var(--text-secondary);margin-top:10px;";
+    status.textContent = "Carregando consoles...";
+    c.appendChild(status);
+    root.appendChild(c);
+
+    const r = await window.electron.arenaRomsListConsoles();
+    if (!r.success) { status.textContent = "Erro: " + r.error; return; }
+    status.textContent = r.consoles.length + " consoles disponíveis, " + r.consoles.reduce((s, x) => s + x.count, 0).toLocaleString("pt-BR") + " jogos no total.";
+
+    const grid = document.createElement("div");
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-top:16px;";
+    r.consoles.forEach(cons => {
+      const sCard = document.createElement("div");
+      sCard.style.cssText = "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;aspect-ratio:4/3;border:1px solid var(--border);border-radius:4px;cursor:pointer;transition:border-color .15s,background .15s;background:var(--bg-card);padding:10px;";
+      sCard.onmouseenter = () => { sCard.style.borderColor = "var(--accent)"; sCard.style.background = "rgba(255,255,255,0.04)"; };
+      sCard.onmouseleave = () => { sCard.style.borderColor = "var(--border)"; sCard.style.background = "var(--bg-card)"; };
+      const iconWrap = document.createElement("div");
+      iconWrap.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;width:100%;font-size:34px;";
+      iconWrap.textContent = "🕹️";
+      sCard.appendChild(iconWrap);
+      const label = document.createElement("div");
+      label.style.cssText = "text-align:center;";
+      label.innerHTML =
+        '<div style="font-size:12px;color:var(--text-primary);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">' + (SYSTEM_FULLNAMES[cons.id] || cons.id) + '</div>' +
+        '<div style="font-size:10.5px;color:var(--accent);margin-top:2px;">' + cons.count.toLocaleString("pt-BR") + ' jogo(s)</div>';
+      sCard.appendChild(label);
+      sCard.onclick = () => renderRomsCatalogGames(root, cons.id);
+      grid.appendChild(sCard);
+    });
+    c.appendChild(grid);
+  }
+
+  async function renderRomsCatalogGames(root, consoleId){
+    root.innerHTML = "";
+    const c = card(
+      '<h3 style="margin:0 0 8px;color:var(--text-primary);font-family:Rajdhani,sans-serif;">' + (SYSTEM_FULLNAMES[consoleId] || consoleId) + '</h3>'
+    );
+    const backBtn = button("← Consoles", "secondary");
+    backBtn.onclick = () => renderRomsCatalogConsoles(root);
+    c.appendChild(backBtn);
+    const searchInp = document.createElement("input");
+    searchInp.placeholder = "Buscar jogo...";
+    searchInp.style.cssText = "width:100%;box-sizing:border-box;margin-top:12px;padding:9px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:2px;color:var(--text-primary);font-size:13px;";
+    c.appendChild(searchInp);
+    const status = document.createElement("p");
+    status.style.cssText = "font-size:12px;color:var(--text-secondary);margin-top:10px;";
+    status.textContent = "Carregando jogos...";
+    c.appendChild(status);
+    const grid = document.createElement("div");
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-top:16px;";
+    c.appendChild(grid);
+    root.appendChild(c);
+
+    const r = await window.electron.arenaRomsListGames(consoleId);
+    if (!r.success) { status.textContent = "Erro: " + r.error; return; }
+    const allGames = r.games;
+    status.textContent = allGames.length.toLocaleString("pt-BR") + " jogos.";
+
+    let visible = 60;
+    function draw(){
+      const term = searchInp.value.trim().toLowerCase();
+      const filtered = term ? allGames.filter(g => g.name.toLowerCase().includes(term)) : allGames;
+      grid.innerHTML = "";
+      filtered.slice(0, visible).forEach(g => grid.appendChild(romCard(consoleId, g)));
+      if (filtered.length > visible) {
+        const more = button("Carregar mais (" + (filtered.length - visible) + " restantes)", "secondary");
+        more.style.gridColumn = "1 / -1";
+        more.onclick = () => { visible += 60; draw(); };
+        grid.appendChild(more);
+      }
+    }
+    searchInp.oninput = () => { visible = 60; draw(); };
+    draw();
+  }
+
+  function romCard(consoleId, g){
+    const box = document.createElement("div");
+    box.style.cssText = "border:1px solid var(--border);border-radius:4px;overflow:hidden;background:var(--bg-card);display:flex;flex-direction:column;";
+    const thumbWrap = css(document.createElement("div"), { position: "relative", aspectRatio: "3/4", background: "#0a0604", overflow: "hidden" });
+    const img = document.createElement("img");
+    img.src = g.imageUrl || g.thumbnailUrl || "";
+    img.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;";
+    img.onerror = () => { img.style.display = "none"; };
+    thumbWrap.appendChild(img);
+    let video = null, hoverTimer = null;
+    thumbWrap.onmouseenter = () => {
+      if (!g.videoUrl) return;
+      hoverTimer = setTimeout(() => {
+        video = document.createElement("video");
+        video.src = g.videoUrl; video.muted = true; video.loop = true; video.autoplay = true; video.playsInline = true;
+        video.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;";
+        thumbWrap.appendChild(video);
+      }, 400);
+    };
+    thumbWrap.onmouseleave = () => {
+      clearTimeout(hoverTimer);
+      if (video) { video.remove(); video = null; }
+    };
+    box.appendChild(thumbWrap);
+
+    const info = css(document.createElement("div"), { padding: "10px 12px", display: "flex", flexDirection: "column", gap: "8px", flex: "1" });
+    const name = document.createElement("div");
+    name.textContent = g.name;
+    name.title = g.name;
+    name.style.cssText = "font-size:12px;color:var(--text-primary);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+    info.appendChild(name);
+
+    const dlBtn = button("Baixar", "primary");
+    dlBtn.style.cssText += "width:100%;margin:0;text-align:center;";
+    dlBtn.onclick = async () => {
+      dlBtn.disabled = true;
+      dlBtn.textContent = "Baixando... 0%";
+      const off = window.electron.onArenaRomsDownloadProgress(data => {
+        if (data.file === g.file) dlBtn.textContent = "Baixando... " + data.percent + "%";
+      });
+      const res = await window.electron.arenaRomsDownloadGame(consoleId, g.file);
+      dlBtn.disabled = false;
+      dlBtn.textContent = res.success ? "Baixado ✓" : "Erro — tentar de novo";
+    };
+    info.appendChild(dlBtn);
+    box.appendChild(info);
+    return box;
   }
 
   async function renderDownload(root){

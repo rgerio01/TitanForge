@@ -19715,7 +19715,11 @@
 
   // Pacote de emuladores (RetroBat, sem ROMs) publicado como release no GitHub.
   // Ajustar ARENA_EXE_NAME conforme o executável real dentro do zip empacotado.
-  const ARENA_DIR = path.join(app.getPath("userData"), "RetroAnvil");
+  // No Admin/Dev, aponta pra uma instalação RetroBat real já existente na máquina
+  // (com emuladores configurados de verdade) em vez do userData vazio, só pra
+  // poder testar o download/lançamento de ROMs sem precisar reinstalar tudo.
+  const ARENA_DIR_DEV_OVERRIDE = "F:/ARENABOX/ARENABOX/sistema";
+  const ARENA_DIR = fs.existsSync(ARENA_DIR_DEV_OVERRIDE) ? ARENA_DIR_DEV_OVERRIDE : path.join(app.getPath("userData"), "RetroAnvil");
   const ARENA_MARKER = path.join(ARENA_DIR, ".installed");
   const ARENA_EXE_NAME = "RetroBat.exe";
   const ARENA_EXE = path.join(ARENA_DIR, ARENA_EXE_NAME);
@@ -19827,9 +19831,14 @@
 
   ipcMain.handle("arena-check-installed", async () => {
     try {
-      if (!fs.existsSync(ARENA_MARKER)) return { installed: false };
-      const version = fs.readFileSync(ARENA_MARKER, "utf-8").trim();
-      return { installed: fs.existsSync(ARENA_EXE), version };
+      if (fs.existsSync(ARENA_MARKER)) {
+        const version = fs.readFileSync(ARENA_MARKER, "utf-8").trim();
+        return { installed: fs.existsSync(ARENA_EXE), version };
+      }
+      // Sem marker (ex: instalação real já existente, fora do fluxo de download
+      // do app) — considera instalado se o executável já está lá de fato.
+      if (fs.existsSync(ARENA_EXE)) return { installed: true, version: "local" };
+      return { installed: false };
     } catch {
       return { installed: false };
     }
@@ -19893,6 +19902,59 @@
       return { success: true };
     } catch (e) {
       try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  // ─── Catálogo de ROMs (servidor próprio via túnel) ───────────────────────────
+  const ROMS_API_BASE = "https://roms.microhelp.net.br";
+
+  ipcMain.handle("arena-roms-list-consoles", async () => {
+    try {
+      const r = await axios.get(ROMS_API_BASE + "/api/consoles", { timeout: 15000 });
+      return r.data && r.data.success ? { success: true, consoles: r.data.consoles } : { success: false, error: "Resposta inválida" };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  ipcMain.handle("arena-roms-list-games", async (event, consoleId) => {
+    try {
+      const r = await axios.get(ROMS_API_BASE + "/api/consoles/" + encodeURIComponent(consoleId) + "/games", { timeout: 20000 });
+      if (!r.data || !r.data.success) return { success: false, error: "Resposta inválida" };
+      const games = r.data.games.map(g => ({
+        ...g,
+        imageUrl: g.image ? ROMS_API_BASE + "/api/consoles/" + encodeURIComponent(consoleId) + "/media/" + encodeURIComponent(g.image).replace(/%2F/g, "/") : null,
+        videoUrl: g.video ? ROMS_API_BASE + "/api/consoles/" + encodeURIComponent(consoleId) + "/media/" + encodeURIComponent(g.video).replace(/%2F/g, "/") : null
+      }));
+      return { success: true, games };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  ipcMain.handle("arena-roms-download-game", async (event, payload) => {
+    try {
+      const consoleId = payload && payload.console;
+      const file = payload && payload.file;
+      if (!consoleId || !file) return { success: false, error: "Parâmetros inválidos" };
+      const destDir = path.join(getArenaRomsDir(), consoleId);
+      fs.mkdirSync(destDir, { recursive: true });
+      const destPath = path.join(destDir, file);
+      const url = ROMS_API_BASE + "/api/consoles/" + encodeURIComponent(consoleId) + "/download/" + encodeURIComponent(file).replace(/%2F/g, "/");
+      const res = await axios({ method: "GET", url, responseType: "stream", timeout: 0,
+        onDownloadProgress: e => {
+          if (e.total) event.sender.send("arena-roms-download-progress", { file, percent: Math.round((100 * e.loaded) / e.total) });
+        }
+      });
+      await new Promise((resolve, reject) => {
+        const w = fs.createWriteStream(destPath);
+        res.data.pipe(w);
+        w.on("finish", resolve);
+        w.on("error", reject);
+      });
+      return { success: true, path: destPath };
+    } catch (e) {
       return { success: false, error: String((e && e.message) || e) };
     }
   });

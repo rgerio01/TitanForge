@@ -191,6 +191,12 @@
                     urls: r,
                     version: n
                 }),
+                arenaRomsListConsoles: () => e.ipcRenderer.invoke("arena-roms-list-consoles"),
+                arenaRomsListGames: consoleId => e.ipcRenderer.invoke("arena-roms-list-games", consoleId),
+                arenaRomsDownloadGame: (consoleId, file) => e.ipcRenderer.invoke("arena-roms-download-game", { console: consoleId, file }),
+                onArenaRomsDownloadProgress: r => {
+                    e.ipcRenderer.on("arena-roms-download-progress", (e, n) => r(n))
+                },
                 arenaLaunch: () => e.ipcRenderer.invoke("arena-launch"),
                 arenaUninstall: () => e.ipcRenderer.invoke("arena-uninstall"),
                 onArenaDownloadProgress: r => {
