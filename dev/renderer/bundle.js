@@ -64780,6 +64780,11 @@
                 }, t.getRyuuGameByIdSync = function(e) {
                     return r && r.find(t => t.appid === String(e)) || null
                 }, t.RYUU_PLACEHOLDER = "https://ryuu.lol/manifests/placeholder.png";
+                function tfIsAdultContent(e, n) {
+                    if (!0 === e) return !0;
+                    const i = String(n || "").toLowerCase();
+                    return ["hentai", "eroge", "rule34", " r18", "r-18", " xxx ", "nsfw", "succubus", "adult only", "sex", "erotic", "erótic", "ecchi", "waifu", "doujin", "ahegao", "onahole", "18+", "18禁", "hardcore porn", " porn"].some(e => i.includes(e))
+                }
                 let r = null,
                     n = null;
                 async function i() {
@@ -64792,7 +64797,7 @@
                             header_image: e.header_image || t.RYUU_PLACEHOLDER,
                             type: String(e.type || ""),
                             drm: !0 === e.drm,
-                            nsfw: !0 === e.nsfw,
+                            nsfw: tfIsAdultContent(e.nsfw, e.name),
                             dlc: a(e.dlc)
                         }));
                         return r = i, n = null, i
@@ -66292,7 +66297,7 @@
                 Object.defineProperty(t, "__esModule", {
                     value: !0
                 });
-                function GameDetailsModal({ appid, gameName, headerImage, onClose, onInstall, installLabel, installDisabled }) {
+                function GameDetailsModal({ appid, gameName, headerImage, dlc, onClose, onInstall, installLabel, installDisabled }) {
                     const [gdmDetails, gdmSetDetails] = c.useState(null),
                         [gdmLoading, gdmSetLoading] = c.useState(!0),
                         [gdmActiveShot, gdmSetActiveShot] = c.useState(null),
@@ -66342,6 +66347,16 @@
                                         gdmDetails && gdmDetails.screenshots && gdmDetails.screenshots.length ? (0, l.jsx)("div", {
                                             style: { display: "flex", gap: 8, overflowX: "auto", marginBottom: 18, paddingBottom: 4 },
                                             children: gdmDetails.screenshots.map((s, i) => (0, l.jsx)("img", { src: s.thumb, onClick: () => gdmSetActiveShot(s.full), style: { height: 70, borderRadius: 6, cursor: "pointer", flexShrink: 0 } }, i))
+                                        }) : null,
+                                        dlc && dlc.length ? (0, l.jsxs)("div", {
+                                            style: { marginBottom: 18 },
+                                            children: [
+                                                (0, l.jsx)("p", { style: { fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px", fontWeight: 600 }, children: `DLCs incluídas nesta instalação (${dlc.length})` }),
+                                                (0, l.jsx)("div", {
+                                                    style: { display: "flex", flexWrap: "wrap", gap: 6 },
+                                                    children: dlc.map((d, i) => (0, l.jsx)("span", { style: { fontSize: 11, padding: "4px 9px", background: "rgba(217,122,44,0.12)", border: "1px solid rgba(217,122,44,0.3)", borderRadius: 20, color: "rgba(255,255,255,0.8)" }, children: d.name || `DLC ${d.appid}` }, d.appid || i))
+                                                })
+                                            ]
                                         }) : null,
                                         (0, l.jsx)("button", {
                                             onClick: onInstall,
@@ -66780,6 +66795,7 @@
                                 appid: detailsGame.appid,
                                 gameName: detailsGame.name,
                                 headerImage: detailsGame.header_image,
+                                dlc: detailsGame.dlc,
                                 onClose: () => setDetailsGame(null),
                                 installLabel: !r ? "Adquira para instalar" : detailsInstalling ? "Instalando..." : "Instalar",
                                 installDisabled: !r || detailsInstalling,
@@ -67029,6 +67045,7 @@
                             appid: detailsGame.appid,
                             gameName: detailsGame.name,
                             headerImage: detailsGame.header_image,
+                            dlc: detailsGame.dlc,
                             onClose: () => setDetailsGame(null),
                             installLabel: instalados.has(detailsGame.appid) ? "Já instalado" : instalando.has(detailsGame.appid) ? "Instalando..." : "Instalar",
                             installDisabled: instalados.has(detailsGame.appid) || instalando.has(detailsGame.appid),
@@ -67252,7 +67269,22 @@
                                     console.log("📊 Contagem por type:", t);
                                     function tfNsfwKeywordHit(e) {
                                         const t = String(e || "").toLowerCase();
-                                        return ["hentai", "eroge", "rule34", " r18", "r-18", " xxx ", "nsfw", "succubus brothel", "adult only", "sex"].some(n => t.includes(n));
+                                        return ["hentai", "eroge", "rule34", " r18", "r-18", " xxx ", "nsfw", "succubus", "adult only", "sex", "erotic", "erótic", "ecchi", "waifu", "doujin", "ahegao", "onahole", "18+", "18禁", "hardcore porn", " porn"].some(n => t.includes(n));
+                                    }
+                                    function tfParseDlc(e) {
+                                        if (!e || "object" != typeof e || Array.isArray(e)) return [];
+                                        return Object.entries(e).map(([e, t]) => {
+                                            if (t && "object" == typeof t && !Array.isArray(t)) return { appid: String(e), name: String(t.name || ""), header_image: t.header_image || void 0 };
+                                            if ("string" == typeof t) {
+                                                const a = t.trim();
+                                                if (a.startsWith("{")) try {
+                                                    const r = JSON.parse(a.replace(/'/g, '"').replace(/None/g, "null").replace(/True/g, "true").replace(/False/g, "false"));
+                                                    return { appid: String(e), name: String(r.name || ""), header_image: r.header_image || void 0 }
+                                                } catch {}
+                                                return { appid: String(e), name: a, header_image: void 0 }
+                                            }
+                                            return { appid: String(e), name: String(e), header_image: void 0 }
+                                        })
                                     }
                                     const a = new Set(["dlc", "music", "soundtrack", "video", "series", "episode", "hardware", "advertising", "mod"]),
                                         r = e.games.filter(e => {
@@ -67264,7 +67296,8 @@
                                             name: String(e.name || ""),
                                             header_image: e.header_image || "https://ryuu.lol/manifests/placeholder.png",
                                             drm: !0 === e.drm,
-                                            nsfw: !0 === e.nsfw || tfNsfwKeywordHit(e.name)
+                                            nsfw: !0 === e.nsfw || tfNsfwKeywordHit(e.name),
+                                            dlc: tfParseDlc(e.dlc)
                                         })),
                                         n = r.filter(e => !e.nsfw),
                                         i = r.filter(e => e.nsfw);
