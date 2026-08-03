@@ -67068,7 +67068,7 @@
                         current: 0,
                         total: 0,
                         currentGame: ""
-                    }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
+                    }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), [showRetroAnvilPromo, setShowRetroAnvilPromo] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
                         const r = q[a];
                         r && window.__tfBuy && window.__tfBuy({ id: a, nome: r.name, preco: r.price })
                     }, Ka = (0, c.useMemo)(() => 3 === se?.license_type, [se]), Xa = (0, c.useMemo)(() => !(ce || se && "suspended" !== se.status && "active" === se.status), [se, ce]), Za = (0, c.useMemo)(() => Xa || Ka, [Xa, Ka]);
@@ -67252,6 +67252,8 @@
                         }, 50))
                     }, [se, a]), (0, c.useEffect)(() => {
                         se && "suspended" !== se.status && "true" !== localStorage.getItem("tf_referral_promo_v1") && setShowReferralPromo(!0)
+                    }, [se]), (0, c.useEffect)(() => {
+                        se && "suspended" !== se.status && "true" !== localStorage.getItem("tf_retroanvil_promo_v1") && "true" === localStorage.getItem("tf_referral_promo_v1") && setShowRetroAnvilPromo(!0)
                     }, [se]), (0, c.useEffect)(() => {
                         (async () => {
                             if (!(Bt.length > 0)) {
@@ -67818,6 +67820,64 @@
                                     className: "btn-ghost",
                                     style: { width: "100%", justifyContent: "center" },
                                     children: "Agora não"
+                                })]
+                            })
+                        }), showRetroAnvilPromo && (0, l.jsx)("div", {
+                            style: {
+                                position: "fixed",
+                                inset: 0,
+                                zIndex: 999998,
+                                background: "rgba(8,8,9,0.85)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                pointerEvents: "all"
+                            },
+                            children: (0, l.jsxs)("div", {
+                                className: "card",
+                                style: {
+                                    textAlign: "center",
+                                    padding: "34px 30px",
+                                    maxWidth: "440px",
+                                    borderColor: "rgba(217,122,44,0.35)"
+                                },
+                                children: [(0, l.jsx)("div", {
+                                    style: { fontSize: "34px", marginBottom: "10px" },
+                                    children: "🕹️"
+                                }), (0, l.jsx)("h2", {
+                                    style: {
+                                        fontSize: "18px",
+                                        fontWeight: 800,
+                                        color: "#fff",
+                                        margin: "0 0 10px",
+                                        fontFamily: "Rajdhani, sans-serif"
+                                    },
+                                    children: "O maior lançamento do RetroAnvil está chegando"
+                                }), (0, l.jsxs)("p", {
+                                    style: {
+                                        fontSize: "13px",
+                                        color: "rgba(255,255,255,0.65)",
+                                        lineHeight: 1.55,
+                                        margin: "0 0 18px"
+                                    },
+                                    children: ["Prepare o controle: em breve o RetroAnvil vem com uma biblioteca ", (0, l.jsx)("strong", { style: { color: "#fff" }, children: "PRONTA de 13.346 jogos" }), " em ", (0, l.jsx)("strong", { style: { color: "#fff" }, children: "65 consoles diferentes" }), " — NES, SNES, Mega Drive, Game Boy, Arcade, Dreamcast, Saturn, PS1 e muito mais. Escolha o console, veja capa e vídeo de cada jogo, e baixe só o que quiser."]
+                                }), (0, l.jsx)("button", {
+                                    onClick: () => {
+                                        localStorage.setItem("tf_retroanvil_promo_v1", "true"), setShowRetroAnvilPromo(!1)
+                                    },
+                                    style: {
+                                        width: "100%",
+                                        padding: "12px 14px",
+                                        background: "linear-gradient(135deg, #d97a2c, #ff2d78)",
+                                        border: "none",
+                                        borderRadius: 10,
+                                        color: "#fff",
+                                        fontSize: "13px",
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        fontFamily: "Rajdhani, sans-serif"
+                                    },
+                                    children: "Mal posso esperar! 🎮"
                                 })]
                             })
                         }), Xa && (0, l.jsx)("div", {
