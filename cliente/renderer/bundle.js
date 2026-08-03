@@ -6720,15 +6720,24 @@
                     i = a(6540),
                     o = a(4976),
                     s = a(9007),
-                    l = r(a(9486));
+                    l = r(a(9486)),
+                    w = a(2613);
                 t.default = ({
                     onLoginSuccess: e,
                     hwid: t
                 }) => {
-                    const [a, r] = (0, i.useState)(""), [c, d] = (0, i.useState)(!1), [h, u] = (0, i.useState)(null), [p, y] = (0, i.useState)(!1), [f, m] = (0, i.useState)(!1), [g, k] = (0, i.useState)(!1), [B, Q] = (0, i.useState)("supabase");
+                    const [a, r] = (0, i.useState)(""), [c, d] = (0, i.useState)(!1), [h, u] = (0, i.useState)(null), [p, y] = (0, i.useState)(!1), [f, m] = (0, i.useState)(!1), [g, k] = (0, i.useState)(!1), [B, Q] = (0, i.useState)("supabase"), [tfNews, tfSetNews] = (0, i.useState)([]);
                     (0, i.useEffect)(() => {
                         const e = (0, o.getSavedLicense)();
                         e && r(e.toUpperCase())
+                    }, []);
+                    (0, i.useEffect)(() => {
+                        let e = !0;
+                        return (0, w.getUpdates)().then(t => {
+                            e && tfSetNews((t || []).slice(0, 3))
+                        }).catch(() => {}), () => {
+                            e = !1
+                        }
                     }, []);
                     const x = async () => {
                         if (a.trim())
@@ -6819,6 +6828,54 @@
                                 maskImage: "radial-gradient(ellipse 65% 65% at 50% 42%, black 30%, transparent 80%)",
                                 WebkitMaskImage: "radial-gradient(ellipse 65% 65% at 50% 42%, black 30%, transparent 80%)"
                             }
+                        }), tfNews.length > 0 && (0, n.jsxs)("div", {
+                            style: {
+                                position: "absolute",
+                                right: "7%",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                width: "380px",
+                                maxWidth: "34vw",
+                                zIndex: 5,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "12px",
+                                animation: "loginFadeIn .5s ease .15s both"
+                            },
+                            children: [(0, n.jsxs)("div", {
+                                style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" },
+                                children: [(0, n.jsx)("span", {
+                                    style: { width: "6px", height: "6px", borderRadius: "50%", background: "#ff8a3d", boxShadow: "0 0 8px rgba(255,138,61,0.8)" }
+                                }), (0, n.jsx)("span", {
+                                    style: { fontSize: "10px", letterSpacing: "0.20em", color: "rgba(255,255,255,0.35)", textTransform: "uppercase", fontWeight: 700 },
+                                    children: "Mural de Novidades"
+                                })]
+                            }), ...tfNews.map((item, idx) => (0, n.jsxs)("div", {
+                                style: {
+                                    background: "rgba(255,255,255,0.025)",
+                                    border: "1px solid rgba(217,122,44,0.18)",
+                                    borderRadius: "10px",
+                                    padding: "16px 18px",
+                                    backdropFilter: "blur(10px)",
+                                    boxShadow: "0 16px 40px rgba(0,0,0,0.35)"
+                                },
+                                children: [(0, n.jsx)("div", {
+                                    style: { fontSize: "12px", fontWeight: 700, color: "#ffb454", marginBottom: "6px", letterSpacing: "0.01em" },
+                                    children: item.nome
+                                }), (0, n.jsx)("div", {
+                                    style: {
+                                        fontSize: "11.5px",
+                                        color: "rgba(255,255,255,0.48)",
+                                        lineHeight: 1.55,
+                                        whiteSpace: "pre-line",
+                                        maxHeight: 0 === idx ? "150px" : "70px",
+                                        overflow: "hidden",
+                                        maskImage: "linear-gradient(to bottom, black 70%, transparent 100%)",
+                                        WebkitMaskImage: "linear-gradient(to bottom, black 70%, transparent 100%)"
+                                    },
+                                    children: item.content
+                                })]
+                            }, item.id || idx))]
                         }), (0, n.jsx)("div", {
                             style: {
                                 position: "absolute",
