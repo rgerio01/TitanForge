@@ -64783,7 +64783,7 @@
                 function tfIsAdultContent(e, n) {
                     if (!0 === e) return !0;
                     const i = String(n || "").toLowerCase();
-                    return ["hentai", "eroge", "rule34", " r18", "r-18", " xxx ", "nsfw", "succubus", "adult only", "sex", "erotic", "erótic", "ecchi", "waifu", "doujin", "ahegao", "onahole", "18+", "18禁", "hardcore porn", " porn"].some(e => i.includes(e))
+                    return ["hentai", "eroge", "rule34", " r18", "r-18", " xxx ", "nsfw", "succubus", "adult only", "sex", "erotic", "erótic", "doujin", "ahegao", "onahole", "18+", "18禁", "hardcore porn", " porn"].some(e => i.includes(e))
                 }
                 let r = null,
                     n = null;
@@ -67269,7 +67269,7 @@
                                     console.log("📊 Contagem por type:", t);
                                     function tfNsfwKeywordHit(e) {
                                         const t = String(e || "").toLowerCase();
-                                        return ["hentai", "eroge", "rule34", " r18", "r-18", " xxx ", "nsfw", "succubus", "adult only", "sex", "erotic", "erótic", "ecchi", "waifu", "doujin", "ahegao", "onahole", "18+", "18禁", "hardcore porn", " porn"].some(n => t.includes(n));
+                                        return ["hentai", "eroge", "rule34", " r18", "r-18", " xxx ", "nsfw", "succubus", "adult only", "sex", "erotic", "erótic", "doujin", "ahegao", "onahole", "18+", "18禁", "hardcore porn", " porn"].some(n => t.includes(n));
                                     }
                                     function tfParseDlc(e) {
                                         if (!e || "object" != typeof e || Array.isArray(e)) return [];
