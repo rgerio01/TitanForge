@@ -80077,9 +80077,22 @@
     psx: "#003791", ps2: "#00a3e0",
     atari2600: "#e2231a", atari7800: "#e2231a", wonderswan: "#f5a300", wonderswancolor: "#f5a300"
   };
+  // Sem logo oficial de nenhum console/fabricante embutido no app (risco de
+  // marca registrada) — todo console vira um badge de texto estilizado. Os
+  // conhecidos usam a cor real da marca (SYSTEM_BRAND_COLOR); os demais pegam
+  // uma cor consistente (sempre a mesma pro mesmo console) de uma paleta neutra.
+  const CONSOLE_BADGE_PALETTE = ["#c9781f", "#3b82c4", "#5aa9e6", "#7ec87e", "#d97a2c", "#a06bd6", "#e0616b", "#4fb8a6"];
+  function hashColorForConsole(id){
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return CONSOLE_BADGE_PALETTE[h % CONSOLE_BADGE_PALETTE.length];
+  }
+  function titleCaseConsoleName(id){
+    return String(id).replace(/[_-]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  }
   function consoleIconSvg(system){
-    const label = (SYSTEM_FULLNAMES[system] || system).toUpperCase();
-    const color = SYSTEM_BRAND_COLOR[system] || "#c9781f";
+    const label = (SYSTEM_FULLNAMES[system] || titleCaseConsoleName(system)).toUpperCase();
+    const color = SYSTEM_BRAND_COLOR[system] || hashColorForConsole(system);
     return '<svg viewBox="0 0 160 90" width="70%" style="max-width:150px;">' +
       '<text x="80" y="50" text-anchor="middle" font-family="Rajdhani, sans-serif" font-weight="700" font-size="' + (label.length > 14 ? 15 : 20) + '" fill="' + color + '">' + label + '</text>' +
       '</svg>';
@@ -80101,10 +80114,10 @@
     const carouselWrap = css(document.createElement("div"), { position: "relative", marginTop: "16px" });
     const prevBtn = document.createElement("button");
     prevBtn.textContent = "‹";
-    prevBtn.style.cssText = "position:absolute;left:-6px;top:50%;transform:translateY(-50%);z-index:2;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:18px;cursor:pointer;";
+    prevBtn.style.cssText = "position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:5;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);";
     const nextBtn = document.createElement("button");
     nextBtn.textContent = "›";
-    nextBtn.style.cssText = prevBtn.style.cssText.replace("left:-6px", "right:-6px");
+    nextBtn.style.cssText = prevBtn.style.cssText.replace("left:0", "right:0");
     const track = css(document.createElement("div"), {
       display: "flex", gap: "14px", overflowX: "auto", scrollSnapType: "x mandatory",
       padding: "4px 44px", scrollBehavior: "smooth"
@@ -80127,12 +80140,7 @@
 
       const iconWrap = document.createElement("div");
       iconWrap.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;width:100%;";
-      if (SYSTEM_FULLNAMES[system]) {
-        iconWrap.innerHTML = consoleIconSvg(system);
-      } else {
-        iconWrap.style.fontSize = "34px";
-        iconWrap.textContent = "🕹️";
-      }
+      iconWrap.innerHTML = consoleIconSvg(system);
       sCard.appendChild(iconWrap);
 
       const label = document.createElement("div");
@@ -80253,10 +80261,10 @@
     const carouselWrap = css(document.createElement("div"), { position: "relative", marginTop: "16px" });
     const prevBtn = document.createElement("button");
     prevBtn.textContent = "‹";
-    prevBtn.style.cssText = "position:absolute;left:-6px;top:50%;transform:translateY(-50%);z-index:2;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:18px;cursor:pointer;";
+    prevBtn.style.cssText = "position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:5;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);";
     const nextBtn = document.createElement("button");
     nextBtn.textContent = "›";
-    nextBtn.style.cssText = prevBtn.style.cssText.replace("left:-6px", "right:-6px");
+    nextBtn.style.cssText = prevBtn.style.cssText.replace("left:0", "right:0");
     const track = css(document.createElement("div"), {
       display: "flex", gap: "14px", overflowX: "auto", scrollSnapType: "x mandatory",
       padding: "4px 44px", scrollBehavior: "smooth"
@@ -80276,13 +80284,13 @@
       sCard.onmouseenter = () => { sCard.style.borderColor = "var(--accent)"; sCard.style.background = "rgba(255,255,255,0.04)"; };
       sCard.onmouseleave = () => { sCard.style.borderColor = "var(--border)"; sCard.style.background = "var(--bg-card)"; };
       const iconWrap = document.createElement("div");
-      iconWrap.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;width:100%;font-size:34px;";
-      iconWrap.textContent = "🕹️";
+      iconWrap.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;width:100%;";
+      iconWrap.innerHTML = consoleIconSvg(cons.id);
       sCard.appendChild(iconWrap);
       const label = document.createElement("div");
       label.style.cssText = "text-align:center;";
       label.innerHTML =
-        '<div style="font-size:12px;color:var(--text-primary);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">' + (SYSTEM_FULLNAMES[cons.id] || cons.id) + '</div>' +
+        '<div style="font-size:12px;color:var(--text-primary);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">' + (SYSTEM_FULLNAMES[cons.id] || titleCaseConsoleName(cons.id)) + '</div>' +
         '<div style="font-size:10.5px;color:var(--accent);margin-top:2px;">' + cons.count.toLocaleString("pt-BR") + ' jogo(s)</div>';
       sCard.appendChild(label);
       sCard.onclick = () => renderRomsCatalogGames(root, cons.id);
