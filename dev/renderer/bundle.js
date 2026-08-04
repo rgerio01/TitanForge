@@ -80195,35 +80195,19 @@
     const sampleMedia = {};
     ((romsCatalogRes && romsCatalogRes.success && romsCatalogRes.consoles) || []).forEach(c => { sampleMedia[c.id] = c; });
 
-    // Tela de slide lateral: mesma faixa horizontal com scroll-snap + setas do
-    // catálogo de ROMs, em vez do grid estático — pra ficar consistente entre
-    // as duas telas de seleção de console.
-    const carouselWrap = css(document.createElement("div"), { position: "relative", marginTop: "16px" });
-    const prevBtn = document.createElement("button");
-    prevBtn.textContent = "‹";
-    prevBtn.style.cssText = "position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:5;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);";
-    const nextBtn = document.createElement("button");
-    nextBtn.textContent = "›";
-    nextBtn.style.cssText = prevBtn.style.cssText.replace("left:0", "right:0");
-    const track = css(document.createElement("div"), {
-      display: "flex", gap: "14px", overflowX: "auto", scrollSnapType: "x mandatory",
-      padding: "4px 44px", scrollBehavior: "smooth"
+    // Grid com quebra de linha (igual "Todos os Jogos"), mostra tudo de uma
+    // vez em vez de exigir navegar console a console num carrossel.
+    const grid = css(document.createElement("div"), {
+      display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: "14px", marginTop: "16px"
     });
-    enableCarouselWheel(track);
-    prevBtn.onclick = () => track.scrollBy({ left: -360, behavior: "smooth" });
-    nextBtn.onclick = () => track.scrollBy({ left: 360, behavior: "smooth" });
-
     Object.keys(bySystem).forEach(system => {
       const list = bySystem[system];
       const media = sampleMedia[system];
       const name = SYSTEM_FULLNAMES[system] || titleCaseConsoleName(system);
       const { sCard } = buildConsoleCard(system, name, list.length, media && media.sampleImageUrl, media && media.sampleVideoUrl, () => renderGameGrid(root, system, list, status));
-      track.appendChild(sCard);
+      grid.appendChild(sCard);
     });
-    carouselWrap.appendChild(prevBtn);
-    carouselWrap.appendChild(track);
-    carouselWrap.appendChild(nextBtn);
-    container.appendChild(carouselWrap);
+    container.appendChild(grid);
   }
 
   async function romsPathControl() {
@@ -80288,7 +80272,7 @@
 
   async function renderRomsCatalogConsoles(root){
     root.innerHTML = "";
-    const c = card(retroHeader("💾", "CATÁLOGO DE ROMS", "Deslize pros lados pra escolher o console."));
+    const c = card(retroHeader("💾", "CATÁLOGO DE ROMS", "Escolha um console pra ver os jogos disponíveis."));
     const backBtn = button("← Voltar", "secondary");
     backBtn.onclick = () => renderInstalled(root);
     c.appendChild(backBtn);
@@ -80317,22 +80301,11 @@
 
     status.textContent = visibleConsoles.length + " consoles disponíveis, " + visibleConsoles.reduce((s, x) => s + x.count, 0).toLocaleString("pt-BR") + " jogos no total.";
 
-    // Tela de slide lateral: uma faixa horizontal com scroll-snap + setas pra
-    // navegar console a console, em vez de um grid estático.
-    const carouselWrap = css(document.createElement("div"), { position: "relative", marginTop: "16px" });
-    const prevBtn = document.createElement("button");
-    prevBtn.textContent = "‹";
-    prevBtn.style.cssText = "position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:5;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);";
-    const nextBtn = document.createElement("button");
-    nextBtn.textContent = "›";
-    nextBtn.style.cssText = prevBtn.style.cssText.replace("left:0", "right:0");
-    const track = css(document.createElement("div"), {
-      display: "flex", gap: "14px", overflowX: "auto", scrollSnapType: "x mandatory",
-      padding: "4px 44px", scrollBehavior: "smooth"
+    // Grid com quebra de linha (igual "Todos os Jogos"), mostra tudo de uma
+    // vez em vez de exigir navegar console a console num carrossel.
+    const grid = css(document.createElement("div"), {
+      display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: "14px", marginTop: "16px"
     });
-    enableCarouselWheel(track);
-    prevBtn.onclick = () => track.scrollBy({ left: -360, behavior: "smooth" });
-    nextBtn.onclick = () => track.scrollBy({ left: 360, behavior: "smooth" });
 
     visibleConsoles.forEach(cons => {
       const consoleName = SYSTEM_FULLNAMES[cons.id] || titleCaseConsoleName(cons.id);
@@ -80398,12 +80371,9 @@
         content.appendChild(emuBadge);
       }
 
-      track.appendChild(sCard);
+      grid.appendChild(sCard);
     });
-    carouselWrap.appendChild(prevBtn);
-    carouselWrap.appendChild(track);
-    carouselWrap.appendChild(nextBtn);
-    c.appendChild(carouselWrap);
+    c.appendChild(grid);
   }
 
   async function renderRomsCatalogGames(root, consoleId){
