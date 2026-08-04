@@ -80141,69 +80141,37 @@
   // e vídeo de amostra em streaming (sem baixar nada), com badge de texto como
   // fallback quando não tem mídia. Usado pelos dois carrosséis pra ficar sempre
   // igual entre as duas telas.
+  // Sem capa/vídeo em streaming aqui — dependia do túnel responder pra cada
+  // card individualmente e ficava com caixa preta vazia toda vez que a
+  // conexão falhava. Volta pro badge (sempre funciona, sem depender de rede).
   function buildConsoleCard(id, name, count, sampleImageUrl, sampleVideoUrl, onClick){
     ensureCarouselStyle();
     const neon = SYSTEM_BRAND_COLOR[id] || hashColorForConsole(id);
     const sCard = css(document.createElement("div"), {
-      flex: "0 0 190px", scrollSnapAlign: "start", position: "relative", overflow: "hidden",
-      aspectRatio: "3/4", borderRadius: "8px", cursor: "pointer",
+      flex: "0 0 170px", scrollSnapAlign: "start", display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center", gap: "8px", aspectRatio: "4/3",
+      borderRadius: "6px", cursor: "pointer", position: "relative", overflow: "hidden",
       border: "1px solid var(--border)", transition: "border-color .15s,transform .15s",
-      background: "#0a0604"
+      background: "var(--bg-card)", padding: "10px"
     });
     sCard.className = "tf-retro-card";
     sCard.style.setProperty("--tf-neon", neon);
     sCard.onclick = onClick;
 
-    // Barrinha de acento sempre visível na cor da marca — dá identidade ao
-    // card mesmo antes do hover/da capa carregar.
+    // Barrinha de acento sempre visível na cor da marca.
     const accentBar = css(document.createElement("div"), {
-      position: "absolute", top: "0", left: "0", right: "0", height: "3px", zIndex: "4",
-      background: neon
+      position: "absolute", top: "0", left: "0", right: "0", height: "3px", background: neon
     });
     sCard.appendChild(accentBar);
 
-    if (sampleImageUrl) {
-      const img = document.createElement("img");
-      img.src = sampleImageUrl;
-      img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;";
-      img.onerror = () => { img.remove(); };
-      sCard.appendChild(img);
-    } else {
-      const badgeWrap = css(document.createElement("div"), { position: "absolute", inset: "0", display: "flex", alignItems: "center", justifyContent: "center" });
-      badgeWrap.innerHTML = consoleIconSvg(id);
-      sCard.appendChild(badgeWrap);
-    }
-    if (sampleVideoUrl) {
-      let video = null, hoverTimer = null;
-      sCard.addEventListener("mouseenter", () => {
-        hoverTimer = setTimeout(() => {
-          video = document.createElement("video");
-          video.src = sampleVideoUrl; video.muted = true; video.loop = true; video.autoplay = true; video.playsInline = true;
-          video.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;";
-          video.onerror = () => { if (video) { video.remove(); video = null; } };
-          sCard.appendChild(video);
-          video.play().catch(() => {});
-        }, 400);
-      });
-      sCard.addEventListener("mouseleave", () => {
-        clearTimeout(hoverTimer);
-        if (video) { video.remove(); video = null; }
-      });
-    }
+    const badgeWrap = document.createElement("div");
+    badgeWrap.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;width:100%;";
+    badgeWrap.innerHTML = consoleIconSvg(id);
+    sCard.appendChild(badgeWrap);
 
-    const gradient = css(document.createElement("div"), {
-      position: "absolute", inset: "0", zIndex: "2", pointerEvents: "none",
-      background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)"
-    });
-    sCard.appendChild(gradient);
-
-    const content = css(document.createElement("div"), {
-      position: "absolute", left: "0", right: "0", bottom: "0", zIndex: "3",
-      padding: "10px 12px", display: "flex", flexDirection: "column", gap: "4px"
-    });
-    content.innerHTML =
-      '<div style="font-size:13px;color:#fff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 4px rgba(0,0,0,0.8);">' + name + '</div>' +
-      '<div style="font-size:10.5px;color:#ffb454;text-shadow:0 1px 3px rgba(0,0,0,0.8);">' + count.toLocaleString("pt-BR") + ' jogo(s)</div>';
+    const content = document.createElement("div");
+    content.style.cssText = "text-align:center;display:flex;flex-direction:column;gap:2px;";
+    content.innerHTML = '<div style="font-size:10.5px;color:var(--accent);">' + count.toLocaleString("pt-BR") + ' jogo(s)</div>';
     sCard.appendChild(content);
 
     return { sCard, content };
