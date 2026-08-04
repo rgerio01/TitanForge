@@ -80130,13 +80130,11 @@
   // Rolagem do mouse (vertical por padrão) traduzida pra horizontal — sem isso
   // só dava pra navegar clicando nas setas, sem como "voltar" com a rodinha.
   function enableCarouselWheel(track){
+    // Voltou a navegar só pelas setas — o scroll do mouse traduzido pra
+    // horizontal deixava os cards "pulando" (hover disparando toda hora
+    // enquanto a faixa deslizava embaixo do cursor).
     ensureCarouselStyle();
     track.classList.add("tf-carousel-track");
-    track.addEventListener("wheel", e => {
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-      e.preventDefault();
-      track.scrollLeft += e.deltaY;
-    }, { passive: false });
   }
 
   // Card de console compartilhado entre "Adicionar Jogos" e "Baixar ROMs" — capa
