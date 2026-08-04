@@ -80098,8 +80098,124 @@
       '</svg>';
   }
 
+  // Injeta uma vez o CSS "arcade retrô" do RetroAnvil (glow neon, scanline de
+  // CRT, scrollbar escondida do carrossel) — visual mais vivo pro público
+  // gamer retrô em vez do card genérico cinza do resto do app.
+  let _carouselStyleInjected = false;
+  function ensureCarouselStyle(){
+    if (_carouselStyleInjected) return;
+    _carouselStyleInjected = true;
+    const style = document.createElement("style");
+    style.textContent =
+      ".tf-carousel-track::-webkit-scrollbar{display:none;}" +
+      "@keyframes tfNeonPulse{0%,100%{box-shadow:0 0 0 1px var(--tf-neon,#c9781f),0 0 14px rgba(201,120,31,0.35);}50%{box-shadow:0 0 0 1px var(--tf-neon,#c9781f),0 0 26px rgba(201,120,31,0.65);}}" +
+      ".tf-retro-card:hover{animation:tfNeonPulse 1.6s ease-in-out infinite;transform:translateY(-3px) scale(1.02);}" +
+      ".tf-retro-scanlines{background-image:repeating-linear-gradient(to bottom,rgba(255,255,255,0.025) 0px,rgba(255,255,255,0.025) 1px,transparent 1px,transparent 3px);}" +
+      ".tf-retro-title{text-shadow:0 0 10px rgba(255,138,61,0.5),0 0 22px rgba(255,138,61,0.25);}";
+    document.head.appendChild(style);
+  }
+
+  // Cabeçalho estilo "arcade" (título com glow neon + barrinha de destaque)
+  // usado nas telas do RetroAnvil pra fugir do card cinza padrão.
+  function retroHeader(icon, title, subtitle){
+    ensureCarouselStyle();
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">' +
+        '<span style="font-size:22px;filter:drop-shadow(0 0 6px rgba(255,138,61,0.6));">' + icon + '</span>' +
+        '<h3 class="tf-retro-title" style="margin:0;color:#ffb454;font-family:Rajdhani,sans-serif;font-weight:800;letter-spacing:0.03em;font-size:20px;">' + title + '</h3>' +
+      '</div>' +
+      '<div style="height:2px;width:64px;background:linear-gradient(90deg,#ff8a3d,transparent);margin-bottom:10px;"></div>' +
+      (subtitle ? '<p style="margin:0;color:var(--text-secondary);font-size:13px;">' + subtitle + '</p>' : "");
+  }
+
+  // Rolagem do mouse (vertical por padrão) traduzida pra horizontal — sem isso
+  // só dava pra navegar clicando nas setas, sem como "voltar" com a rodinha.
+  function enableCarouselWheel(track){
+    ensureCarouselStyle();
+    track.classList.add("tf-carousel-track");
+    track.addEventListener("wheel", e => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      track.scrollLeft += e.deltaY;
+    }, { passive: false });
+  }
+
+  // Card de console compartilhado entre "Adicionar Jogos" e "Baixar ROMs" — capa
+  // e vídeo de amostra em streaming (sem baixar nada), com badge de texto como
+  // fallback quando não tem mídia. Usado pelos dois carrosséis pra ficar sempre
+  // igual entre as duas telas.
+  function buildConsoleCard(id, name, count, sampleImageUrl, sampleVideoUrl, onClick){
+    ensureCarouselStyle();
+    const neon = SYSTEM_BRAND_COLOR[id] || hashColorForConsole(id);
+    const sCard = css(document.createElement("div"), {
+      flex: "0 0 190px", scrollSnapAlign: "start", position: "relative", overflow: "hidden",
+      aspectRatio: "3/4", borderRadius: "8px", cursor: "pointer",
+      border: "1px solid var(--border)", transition: "border-color .15s,transform .15s",
+      background: "#0a0604"
+    });
+    sCard.className = "tf-retro-card";
+    sCard.style.setProperty("--tf-neon", neon);
+    sCard.onclick = onClick;
+
+    // Barrinha de acento sempre visível na cor da marca — dá identidade ao
+    // card mesmo antes do hover/da capa carregar.
+    const accentBar = css(document.createElement("div"), {
+      position: "absolute", top: "0", left: "0", right: "0", height: "3px", zIndex: "4",
+      background: neon
+    });
+    sCard.appendChild(accentBar);
+
+    if (sampleImageUrl) {
+      const img = document.createElement("img");
+      img.src = sampleImageUrl;
+      img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;";
+      img.onerror = () => { img.remove(); };
+      sCard.appendChild(img);
+    } else {
+      const badgeWrap = css(document.createElement("div"), { position: "absolute", inset: "0", display: "flex", alignItems: "center", justifyContent: "center" });
+      badgeWrap.innerHTML = consoleIconSvg(id);
+      sCard.appendChild(badgeWrap);
+    }
+    if (sampleVideoUrl) {
+      let video = null, hoverTimer = null;
+      sCard.addEventListener("mouseenter", () => {
+        hoverTimer = setTimeout(() => {
+          video = document.createElement("video");
+          video.src = sampleVideoUrl; video.muted = true; video.loop = true; video.autoplay = true; video.playsInline = true;
+          video.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;";
+          video.onerror = () => { if (video) { video.remove(); video = null; } };
+          sCard.appendChild(video);
+          video.play().catch(() => {});
+        }, 400);
+      });
+      sCard.addEventListener("mouseleave", () => {
+        clearTimeout(hoverTimer);
+        if (video) { video.remove(); video = null; }
+      });
+    }
+
+    const gradient = css(document.createElement("div"), {
+      position: "absolute", inset: "0", zIndex: "2", pointerEvents: "none",
+      background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)"
+    });
+    sCard.appendChild(gradient);
+
+    const content = css(document.createElement("div"), {
+      position: "absolute", left: "0", right: "0", bottom: "0", zIndex: "3",
+      padding: "10px 12px", display: "flex", flexDirection: "column", gap: "4px"
+    });
+    content.innerHTML =
+      '<div style="font-size:13px;color:#fff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 4px rgba(0,0,0,0.8);">' + name + '</div>' +
+      '<div style="font-size:10.5px;color:#ffb454;text-shadow:0 1px 3px rgba(0,0,0,0.8);">' + count.toLocaleString("pt-BR") + ' jogo(s)</div>';
+    sCard.appendChild(content);
+
+    return { sCard, content };
+  }
+
   async function renderConsoleGrid(root, container, status){
-    const { games } = await window.electron.arenaListGames();
+    const [{ games }, romsCatalogRes] = await Promise.all([
+      window.electron.arenaListGames(),
+      window.electron.arenaRomsListConsoles()
+    ]);
     container.innerHTML = "";
     if (!games || !games.length) {
       container.innerHTML = '<p style="color:var(--text-secondary);font-size:12.5px;margin-top:16px;">Nenhum jogo adicionado ainda.</p>';
@@ -80107,6 +80223,11 @@
     }
     const bySystem = {};
     games.forEach(g => { (bySystem[g.system] = bySystem[g.system] || []).push(g); });
+
+    // Capa/vídeo de amostra vêm do mesmo catálogo do roms-server (streaming,
+    // nada baixado) — só um jeito a mais de achar mídia pro mesmo console.
+    const sampleMedia = {};
+    ((romsCatalogRes && romsCatalogRes.success && romsCatalogRes.consoles) || []).forEach(c => { sampleMedia[c.id] = c; });
 
     // Tela de slide lateral: mesma faixa horizontal com scroll-snap + setas do
     // catálogo de ROMs, em vez do grid estático — pra ficar consistente entre
@@ -80122,33 +80243,15 @@
       display: "flex", gap: "14px", overflowX: "auto", scrollSnapType: "x mandatory",
       padding: "4px 44px", scrollBehavior: "smooth"
     });
-    track.style.msOverflowStyle = "none";
-    track.style.scrollbarWidth = "none";
+    enableCarouselWheel(track);
     prevBtn.onclick = () => track.scrollBy({ left: -360, behavior: "smooth" });
     nextBtn.onclick = () => track.scrollBy({ left: 360, behavior: "smooth" });
 
     Object.keys(bySystem).forEach(system => {
       const list = bySystem[system];
-      const sCard = css(document.createElement("div"), {
-        flex: "0 0 170px", scrollSnapAlign: "start", display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", gap: "10px", aspectRatio: "4/3",
-        border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer",
-        transition: "border-color .15s,background .15s", background: "var(--bg-card)", padding: "10px"
-      });
-      sCard.onmouseenter = () => { sCard.style.borderColor = "var(--accent)"; sCard.style.background = "rgba(255,255,255,0.04)"; };
-      sCard.onmouseleave = () => { sCard.style.borderColor = "var(--border)"; sCard.style.background = "var(--bg-card)"; };
-
-      const iconWrap = document.createElement("div");
-      iconWrap.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;width:100%;";
-      iconWrap.innerHTML = consoleIconSvg(system);
-      sCard.appendChild(iconWrap);
-
-      const label = document.createElement("div");
-      label.style.cssText = "text-align:center;";
-      label.innerHTML = '<div style="font-size:10.5px;color:var(--accent);">' + list.length + ' jogo(s)</div>';
-      sCard.appendChild(label);
-
-      sCard.onclick = () => renderGameGrid(root, system, list, status);
+      const media = sampleMedia[system];
+      const name = SYSTEM_FULLNAMES[system] || titleCaseConsoleName(system);
+      const { sCard } = buildConsoleCard(system, name, list.length, media && media.sampleImageUrl, media && media.sampleVideoUrl, () => renderGameGrid(root, system, list, status));
       track.appendChild(sCard);
     });
     carouselWrap.appendChild(prevBtn);
@@ -80181,10 +80284,7 @@
 
   async function renderInstalled(root){
     root.innerHTML = "";
-    const c = card(
-      '<h3 style="margin:0 0 8px;color:var(--text-primary);font-family:Rajdhani,sans-serif;">Retro Anvil</h3>' +
-      '<p style="margin:0;color:var(--text-secondary);font-size:13px;">Escolha um console, depois um jogo, e ele abre direto no emulador.</p>'
-    );
+    const c = card(retroHeader("🕹️", "RETRO ANVIL", "Escolha um console, depois um jogo, e ele abre direto no emulador."));
     const addBtn = button("Adicionar Jogos", "secondary");
     const status = document.createElement("p");
     status.style.cssText = "font-size:12px;color:var(--text-secondary);margin-top:10px;min-height:16px;";
@@ -80222,10 +80322,7 @@
 
   async function renderRomsCatalogConsoles(root){
     root.innerHTML = "";
-    const c = card(
-      '<h3 style="margin:0 0 8px;color:var(--text-primary);font-family:Rajdhani,sans-serif;">Catálogo de ROMs</h3>' +
-      '<p style="margin:0;color:var(--text-secondary);font-size:13px;">Deslize pros lados pra escolher o console.</p>'
-    );
+    const c = card(retroHeader("💾", "CATÁLOGO DE ROMS", "Deslize pros lados pra escolher o console."));
     const backBtn = button("← Voltar", "secondary");
     backBtn.onclick = () => renderInstalled(root);
     c.appendChild(backBtn);
@@ -80267,70 +80364,13 @@
       display: "flex", gap: "14px", overflowX: "auto", scrollSnapType: "x mandatory",
       padding: "4px 44px", scrollBehavior: "smooth"
     });
-    track.style.msOverflowStyle = "none";
-    track.style.scrollbarWidth = "none";
+    enableCarouselWheel(track);
     prevBtn.onclick = () => track.scrollBy({ left: -360, behavior: "smooth" });
     nextBtn.onclick = () => track.scrollBy({ left: 360, behavior: "smooth" });
 
     visibleConsoles.forEach(cons => {
       const consoleName = SYSTEM_FULLNAMES[cons.id] || titleCaseConsoleName(cons.id);
-      const sCard = css(document.createElement("div"), {
-        flex: "0 0 190px", scrollSnapAlign: "start", position: "relative", overflow: "hidden",
-        aspectRatio: "3/4", borderRadius: "6px", cursor: "pointer",
-        border: "1px solid var(--border)", transition: "border-color .15s,transform .15s",
-        background: "#0a0604"
-      });
-      sCard.onmouseenter = () => { sCard.style.borderColor = "var(--accent)"; sCard.style.transform = "translateY(-2px)"; };
-      sCard.onmouseleave = () => { sCard.style.borderColor = "var(--border)"; sCard.style.transform = "translateY(0)"; };
-      sCard.onclick = () => renderRomsCatalogGames(root, cons.id);
-
-      // Capa (e vídeo no hover) em streaming de um jogo de amostra do console —
-      // dá vida ao card sem baixar nada; se não tiver mídia, cai pro badge.
-      if (cons.sampleImageUrl) {
-        const img = document.createElement("img");
-        img.src = cons.sampleImageUrl;
-        img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;";
-        img.onerror = () => { img.remove(); };
-        sCard.appendChild(img);
-      } else {
-        const badgeWrap = css(document.createElement("div"), { position: "absolute", inset: "0", display: "flex", alignItems: "center", justifyContent: "center" });
-        badgeWrap.innerHTML = consoleIconSvg(cons.id);
-        sCard.appendChild(badgeWrap);
-      }
-      if (cons.sampleVideoUrl) {
-        let video = null, hoverTimer = null;
-        sCard.onmouseenter = () => {
-          sCard.style.borderColor = "var(--accent)"; sCard.style.transform = "translateY(-2px)";
-          hoverTimer = setTimeout(() => {
-            video = document.createElement("video");
-            video.src = cons.sampleVideoUrl; video.muted = true; video.loop = true; video.autoplay = true; video.playsInline = true;
-            video.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;";
-            video.onerror = () => { if (video) { video.remove(); video = null; } };
-            sCard.appendChild(video);
-            video.play().catch(() => {});
-          }, 400);
-        };
-        sCard.onmouseleave = () => {
-          sCard.style.borderColor = "var(--border)"; sCard.style.transform = "translateY(0)";
-          clearTimeout(hoverTimer);
-          if (video) { video.remove(); video = null; }
-        };
-      }
-
-      const gradient = css(document.createElement("div"), {
-        position: "absolute", inset: "0", zIndex: "2", pointerEvents: "none",
-        background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)"
-      });
-      sCard.appendChild(gradient);
-
-      const content = css(document.createElement("div"), {
-        position: "absolute", left: "0", right: "0", bottom: "0", zIndex: "3",
-        padding: "10px 12px", display: "flex", flexDirection: "column", gap: "4px"
-      });
-      content.innerHTML =
-        '<div style="font-size:13px;color:#fff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 4px rgba(0,0,0,0.8);">' + consoleName + '</div>' +
-        '<div style="font-size:10.5px;color:#ffb454;text-shadow:0 1px 3px rgba(0,0,0,0.8);">' + cons.count.toLocaleString("pt-BR") + ' jogo(s)</div>';
-      sCard.appendChild(content);
+      const { sCard, content } = buildConsoleCard(cons.id, consoleName, cons.count, cons.sampleImageUrl, cons.sampleVideoUrl, () => renderRomsCatalogGames(root, cons.id));
 
       const emuName = emuMap[cons.id];
       if (emuName) {
@@ -80402,8 +80442,7 @@
 
   async function renderRomsCatalogGames(root, consoleId){
     root.innerHTML = "";
-    const c = card(
-      '<h3 style="margin:0 0 8px;color:var(--text-primary);font-family:Rajdhani,sans-serif;">' + (SYSTEM_FULLNAMES[consoleId] || consoleId) + '</h3>'
+    const c = card(retroHeader("🎮", (SYSTEM_FULLNAMES[consoleId] || titleCaseConsoleName(consoleId)).toUpperCase(), null)
     );
     const backBtn = button("← Consoles", "secondary");
     backBtn.onclick = () => renderRomsCatalogConsoles(root);
@@ -80444,8 +80483,11 @@
   }
 
   function romCard(consoleId, g){
+    ensureCarouselStyle();
     const box = document.createElement("div");
-    box.style.cssText = "border:1px solid var(--border);border-radius:4px;overflow:hidden;background:var(--bg-card);display:flex;flex-direction:column;";
+    box.className = "tf-retro-card";
+    box.style.cssText = "border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg-card);display:flex;flex-direction:column;";
+    box.style.setProperty("--tf-neon", SYSTEM_BRAND_COLOR[consoleId] || hashColorForConsole(consoleId));
     const thumbWrap = css(document.createElement("div"), { position: "relative", aspectRatio: "3/4", background: "#0a0604", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" });
     const fallback = document.createElement("div");
     fallback.textContent = "🕹️";
