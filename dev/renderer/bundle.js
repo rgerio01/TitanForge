@@ -80002,17 +80002,82 @@
     loop();
   }
 
+  // Card em tela cheia com o vídeo do jogo tocando e um botão "Iniciar Jogo"
+  // embaixo — abre ao clicar num jogo já adicionado, em vez de lançar direto.
+  function openRetroGameModal(title, imageUrl, videoUrl, onStart){
+    ensureCarouselStyle();
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;";
+    overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+    const box = css(document.createElement("div"), {
+      background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "10px",
+      width: "min(560px,90vw)", overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
+    });
+
+    const mediaWrap = css(document.createElement("div"), {
+      position: "relative", aspectRatio: "16/9", background: "#0a0604", overflow: "hidden",
+      display: "flex", alignItems: "center", justifyContent: "center"
+    });
+    if (imageUrl) {
+      const img = document.createElement("img");
+      img.src = imageUrl;
+      img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;";
+      img.onerror = () => img.remove();
+      mediaWrap.appendChild(img);
+    } else {
+      const fallback = document.createElement("div");
+      fallback.textContent = "🎮";
+      fallback.style.cssText = "font-size:48px;opacity:0.5;";
+      mediaWrap.appendChild(fallback);
+    }
+    if (videoUrl) {
+      const video = document.createElement("video");
+      video.src = videoUrl; video.muted = true; video.loop = true; video.autoplay = true; video.playsInline = true;
+      video.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;";
+      video.play().catch(() => {});
+      mediaWrap.appendChild(video);
+    }
+    box.appendChild(mediaWrap);
+
+    const footer = css(document.createElement("div"), { padding: "16px 18px", display: "flex", flexDirection: "column", gap: "12px" });
+    const titleEl = document.createElement("div");
+    titleEl.textContent = title;
+    titleEl.style.cssText = "font-size:16px;font-weight:700;color:var(--text-primary);font-family:Rajdhani,sans-serif;";
+    footer.appendChild(titleEl);
+
+    const btnRow = css(document.createElement("div"), { display: "flex", gap: "10px" });
+    const startBtn = button("▶ Iniciar Jogo", "primary");
+    startBtn.style.cssText += "flex:1;text-align:center;";
+    startBtn.onclick = () => { overlay.remove(); onStart(); };
+    const closeBtn = button("Fechar", "secondary");
+    closeBtn.onclick = () => overlay.remove();
+    btnRow.appendChild(startBtn);
+    btnRow.appendChild(closeBtn);
+    footer.appendChild(btnRow);
+    box.appendChild(footer);
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+  }
+
   async function renderGameGrid(root, system, games, status){
     root.innerHTML = "";
     const c = card(
       '<h3 style="margin:0 0 8px;color:var(--text-primary);font-family:Rajdhani,sans-serif;">' + (SYSTEM_FULLNAMES[system] || system) + '</h3>' +
-      '<p style="margin:0;color:var(--text-secondary);font-size:13px;">Clique em um jogo para abrir direto no emulador.</p>'
+      '<p style="margin:0;color:var(--text-secondary);font-size:13px;">Clique em um jogo pra ver o vídeo e iniciar.</p>'
     );
     const backBtn = button("Voltar aos consoles", "secondary");
     backBtn.onclick = () => renderInstalled(root);
     c.appendChild(backBtn);
     c.appendChild(controllerConfigBtn(status));
     c.appendChild(status);
+
+    // Vídeo/capa de cada jogo vêm do mesmo catálogo do roms-server (streaming),
+    // casando pelo nome do arquivo com o jogo já adicionado localmente.
+    const catalogRes = await window.electron.arenaRomsListGames(system);
+    const mediaByFile = {};
+    ((catalogRes && catalogRes.success && catalogRes.games) || []).forEach(cg => { mediaByFile[cg.file.toLowerCase()] = cg; });
 
     const grid = document.createElement("div");
     grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:16px;";
@@ -80022,9 +80087,11 @@
       gCard.onmouseenter = () => { gCard.style.borderColor = "var(--accent)"; };
       gCard.onmouseleave = () => { gCard.style.borderColor = "var(--border)"; };
 
+      const media = mediaByFile[String(g.file || "").toLowerCase()];
+
       const thumb = document.createElement("div");
       thumb.style.cssText = "width:100%;aspect-ratio:1/1;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden;display:flex;align-items:center;justify-content:center;margin-bottom:8px;";
-      const url = coverUrl(g.system, g.rawName);
+      const url = (media && (media.imageUrl || media.thumbnailUrl)) || coverUrl(g.system, g.rawName);
       if (url) {
         const img = document.createElement("img");
         img.src = url;
@@ -80043,7 +80110,8 @@
 
       gCard.appendChild(thumb);
       gCard.appendChild(title);
-      gCard.onclick = async () => {
+
+      const doLaunch = async () => {
         const gamepads = Array.from(navigator.getGamepads ? navigator.getGamepads() : []).filter(Boolean).map(gp => ({
           id: gp.id, index: gp.index, buttonCount: gp.buttons.length, axisCount: gp.axes.length
         }));
@@ -80051,6 +80119,7 @@
         const r = await window.electron.arenaLaunchGame({ system: g.system, file: g.file, gamepads });
         if (!r.success) status.textContent = "Erro: " + r.error;
       };
+      gCard.onclick = () => openRetroGameModal(g.title, url, media && media.videoUrl, doLaunch);
       grid.appendChild(gCard);
     });
     c.appendChild(grid);
