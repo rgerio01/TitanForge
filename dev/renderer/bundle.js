@@ -80095,12 +80095,33 @@
     const bySystem = {};
     games.forEach(g => { (bySystem[g.system] = bySystem[g.system] || []).push(g); });
 
-    const grid = document.createElement("div");
-    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-top:16px;";
+    // Tela de slide lateral: mesma faixa horizontal com scroll-snap + setas do
+    // catálogo de ROMs, em vez do grid estático — pra ficar consistente entre
+    // as duas telas de seleção de console.
+    const carouselWrap = css(document.createElement("div"), { position: "relative", marginTop: "16px" });
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "‹";
+    prevBtn.style.cssText = "position:absolute;left:-6px;top:50%;transform:translateY(-50%);z-index:2;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:18px;cursor:pointer;";
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "›";
+    nextBtn.style.cssText = prevBtn.style.cssText.replace("left:-6px", "right:-6px");
+    const track = css(document.createElement("div"), {
+      display: "flex", gap: "14px", overflowX: "auto", scrollSnapType: "x mandatory",
+      padding: "4px 44px", scrollBehavior: "smooth"
+    });
+    track.style.msOverflowStyle = "none";
+    track.style.scrollbarWidth = "none";
+    prevBtn.onclick = () => track.scrollBy({ left: -360, behavior: "smooth" });
+    nextBtn.onclick = () => track.scrollBy({ left: 360, behavior: "smooth" });
+
     Object.keys(bySystem).forEach(system => {
       const list = bySystem[system];
-      const sCard = document.createElement("div");
-      sCard.style.cssText = "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;aspect-ratio:4/3;border:1px solid var(--border);border-radius:4px;cursor:pointer;transition:border-color .15s,background .15s;background:var(--bg-card);padding:10px;";
+      const sCard = css(document.createElement("div"), {
+        flex: "0 0 170px", scrollSnapAlign: "start", display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", gap: "10px", aspectRatio: "4/3",
+        border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer",
+        transition: "border-color .15s,background .15s", background: "var(--bg-card)", padding: "10px"
+      });
       sCard.onmouseenter = () => { sCard.style.borderColor = "var(--accent)"; sCard.style.background = "rgba(255,255,255,0.04)"; };
       sCard.onmouseleave = () => { sCard.style.borderColor = "var(--border)"; sCard.style.background = "var(--bg-card)"; };
 
@@ -80122,9 +80143,12 @@
       sCard.appendChild(label);
 
       sCard.onclick = () => renderGameGrid(root, system, list, status);
-      grid.appendChild(sCard);
+      track.appendChild(sCard);
     });
-    container.appendChild(grid);
+    carouselWrap.appendChild(prevBtn);
+    carouselWrap.appendChild(track);
+    carouselWrap.appendChild(nextBtn);
+    container.appendChild(carouselWrap);
   }
 
   async function romsPathControl() {
