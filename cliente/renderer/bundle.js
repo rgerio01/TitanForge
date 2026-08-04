@@ -6832,7 +6832,7 @@
                             style: {
                                 position: "absolute",
                                 right: "7%",
-                                top: "50%",
+                                top: "42%",
                                 transform: "translateY(-50%)",
                                 width: "380px",
                                 maxWidth: "34vw",
@@ -6847,7 +6847,7 @@
                                 children: [(0, n.jsx)("span", {
                                     style: { width: "6px", height: "6px", borderRadius: "50%", background: "#ff8a3d", boxShadow: "0 0 8px rgba(255,138,61,0.8)" }
                                 }), (0, n.jsx)("span", {
-                                    style: { fontSize: "10px", letterSpacing: "0.20em", color: "rgba(255,255,255,0.35)", textTransform: "uppercase", fontWeight: 700 },
+                                    style: { fontSize: "11.5px", letterSpacing: "0.20em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", fontWeight: 700 },
                                     children: "Mural de Novidades"
                                 })]
                             }), ...tfNews.map((item, idx) => (0, n.jsxs)("div", {
@@ -6860,15 +6860,15 @@
                                     boxShadow: "0 16px 40px rgba(0,0,0,0.35)"
                                 },
                                 children: [(0, n.jsx)("div", {
-                                    style: { fontSize: "12px", fontWeight: 700, color: "#ffb454", marginBottom: "6px", letterSpacing: "0.01em" },
+                                    style: { fontSize: "13.5px", fontWeight: 700, color: "#ffb454", marginBottom: "6px", letterSpacing: "0.01em" },
                                     children: item.nome
                                 }), (0, n.jsx)("div", {
                                     style: {
-                                        fontSize: "11.5px",
-                                        color: "rgba(255,255,255,0.48)",
+                                        fontSize: "12.5px",
+                                        color: "rgba(255,255,255,0.52)",
                                         lineHeight: 1.55,
                                         whiteSpace: "pre-line",
-                                        maxHeight: 0 === idx ? "150px" : "70px",
+                                        maxHeight: 0 === idx ? "160px" : "76px",
                                         overflow: "hidden",
                                         maskImage: "linear-gradient(to bottom, black 70%, transparent 100%)",
                                         WebkitMaskImage: "linear-gradient(to bottom, black 70%, transparent 100%)"

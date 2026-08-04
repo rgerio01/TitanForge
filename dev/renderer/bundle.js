@@ -6832,7 +6832,7 @@
                             style: {
                                 position: "absolute",
                                 right: "7%",
-                                top: "50%",
+                                top: "42%",
                                 transform: "translateY(-50%)",
                                 width: "380px",
                                 maxWidth: "34vw",
@@ -6847,7 +6847,7 @@
                                 children: [(0, n.jsx)("span", {
                                     style: { width: "6px", height: "6px", borderRadius: "50%", background: "#ff8a3d", boxShadow: "0 0 8px rgba(255,138,61,0.8)" }
                                 }), (0, n.jsx)("span", {
-                                    style: { fontSize: "10px", letterSpacing: "0.20em", color: "rgba(255,255,255,0.35)", textTransform: "uppercase", fontWeight: 700 },
+                                    style: { fontSize: "11.5px", letterSpacing: "0.20em", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", fontWeight: 700 },
                                     children: "Mural de Novidades"
                                 })]
                             }), ...tfNews.map((item, idx) => (0, n.jsxs)("div", {
@@ -6860,15 +6860,15 @@
                                     boxShadow: "0 16px 40px rgba(0,0,0,0.35)"
                                 },
                                 children: [(0, n.jsx)("div", {
-                                    style: { fontSize: "12px", fontWeight: 700, color: "#ffb454", marginBottom: "6px", letterSpacing: "0.01em" },
+                                    style: { fontSize: "13.5px", fontWeight: 700, color: "#ffb454", marginBottom: "6px", letterSpacing: "0.01em" },
                                     children: item.nome
                                 }), (0, n.jsx)("div", {
                                     style: {
-                                        fontSize: "11.5px",
-                                        color: "rgba(255,255,255,0.48)",
+                                        fontSize: "12.5px",
+                                        color: "rgba(255,255,255,0.52)",
                                         lineHeight: 1.55,
                                         whiteSpace: "pre-line",
-                                        maxHeight: 0 === idx ? "150px" : "70px",
+                                        maxHeight: 0 === idx ? "160px" : "76px",
                                         overflow: "hidden",
                                         maskImage: "linear-gradient(to bottom, black 70%, transparent 100%)",
                                         WebkitMaskImage: "linear-gradient(to bottom, black 70%, transparent 100%)"
@@ -80183,11 +80183,18 @@
     renderConsoleGrid(root, consolesEl, status);
   }
 
+  function formatBytes(n){
+    if (!n) return "0 MB";
+    const gb = n / (1024 * 1024 * 1024);
+    if (gb >= 1) return gb.toFixed(1) + " GB";
+    return Math.max(1, Math.round(n / (1024 * 1024))) + " MB";
+  }
+
   async function renderRomsCatalogConsoles(root){
     root.innerHTML = "";
     const c = card(
       '<h3 style="margin:0 0 8px;color:var(--text-primary);font-family:Rajdhani,sans-serif;">Catálogo de ROMs</h3>' +
-      '<p style="margin:0;color:var(--text-secondary);font-size:13px;">Escolha um console pra ver os jogos disponíveis, com capa e vídeo.</p>'
+      '<p style="margin:0;color:var(--text-secondary);font-size:13px;">Deslize pros lados pra escolher o console.</p>'
     );
     const backBtn = button("← Voltar", "secondary");
     backBtn.onclick = () => renderInstalled(root);
@@ -80198,15 +80205,45 @@
     c.appendChild(status);
     root.appendChild(c);
 
-    const r = await window.electron.arenaRomsListConsoles();
-    if (!r.success) { status.textContent = "Erro: " + r.error; return; }
-    status.textContent = r.consoles.length + " consoles disponíveis, " + r.consoles.reduce((s, x) => s + x.count, 0).toLocaleString("pt-BR") + " jogos no total.";
+    const [consolesRes, emuMapRes, emuListRes, emuInstalledRes] = await Promise.all([
+      window.electron.arenaRomsListConsoles(),
+      window.electron.arenaSystemEmulatorMap(),
+      window.electron.arenaEmulatorsList(),
+      window.electron.arenaEmulatorsInstalled()
+    ]);
+    if (!consolesRes.success) { status.textContent = "Erro: " + consolesRes.error; return; }
+    const emuMap = (emuMapRes && emuMapRes.success) ? emuMapRes.map : {};
+    const emuSizes = {};
+    ((emuListRes && emuListRes.success && emuListRes.emulators) || []).forEach(e => { emuSizes[e.name] = e.sizeBytes; });
+    let emuInstalledSet = new Set(((emuInstalledRes && emuInstalledRes.success && emuInstalledRes.installed) || []));
 
-    const grid = document.createElement("div");
-    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-top:16px;";
-    r.consoles.forEach(cons => {
-      const sCard = document.createElement("div");
-      sCard.style.cssText = "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;aspect-ratio:4/3;border:1px solid var(--border);border-radius:4px;cursor:pointer;transition:border-color .15s,background .15s;background:var(--bg-card);padding:10px;";
+    status.textContent = consolesRes.consoles.length + " consoles disponíveis, " + consolesRes.consoles.reduce((s, x) => s + x.count, 0).toLocaleString("pt-BR") + " jogos no total.";
+
+    // Tela de slide lateral: uma faixa horizontal com scroll-snap + setas pra
+    // navegar console a console, em vez de um grid estático.
+    const carouselWrap = css(document.createElement("div"), { position: "relative", marginTop: "16px" });
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "‹";
+    prevBtn.style.cssText = "position:absolute;left:-6px;top:50%;transform:translateY(-50%);z-index:2;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);color:var(--text-primary);font-size:18px;cursor:pointer;";
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "›";
+    nextBtn.style.cssText = prevBtn.style.cssText.replace("left:-6px", "right:-6px");
+    const track = css(document.createElement("div"), {
+      display: "flex", gap: "14px", overflowX: "auto", scrollSnapType: "x mandatory",
+      padding: "4px 44px", scrollBehavior: "smooth"
+    });
+    track.style.msOverflowStyle = "none";
+    track.style.scrollbarWidth = "none";
+    prevBtn.onclick = () => track.scrollBy({ left: -360, behavior: "smooth" });
+    nextBtn.onclick = () => track.scrollBy({ left: 360, behavior: "smooth" });
+
+    consolesRes.consoles.forEach(cons => {
+      const sCard = css(document.createElement("div"), {
+        flex: "0 0 170px", scrollSnapAlign: "start", display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", gap: "8px", aspectRatio: "4/3",
+        border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer",
+        transition: "border-color .15s,background .15s", background: "var(--bg-card)", padding: "10px"
+      });
       sCard.onmouseenter = () => { sCard.style.borderColor = "var(--accent)"; sCard.style.background = "rgba(255,255,255,0.04)"; };
       sCard.onmouseleave = () => { sCard.style.borderColor = "var(--border)"; sCard.style.background = "var(--bg-card)"; };
       const iconWrap = document.createElement("div");
@@ -80220,9 +80257,73 @@
         '<div style="font-size:10.5px;color:var(--accent);margin-top:2px;">' + cons.count.toLocaleString("pt-BR") + ' jogo(s)</div>';
       sCard.appendChild(label);
       sCard.onclick = () => renderRomsCatalogGames(root, cons.id);
-      grid.appendChild(sCard);
+
+      const emuName = emuMap[cons.id];
+      if (emuName) {
+        const emuBadge = document.createElement("div");
+        emuBadge.style.cssText = "font-size:10px;margin-top:2px;padding:3px 8px;border-radius:10px;white-space:nowrap;";
+        const isInstalled = emuInstalledSet.has(emuName);
+        if (isInstalled) {
+          emuBadge.textContent = "✅ Emulador instalado";
+          emuBadge.style.color = "#7ee787";
+          emuBadge.style.background = "rgba(126,231,135,0.08)";
+        } else {
+          emuBadge.textContent = "⬇ Emulador (" + formatBytes(emuSizes[emuName]) + ")";
+          emuBadge.style.color = "var(--accent)";
+          emuBadge.style.background = "rgba(255,255,255,0.04)";
+          emuBadge.style.cursor = "pointer";
+          emuBadge.onclick = async ev => {
+            ev.stopPropagation();
+            emuBadge.style.cursor = "default";
+
+            // O orquestrador (emulationstation/emulatorLauncher.exe) é obrigatório
+            // pra qualquer jogo abrir — baixa ele primeiro, sem passo manual extra,
+            // se ainda não estiver instalado (só acontece uma vez).
+            const coreStatus = await window.electron.arenaCoreInstalled();
+            if (coreStatus.success && !coreStatus.installed) {
+              emuBadge.textContent = "Preparando componente base... 0%";
+              const offCore = window.electron.onArenaCoreDownloadProgress(data => {
+                if (data.phase === "download") emuBadge.textContent = "Preparando componente base... " + data.percent + "%";
+                else if (data.phase === "extract") emuBadge.textContent = "Preparando componente base...";
+              });
+              const coreRes = await window.electron.arenaCoreDownload();
+              offCore && offCore();
+              if (!coreRes.success) {
+                emuBadge.textContent = "Erro (componente base): " + coreRes.error;
+                emuBadge.style.color = "#ff6b6b";
+                return;
+              }
+            }
+
+            emuBadge.textContent = "Baixando... 0%";
+            const off = window.electron.onArenaEmulatorDownloadProgress(data => {
+              if (data.name !== emuName) return;
+              if (data.phase === "download") emuBadge.textContent = "Baixando... " + data.percent + "%";
+              else if (data.phase === "extract") emuBadge.textContent = "Extraindo...";
+            });
+            const res = await window.electron.arenaEmulatorDownload(emuName);
+            off && off();
+            if (res.success) {
+              emuInstalledSet.add(emuName);
+              emuBadge.textContent = "✅ Emulador instalado";
+              emuBadge.style.color = "#7ee787";
+              emuBadge.style.background = "rgba(126,231,135,0.08)";
+              emuBadge.style.cursor = "default";
+            } else {
+              emuBadge.textContent = "Erro: " + res.error;
+              emuBadge.style.color = "#ff6b6b";
+            }
+          };
+        }
+        sCard.appendChild(emuBadge);
+      }
+
+      track.appendChild(sCard);
     });
-    c.appendChild(grid);
+    carouselWrap.appendChild(prevBtn);
+    carouselWrap.appendChild(track);
+    carouselWrap.appendChild(nextBtn);
+    c.appendChild(carouselWrap);
   }
 
   async function renderRomsCatalogGames(root, consoleId){

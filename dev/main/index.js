@@ -19959,6 +19959,119 @@
     }
   });
 
+  // Pasta real do emulador (dentro de RetroAnvil/emulators/<nome>) usada por cada
+  // sistema, derivada do SYSTEM_LAUNCH — "libretro" roda tudo via o core dentro
+  // da pasta "retroarch" (RetroArch + cores), os standalone usam o próprio nome.
+  const SYSTEM_EMULATOR_FOLDER = {};
+  Object.keys(SYSTEM_LAUNCH).forEach(system => {
+    const emu = SYSTEM_LAUNCH[system].emulator;
+    SYSTEM_EMULATOR_FOLDER[system] = emu === "libretro" ? "retroarch" : emu;
+  });
+  ipcMain.handle("arena-system-emulator-map", () => ({ success: true, map: SYSTEM_EMULATOR_FOLDER }));
+
+  const ARENA_EMULATORS_DIR = path.join(ARENA_DIR, "emulators");
+  function emulatorMarkerPath(name) { return path.join(ARENA_EMULATORS_DIR, name, ".installed"); }
+
+  ipcMain.handle("arena-emulators-list", async () => {
+    try {
+      const r = await axios.get(ROMS_API_BASE + "/api/emulators", { timeout: 20000 });
+      if (!r.data || !r.data.success) return { success: false, error: "Resposta inválida" };
+      return { success: true, emulators: r.data.emulators };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  ipcMain.handle("arena-emulators-installed", async () => {
+    try {
+      if (!fs.existsSync(ARENA_EMULATORS_DIR)) return { success: true, installed: [] };
+      const names = fs.readdirSync(ARENA_EMULATORS_DIR, { withFileTypes: true })
+        .filter(e => e.isDirectory() && fs.existsSync(emulatorMarkerPath(e.name)))
+        .map(e => e.name);
+      return { success: true, installed: names };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  // "emulationstation" é o orquestrador do RetroBat (dono do emulatorLauncher.exe)
+  // — obrigatório pra QUALQUER jogo abrir, independente de qual emulador
+  // individual foi baixado. Baixado automaticamente na primeira vez que o
+  // cliente pedir qualquer emulador, sem precisar de passo manual extra.
+  const ARENA_CORE_DIR = path.join(ARENA_DIR, "emulationstation");
+  ipcMain.handle("arena-core-installed", () => ({ success: true, installed: fs.existsSync(ARENA_EMULATOR_LAUNCHER) }));
+
+  ipcMain.handle("arena-core-download", async event => {
+    const tmpZip = path.join(os.tmpdir(), `retroanvil-core-${Date.now()}.zip`);
+    try {
+      if (fs.existsSync(ARENA_EMULATOR_LAUNCHER)) return { success: true };
+      if (!fs.existsSync(SEVEN_ZIP_EXE)) return { success: false, error: "7-Zip não encontrado no instalador" };
+      const url = ROMS_API_BASE + "/api/core/download";
+      const res = await axios({ method: "GET", url, responseType: "stream", timeout: 0,
+        onDownloadProgress: e => {
+          if (e.total) event.sender.send("arena-core-download-progress", { phase: "download", percent: Math.round((100 * e.loaded) / e.total) });
+        }
+      });
+      await new Promise((resolve, reject) => {
+        const w = fs.createWriteStream(tmpZip);
+        res.data.pipe(w);
+        w.on("finish", resolve);
+        w.on("error", reject);
+      });
+
+      event.sender.send("arena-core-download-progress", { phase: "extract", percent: 0 });
+      fs.mkdirSync(ARENA_CORE_DIR, { recursive: true });
+      await new Promise((resolve, reject) => {
+        const p = spawn(SEVEN_ZIP_EXE, ["x", tmpZip, "-o" + ARENA_CORE_DIR, "-y"], { windowsHide: true });
+        p.on("error", reject);
+        p.on("close", code => code === 0 ? resolve() : reject(new Error("7z extração falhou (" + code + ")")));
+      });
+      event.sender.send("arena-core-download-progress", { phase: "done", percent: 100 });
+      fs.unlink(tmpZip, () => {});
+      return { success: true };
+    } catch (e) {
+      fs.unlink(tmpZip, () => {});
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  ipcMain.handle("arena-emulator-download", async (event, payload) => {
+    const name = payload && payload.name;
+    if (!name) return { success: false, error: "Parâmetros inválidos" };
+    const tmpZip = path.join(os.tmpdir(), `retroanvil-emu-${name}-${Date.now()}.zip`);
+    try {
+      if (!fs.existsSync(SEVEN_ZIP_EXE)) return { success: false, error: "7-Zip não encontrado no instalador" };
+      const url = ROMS_API_BASE + "/api/emulators/" + encodeURIComponent(name) + "/download";
+      const res = await axios({ method: "GET", url, responseType: "stream", timeout: 0,
+        onDownloadProgress: e => {
+          if (e.total) event.sender.send("arena-emulator-download-progress", { name, phase: "download", percent: Math.round((100 * e.loaded) / e.total) });
+        }
+      });
+      await new Promise((resolve, reject) => {
+        const w = fs.createWriteStream(tmpZip);
+        res.data.pipe(w);
+        w.on("finish", resolve);
+        w.on("error", reject);
+      });
+
+      event.sender.send("arena-emulator-download-progress", { name, phase: "extract", percent: 0 });
+      const destDir = path.join(ARENA_EMULATORS_DIR, name);
+      fs.mkdirSync(destDir, { recursive: true });
+      await new Promise((resolve, reject) => {
+        const p = spawn(SEVEN_ZIP_EXE, ["x", tmpZip, "-o" + destDir, "-y"], { windowsHide: true });
+        p.on("error", reject);
+        p.on("close", code => code === 0 ? resolve() : reject(new Error("7z extração falhou (" + code + ")")));
+      });
+      fs.writeFileSync(emulatorMarkerPath(name), new Date().toISOString());
+      event.sender.send("arena-emulator-download-progress", { name, phase: "done", percent: 100 });
+      fs.unlink(tmpZip, () => {});
+      return { success: true };
+    } catch (e) {
+      fs.unlink(tmpZip, () => {});
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
   ipcMain.handle("arena-launch", async () => {
     try {
       if (!fs.existsSync(ARENA_EXE)) return { success: false, error: "Não instalado" };

@@ -210,6 +210,18 @@
                 arenaLaunchGame: r => e.ipcRenderer.invoke("arena-launch-game", r),
                 arenaRomsPathGet: () => e.ipcRenderer.invoke("arena-roms-path-get"),
                 arenaRomsPathSet: () => e.ipcRenderer.invoke("arena-roms-path-set"),
+                arenaSystemEmulatorMap: () => e.ipcRenderer.invoke("arena-system-emulator-map"),
+                arenaCoreInstalled: () => e.ipcRenderer.invoke("arena-core-installed"),
+                arenaCoreDownload: () => e.ipcRenderer.invoke("arena-core-download"),
+                onArenaCoreDownloadProgress: r => {
+                    e.ipcRenderer.on("arena-core-download-progress", (e, n) => r(n))
+                },
+                arenaEmulatorsList: () => e.ipcRenderer.invoke("arena-emulators-list"),
+                arenaEmulatorsInstalled: () => e.ipcRenderer.invoke("arena-emulators-installed"),
+                arenaEmulatorDownload: name => e.ipcRenderer.invoke("arena-emulator-download", { name }),
+                onArenaEmulatorDownloadProgress: r => {
+                    e.ipcRenderer.on("arena-emulator-download-progress", (e, n) => r(n))
+                },
                 adminConfigLoad: () => e.ipcRenderer.invoke("admin-config-load"),
                 adminConfigSave: r => e.ipcRenderer.invoke("admin-config-save", r),
                 adminDbQuery: (r, n) => e.ipcRenderer.invoke("admin-db-query", {
