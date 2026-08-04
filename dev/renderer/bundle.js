@@ -80217,7 +80217,12 @@
     ((emuListRes && emuListRes.success && emuListRes.emulators) || []).forEach(e => { emuSizes[e.name] = e.sizeBytes; });
     let emuInstalledSet = new Set(((emuInstalledRes && emuInstalledRes.success && emuInstalledRes.installed) || []));
 
-    status.textContent = consolesRes.consoles.length + " consoles disponíveis, " + consolesRes.consoles.reduce((s, x) => s + x.count, 0).toLocaleString("pt-BR") + " jogos no total.";
+    // PS3/PS4/PS5 ainda não têm emulador mapeado nem play direto no app —
+    // fora da lista por enquanto pra não confundir baixando ROM sem como jogar.
+    const HIDDEN_CONSOLES = new Set(["ps3", "ps4", "ps5"]);
+    const visibleConsoles = consolesRes.consoles.filter(c => !HIDDEN_CONSOLES.has(c.id));
+
+    status.textContent = visibleConsoles.length + " consoles disponíveis, " + visibleConsoles.reduce((s, x) => s + x.count, 0).toLocaleString("pt-BR") + " jogos no total.";
 
     // Tela de slide lateral: uma faixa horizontal com scroll-snap + setas pra
     // navegar console a console, em vez de um grid estático.
@@ -80237,7 +80242,7 @@
     prevBtn.onclick = () => track.scrollBy({ left: -360, behavior: "smooth" });
     nextBtn.onclick = () => track.scrollBy({ left: 360, behavior: "smooth" });
 
-    consolesRes.consoles.forEach(cons => {
+    visibleConsoles.forEach(cons => {
       const sCard = css(document.createElement("div"), {
         flex: "0 0 170px", scrollSnapAlign: "start", display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center", gap: "8px", aspectRatio: "4/3",
