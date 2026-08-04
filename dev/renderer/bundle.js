@@ -80145,9 +80145,7 @@
 
       const label = document.createElement("div");
       label.style.cssText = "text-align:center;";
-      label.innerHTML =
-        '<div style="font-size:12px;color:var(--text-primary);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">' + (SYSTEM_FULLNAMES[system] || system) + '</div>' +
-        '<div style="font-size:10.5px;color:var(--accent);margin-top:2px;">' + list.length + ' jogo(s)</div>';
+      label.innerHTML = '<div style="font-size:10.5px;color:var(--accent);">' + list.length + ' jogo(s)</div>';
       sCard.appendChild(label);
 
       sCard.onclick = () => renderGameGrid(root, system, list, status);
@@ -80275,30 +80273,69 @@
     nextBtn.onclick = () => track.scrollBy({ left: 360, behavior: "smooth" });
 
     visibleConsoles.forEach(cons => {
+      const consoleName = SYSTEM_FULLNAMES[cons.id] || titleCaseConsoleName(cons.id);
       const sCard = css(document.createElement("div"), {
-        flex: "0 0 170px", scrollSnapAlign: "start", display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", gap: "8px", aspectRatio: "4/3",
-        border: "1px solid var(--border)", borderRadius: "4px", cursor: "pointer",
-        transition: "border-color .15s,background .15s", background: "var(--bg-card)", padding: "10px"
+        flex: "0 0 190px", scrollSnapAlign: "start", position: "relative", overflow: "hidden",
+        aspectRatio: "3/4", borderRadius: "6px", cursor: "pointer",
+        border: "1px solid var(--border)", transition: "border-color .15s,transform .15s",
+        background: "#0a0604"
       });
-      sCard.onmouseenter = () => { sCard.style.borderColor = "var(--accent)"; sCard.style.background = "rgba(255,255,255,0.04)"; };
-      sCard.onmouseleave = () => { sCard.style.borderColor = "var(--border)"; sCard.style.background = "var(--bg-card)"; };
-      const iconWrap = document.createElement("div");
-      iconWrap.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;width:100%;";
-      iconWrap.innerHTML = consoleIconSvg(cons.id);
-      sCard.appendChild(iconWrap);
-      const label = document.createElement("div");
-      label.style.cssText = "text-align:center;";
-      label.innerHTML =
-        '<div style="font-size:12px;color:var(--text-primary);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">' + (SYSTEM_FULLNAMES[cons.id] || titleCaseConsoleName(cons.id)) + '</div>' +
-        '<div style="font-size:10.5px;color:var(--accent);margin-top:2px;">' + cons.count.toLocaleString("pt-BR") + ' jogo(s)</div>';
-      sCard.appendChild(label);
+      sCard.onmouseenter = () => { sCard.style.borderColor = "var(--accent)"; sCard.style.transform = "translateY(-2px)"; };
+      sCard.onmouseleave = () => { sCard.style.borderColor = "var(--border)"; sCard.style.transform = "translateY(0)"; };
       sCard.onclick = () => renderRomsCatalogGames(root, cons.id);
+
+      // Capa (e vídeo no hover) em streaming de um jogo de amostra do console —
+      // dá vida ao card sem baixar nada; se não tiver mídia, cai pro badge.
+      if (cons.sampleImageUrl) {
+        const img = document.createElement("img");
+        img.src = cons.sampleImageUrl;
+        img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;";
+        img.onerror = () => { img.remove(); };
+        sCard.appendChild(img);
+      } else {
+        const badgeWrap = css(document.createElement("div"), { position: "absolute", inset: "0", display: "flex", alignItems: "center", justifyContent: "center" });
+        badgeWrap.innerHTML = consoleIconSvg(cons.id);
+        sCard.appendChild(badgeWrap);
+      }
+      if (cons.sampleVideoUrl) {
+        let video = null, hoverTimer = null;
+        sCard.onmouseenter = () => {
+          sCard.style.borderColor = "var(--accent)"; sCard.style.transform = "translateY(-2px)";
+          hoverTimer = setTimeout(() => {
+            video = document.createElement("video");
+            video.src = cons.sampleVideoUrl; video.muted = true; video.loop = true; video.autoplay = true; video.playsInline = true;
+            video.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;";
+            video.onerror = () => { if (video) { video.remove(); video = null; } };
+            sCard.appendChild(video);
+            video.play().catch(() => {});
+          }, 400);
+        };
+        sCard.onmouseleave = () => {
+          sCard.style.borderColor = "var(--border)"; sCard.style.transform = "translateY(0)";
+          clearTimeout(hoverTimer);
+          if (video) { video.remove(); video = null; }
+        };
+      }
+
+      const gradient = css(document.createElement("div"), {
+        position: "absolute", inset: "0", zIndex: "2", pointerEvents: "none",
+        background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.25) 55%, transparent 100%)"
+      });
+      sCard.appendChild(gradient);
+
+      const content = css(document.createElement("div"), {
+        position: "absolute", left: "0", right: "0", bottom: "0", zIndex: "3",
+        padding: "10px 12px", display: "flex", flexDirection: "column", gap: "4px"
+      });
+      content.innerHTML =
+        '<div style="font-size:13px;color:#fff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 4px rgba(0,0,0,0.8);">' + consoleName + '</div>' +
+        '<div style="font-size:10.5px;color:#ffb454;text-shadow:0 1px 3px rgba(0,0,0,0.8);">' + cons.count.toLocaleString("pt-BR") + ' jogo(s)</div>';
+      sCard.appendChild(content);
 
       const emuName = emuMap[cons.id];
       if (emuName) {
         const emuBadge = document.createElement("div");
-        emuBadge.style.cssText = "font-size:10px;margin-top:2px;padding:3px 8px;border-radius:10px;white-space:nowrap;";
+        emuBadge.style.cssText = "font-size:10px;margin-top:2px;padding:3px 8px;border-radius:10px;white-space:nowrap;align-self:flex-start;";
         const isInstalled = emuInstalledSet.has(emuName);
         if (isInstalled) {
           emuBadge.textContent = "✅ Emulador instalado";
@@ -80352,7 +80389,7 @@
             }
           };
         }
-        sCard.appendChild(emuBadge);
+        content.appendChild(emuBadge);
       }
 
       track.appendChild(sCard);

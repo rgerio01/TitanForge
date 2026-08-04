@@ -19912,7 +19912,14 @@
   ipcMain.handle("arena-roms-list-consoles", async () => {
     try {
       const r = await axios.get(ROMS_API_BASE + "/api/consoles", { timeout: 15000 });
-      return r.data && r.data.success ? { success: true, consoles: r.data.consoles } : { success: false, error: "Resposta inválida" };
+      if (!r.data || !r.data.success) return { success: false, error: "Resposta inválida" };
+      const mediaUrl = (consoleId, rel) => rel ? ROMS_API_BASE + "/api/consoles/" + encodeURIComponent(consoleId) + "/media/" + encodeURIComponent(rel).replace(/%2F/g, "/") : null;
+      const consoles = r.data.consoles.map(c => ({
+        ...c,
+        sampleImageUrl: mediaUrl(c.id, c.sampleImage),
+        sampleVideoUrl: mediaUrl(c.id, c.sampleVideo)
+      }));
+      return { success: true, consoles };
     } catch (e) {
       return { success: false, error: String((e && e.message) || e) };
     }
