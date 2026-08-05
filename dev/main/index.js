@@ -12986,6 +12986,7 @@
                         const key = t.trim().toUpperCase();
                         const { data, error } = await TF.rpc("validate_license", { p_key: key, p_hwid: n });
                         if (error) { console.error("Erro ao validar licença:", error); return { success: !1, message: "Não foi possível validar sua licença" }; }
+                        data && data.success && (() => { try { global.tfNotifyLogin && global.tfNotifyLogin(key) } catch {} })();
                         return data;
                     } catch (e) {
                         return console.error("Erro ao validar licença:", e), { success: !1, message: "Não foi possível validar sua licença" };
@@ -20182,6 +20183,7 @@
           timestamp: new Date().toISOString()
         }]
       }, { timeout: 15000 });
+      try { global.tfMarkGameRequestToday && global.tfMarkGameRequestToday() } catch {}
       return { success: true };
     } catch (e) {
       return { success: false, error: String((e && e.message) || e) };
@@ -20216,12 +20218,42 @@
     }
   });
 
+  // Notifica no Discord sempre que uma licença valida com sucesso no login
+  // (validação de uso em tempo real, um evento por acesso) — não confundir
+  // com o check-in diário abaixo, que é periódico independente de login.
+  global.tfNotifyLogin = async licenseKey => {
+    try {
+      let hwid = "desconhecido";
+      try {
+        const crypto = require("crypto");
+        const { machineIdSync } = require("node-machine-id");
+        hwid = crypto.createHash("sha256").update(machineIdSync(!0)).digest("hex");
+      } catch {}
+      await axios.post(SUPPORT_WEBHOOK, {
+        embeds: [{
+          title: "🔓 Acesso ao launcher",
+          color: 0x2ecc71,
+          fields: [
+            { name: "Licença", value: licenseKey || "não identificada", inline: true },
+            { name: "HWID", value: hwid, inline: true }
+          ],
+          timestamp: new Date().toISOString()
+        }]
+      }, { timeout: 15000 });
+    } catch {}
+  };
+
+  // Webhook do canal de segurança/monitoramento — é pra onde vão os check-ins
+  // automáticos e validações de uso, nunca pro canal de solicitação de jogos
+  // nem pro de suporte (esses ficam só com mensagens reais de gente).
+  const SECURITY_WEBHOOK = "https://discord.com/api/webhooks/1534518286392234005/ZVBB3f4yTphtt1bDwlA1OXwLobxPUWU9DiuDESH84_Nabi6Mzt158PKAmzl_8xr68Oqb";
+
   // Check-in automático de abertura/fechamento de atendimento (08:00/18:00,
   // horário local da máquina do cliente). Dispara de QUALQUER instalação que
-  // estiver com o app aberto nesse minuto, pros dois webhooks (suporte e
-  // solicitação de jogos) — intencional, serve também como validador de uso
+  // estiver com o app aberto nesse minuto — serve como validador de uso
   // (mostra quais máquinas estavam ativas no horário), não é deduplicado
-  // entre clientes diferentes, só uma vez por dia por instalação.
+  // entre clientes diferentes, só uma vez por dia por instalação. Vai só pro
+  // canal de segurança (nunca pro de suporte/solicitação de jogos).
   function checkinMarkerPath() {
     return path.join(app.getPath("userData"), "discord-checkins.json");
   }
@@ -20238,19 +20270,32 @@
       const { machineIdSync } = require("node-machine-id");
       hwid = crypto.createHash("sha256").update(machineIdSync(!0)).digest("hex");
     } catch {}
-    const embed = {
+    await axios.post(SECURITY_WEBHOOK, {
       embeds: [{
         title: `${emoji} ${label}`,
         description: "Check-in automático do sistema.",
         fields: [{ name: "HWID", value: hwid, inline: false }],
         timestamp: new Date().toISOString()
       }]
-    };
-    await Promise.allSettled([
-      axios.post(SUPPORT_WEBHOOK, embed, { timeout: 15000 }),
-      axios.post(RETROANVIL_REQUEST_WEBHOOK, embed, { timeout: 15000 })
-    ]);
+    }, { timeout: 15000 }).catch(() => {});
   }
+
+  // Se ninguém pediu jogo nenhum no dia, o canal de solicitação recebe só um
+  // aviso curto às 18:00 em vez de ficar mudo (ou lotado de check-in).
+  function requestMarkerPath() {
+    return path.join(app.getPath("userData"), "discord-last-game-request.json");
+  }
+  function markGameRequestToday() {
+    try { fs.writeFileSync(requestMarkerPath(), JSON.stringify({ date: new Date().toISOString().slice(0, 10) })); } catch {}
+  }
+  global.tfMarkGameRequestToday = markGameRequestToday;
+  function hadGameRequestToday() {
+    try {
+      const d = JSON.parse(fs.readFileSync(requestMarkerPath(), "utf8"));
+      return d.date === new Date().toISOString().slice(0, 10);
+    } catch { return false; }
+  }
+
   app.whenReady().then(() => {
     const iv = setInterval(() => {
       try {
@@ -20266,6 +20311,11 @@
         if (hh === "18" && mm === "00" && marker.evening !== today) {
           marker.evening = today; writeCheckinMarker(marker);
           sendDiscordCheckin("Fechamento de atendimento", "🔴").catch(() => {});
+          if (!hadGameRequestToday()) {
+            axios.post(RETROANVIL_REQUEST_WEBHOOK, {
+              embeds: [{ title: "📭 Hoje não houve solicitação de jogos", color: 0x888888, timestamp: new Date().toISOString() }]
+            }, { timeout: 15000 }).catch(() => {});
+          }
         }
       } catch {}
     }, 60000);

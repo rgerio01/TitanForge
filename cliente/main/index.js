@@ -12987,6 +12987,7 @@
                         const key = t.trim().toUpperCase();
                         const { data, error } = await TF.rpc("validate_license", { p_key: key, p_hwid: n });
                         if (error) { console.error("Erro ao validar licença:", error); return { success: !1, message: "Não foi possível validar sua licença" }; }
+                        data && data.success && (() => { try { global.tfNotifyLogin && global.tfNotifyLogin(key) } catch {} })();
                         return data;
                     } catch (e) {
                         return console.error("Erro ao validar licença:", e), { success: !1, message: "Não foi possível validar sua licença" };
@@ -20153,10 +20154,38 @@
     }
   });
 
+  // Notifica no Discord sempre que uma licença valida com sucesso no login
+  // (validação de uso em tempo real, um evento por acesso) — não confundir
+  // com o check-in diário abaixo, que é periódico independente de login.
+  global.tfNotifyLogin = async licenseKey => {
+    try {
+      let hwid = "desconhecido";
+      try {
+        const crypto = require("crypto");
+        const { machineIdSync } = require("node-machine-id");
+        hwid = crypto.createHash("sha256").update(machineIdSync(!0)).digest("hex");
+      } catch {}
+      await axios.post(SUPPORT_WEBHOOK, {
+        embeds: [{
+          title: "🔓 Acesso ao launcher",
+          color: 0x2ecc71,
+          fields: [
+            { name: "Licença", value: licenseKey || "não identificada", inline: true },
+            { name: "HWID", value: hwid, inline: true }
+          ],
+          timestamp: new Date().toISOString()
+        }]
+      }, { timeout: 15000 });
+    } catch {}
+  };
+
   // Webhook de solicitação de jogos do RetroAnvil (mesmo do Dev) — usado
   // só pelo check-in automático abaixo, já que Cliente ainda não tem o
   // formulário de solicitação de jogos (RetroAnvil ainda "em breve" aqui).
-  const RETROANVIL_REQUEST_WEBHOOK = "https://discord.com/api/webhooks/1534491480738234499/MJUZY5ojtp7DtemtDKnPeF4_EyDtDT7jSC0zGFtq_p3W1MUmH1rFzqLopuUurTsKb48o";
+  // Webhook do canal de segurança/monitoramento — pra onde vão os check-ins
+  // automáticos e validações de uso, nunca pro canal de suporte nem pro de
+  // solicitação de jogos (esses ficam só com mensagens reais de gente).
+  const SECURITY_WEBHOOK_CHECKIN = "https://discord.com/api/webhooks/1534518286392234005/ZVBB3f4yTphtt1bDwlA1OXwLobxPUWU9DiuDESH84_Nabi6Mzt158PKAmzl_8xr68Oqb";
 
   // Check-in automático de abertura/fechamento de atendimento (08:00/18:00,
   // horário local da máquina do cliente) — mesma lógica do Dev, serve como
@@ -20185,10 +20214,7 @@
         timestamp: new Date().toISOString()
       }]
     };
-    await Promise.allSettled([
-      axios.post(SUPPORT_WEBHOOK, embed, { timeout: 15000 }),
-      axios.post(RETROANVIL_REQUEST_WEBHOOK, embed, { timeout: 15000 })
-    ]);
+    await axios.post(SECURITY_WEBHOOK_CHECKIN, embed, { timeout: 15000 }).catch(() => {});
   }
   app.whenReady().then(() => {
     const iv = setInterval(() => {
