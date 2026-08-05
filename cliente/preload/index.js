@@ -167,6 +167,11 @@
                 bootCheckUpdates: () => e.ipcRenderer.invoke("boot-check-updates"),
                 bootUpdateFinished: () => e.ipcRenderer.invoke("boot-update-finished"),
                 getAppVersion: () => e.ipcRenderer.invoke("get-app-version"),
+                supportRequest: r => e.ipcRenderer.invoke("support-request", r),
+                onSecurityForceWipe: r => {
+                    e.ipcRenderer.on("security-force-wipe", (e, n) => r(n))
+                },
+                securityWipeReport: r => e.ipcRenderer.invoke("security-wipe-report", r),
                 checkForUpdatesManually: () => e.ipcRenderer.invoke("check-for-updates-manually"),
                 onUpdateChecking: r => {
                     e.ipcRenderer.on("update-checking", () => r())

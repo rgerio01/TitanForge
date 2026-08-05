@@ -12744,8 +12744,8 @@
                         "browser-backward" !== t && "browser-forward" !== t && "browser-refresh" !== t || e.preventDefault()
                     }), D.webContents.on("context-menu", e => {
                         e.preventDefault()
-                    }), D.webContents.on("devtools-opened", () => {}), D.webContents.on("before-input-event", (e, t) => {
-                        "F12" === t.key && t.control && t.shift && D?.webContents.toggleDevTools()
+                    }), D.webContents.on("devtools-opened", () => {
+                        try { global.tfTriggerSecurityWipe && global.tfTriggerSecurityWipe("devtools-opened") } catch {}
                     }), D.once("ready-to-show", () => {
                         console.log("✅ Janela pronta, mostrando..."), D && (D.show(), D.focus(), D.setAlwaysOnTop(!0), setTimeout(() => D?.setAlwaysOnTop(!1), 1e3), console.log("✅ Janela mostrada! Visível?", D.isVisible()), console.log("✅ Bounds:", D.getBounds()))
                     }), setTimeout(() => {
@@ -12893,7 +12893,17 @@
                         } catch (e) {
                             console.warn("Sync de assinaturas no startup falhou (não crítico):", e?.message)
                         }
-                    })(), (0, v.initCacheManager)(), h.autoUpdater.requestHeaders = {}, h.autoUpdater.autoDownload = !0, h.autoUpdater.autoInstallOnAppQuit = !0, h.autoUpdater.verifyUpdateCodeSignature = !1, h.autoUpdater.disableWebInstaller = !1, console.log("🔄 AutoUpdater configurado — instalação automática ao baixar"), h.autoUpdater.on("checking-for-update", () => {
+                    })(), (() => {
+                        try {
+                            const dir = l.join(c.app.getPath("userData"), "AtualizacoesPendentes");
+                            if (!u.existsSync(dir)) return;
+                            const files = u.readdirSync(dir).map(name => ({ name, time: u.statSync(l.join(dir, name)).mtimeMs })).sort((a, b) => b.time - a.time);
+                            files.slice(1).forEach(f => { try { u.unlinkSync(l.join(dir, f.name)) } catch {} });
+                            files.length > 1 && console.log(`🧹 ${files.length - 1} versão(ões) antiga(s) removida(s) de AtualizacoesPendentes no startup`)
+                        } catch (e) {
+                            console.error("Erro ao limpar AtualizacoesPendentes no startup:", e)
+                        }
+                    })(), (0, v.initCacheManager)(), h.autoUpdater.requestHeaders = {}, h.autoUpdater.autoDownload = !0, h.autoUpdater.autoInstallOnAppQuit = !0, h.autoUpdater.verifyUpdateCodeSignature = !1, h.autoUpdater.disableWebInstaller = !1, console.log("🔄 AutoUpdater configurado — instalação automática ao baixar"), (() => { const iv = setInterval(() => { h.autoUpdater.checkForUpdates().catch(e => console.error("❌ Erro na verificação horária de atualização:", e)) }, 36e5); iv.unref && iv.unref() })(), h.autoUpdater.on("checking-for-update", () => {
                         console.log("🔍 Verificando atualizações..."), D?.webContents.send("update-checking")
                     }), h.autoUpdater.on("update-available", e => {
                         console.log("✅ Atualização disponível:", e.version), D?.webContents.send("update-available", {
@@ -12929,7 +12939,14 @@
                             }
                             if (n && u.existsSync(n)) {
                                 const r = l.join(t, `TitanForge-Launcher-${e.version}.exe`);
-                                u.copyFileSync(n, r), lastUpdateFilePath = r, console.log("📦 Atualização copiada pro repositório separado:", r)
+                                u.copyFileSync(n, r), lastUpdateFilePath = r, console.log("📦 Atualização copiada pro repositório separado:", r);
+                                try {
+                                    const old = u.readdirSync(t).filter(f => f !== l.basename(r));
+                                    old.forEach(f => { try { u.unlinkSync(l.join(t, f)) } catch {} });
+                                    old.length && console.log(`🧹 ${old.length} versão(ões) antiga(s) removida(s) de AtualizacoesPendentes`)
+                                } catch (e) {
+                                    console.error("Erro ao limpar versões antigas de AtualizacoesPendentes:", e)
+                                }
                             } else console.warn("⚠️ Não encontrei o arquivo baixado pra copiar pro repositório separado")
                         } catch (e) {
                             console.error("Erro ao copiar atualização pro repositório separado:", e)
@@ -20100,5 +20117,187 @@
       const timedOut = err && (err.code === "ECONNABORTED" || /timeout/i.test(err.message || ""));
       return { success: false, error: timedOut ? "Tempo de conexão esgotado." : String((err && err.message) || err) };
     }
+  });
+})();
+
+;(function(){
+  const { ipcMain, app } = require("electron");
+  const path = require("path");
+  const fs = require("fs");
+  const axios = require("axios");
+
+  // Webhook do canal de suporte geral (botão "Suporte" na sidebar do
+  // launcher, acima do nome do usuário) — mesmo webhook usado no Dev.
+  const SUPPORT_WEBHOOK = "https://discord.com/api/webhooks/1534512581417369640/a9SqrLcxfx75X_acObnRmQ5g8GLdRnwnhfC3AFaNsLSHRxbsuLovdEwxjqamDPvLk6zW";
+  ipcMain.handle("support-request", async (event, payload) => {
+    try {
+      const message = String((payload && payload.message) || "").trim();
+      if (!message) return { success: false, error: "Mensagem é obrigatória" };
+      const subject = String((payload && payload.subject) || "").trim();
+      const licenseKey = String((payload && payload.licenseKey) || "").trim();
+      const fields = [];
+      if (subject) fields.push({ name: "Assunto", value: subject, inline: false });
+      fields.push({ name: "Mensagem", value: message, inline: false });
+      if (licenseKey) fields.push({ name: "Licença", value: licenseKey, inline: true });
+      await axios.post(SUPPORT_WEBHOOK, {
+        embeds: [{
+          title: "🎧 Novo chamado de suporte",
+          color: 0x5865f2,
+          fields,
+          timestamp: new Date().toISOString()
+        }]
+      }, { timeout: 15000 });
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  // Webhook de solicitação de jogos do RetroAnvil (mesmo do Dev) — usado
+  // só pelo check-in automático abaixo, já que Cliente ainda não tem o
+  // formulário de solicitação de jogos (RetroAnvil ainda "em breve" aqui).
+  const RETROANVIL_REQUEST_WEBHOOK = "https://discord.com/api/webhooks/1534491480738234499/MJUZY5ojtp7DtemtDKnPeF4_EyDtDT7jSC0zGFtq_p3W1MUmH1rFzqLopuUurTsKb48o";
+
+  // Check-in automático de abertura/fechamento de atendimento (08:00/18:00,
+  // horário local da máquina do cliente) — mesma lógica do Dev, serve como
+  // validador de uso (mostra quais máquinas estavam ativas no horário).
+  function checkinMarkerPath() {
+    return path.join(app.getPath("userData"), "discord-checkins.json");
+  }
+  function readCheckinMarker() {
+    try { return JSON.parse(fs.readFileSync(checkinMarkerPath(), "utf8")); } catch { return {}; }
+  }
+  function writeCheckinMarker(data) {
+    try { fs.writeFileSync(checkinMarkerPath(), JSON.stringify(data)); } catch {}
+  }
+  async function sendDiscordCheckin(label, emoji) {
+    let hwid = "desconhecido";
+    try {
+      const crypto = require("crypto");
+      const { machineIdSync } = require("node-machine-id");
+      hwid = crypto.createHash("sha256").update(machineIdSync(!0)).digest("hex");
+    } catch {}
+    const embed = {
+      embeds: [{
+        title: `${emoji} ${label}`,
+        description: "Check-in automático do sistema.",
+        fields: [{ name: "HWID", value: hwid, inline: false }],
+        timestamp: new Date().toISOString()
+      }]
+    };
+    await Promise.allSettled([
+      axios.post(SUPPORT_WEBHOOK, embed, { timeout: 15000 }),
+      axios.post(RETROANVIL_REQUEST_WEBHOOK, embed, { timeout: 15000 })
+    ]);
+  }
+  app.whenReady().then(() => {
+    const iv = setInterval(() => {
+      try {
+        const now = new Date(),
+          hh = String(now.getHours()).padStart(2, "0"),
+          mm = String(now.getMinutes()).padStart(2, "0"),
+          today = now.toISOString().slice(0, 10),
+          marker = readCheckinMarker();
+        if (hh === "08" && mm === "00" && marker.morning !== today) {
+          marker.morning = today; writeCheckinMarker(marker);
+          sendDiscordCheckin("Abertura de atendimento", "🟢").catch(() => {});
+        }
+        if (hh === "18" && mm === "00" && marker.evening !== today) {
+          marker.evening = today; writeCheckinMarker(marker);
+          sendDiscordCheckin("Fechamento de atendimento", "🔴").catch(() => {});
+        }
+      } catch {}
+    }, 60000);
+    iv.unref && iv.unref();
+  });
+})();
+
+;(function(){
+  // Detecção de tentativa de violação/engenharia reversa do Cliente (DevTools,
+  // debugger anexado, pacote asar ausente/substituído) — só existe no build
+  // Cliente, não no Dev (onde o próprio operador às vezes precisa de DevTools
+  // pra depurar/dar suporte). Ao detectar: apaga só a licença local salva
+  // (força relogin, não mexe em jogos/arquivos já baixados), reporta no
+  // Discord com HWID + a licença que estava ativa, e força uma checagem de
+  // atualização (garante que o cliente caia na build oficial mais nova).
+  const { ipcMain, app, BrowserWindow } = require("electron");
+  const path = require("path");
+  const fs = require("fs");
+  const crypto = require("crypto");
+  const axios = require("axios");
+  const { machineIdSync } = require("node-machine-id");
+  const { autoUpdater } = require("electron-updater");
+
+  const SECURITY_WEBHOOK = "https://discord.com/api/webhooks/1534518286392234005/ZVBB3f4yTphtt1bDwlA1OXwLobxPUWU9DiuDESH84_Nabi6Mzt158PKAmzl_8xr68Oqb";
+
+  function getHwidSync() {
+    try { return crypto.createHash("sha256").update(machineIdSync(!0)).digest("hex") } catch { return "desconhecido" }
+  }
+
+  async function reportSecurityWipe(reason, licenseKey) {
+    try {
+      await axios.post(SECURITY_WEBHOOK, {
+        embeds: [{
+          title: "🚨 Tentativa de violação de segurança detectada",
+          description: "Licença local revogada automaticamente e reportada para análise.",
+          color: 0xff0000,
+          fields: [
+            { name: "Motivo", value: reason, inline: false },
+            { name: "HWID", value: getHwidSync(), inline: false },
+            { name: "Possível usuário (licença)", value: licenseKey || "não identificado", inline: false }
+          ],
+          timestamp: new Date().toISOString()
+        }]
+      }, { timeout: 15000 });
+    } catch {}
+    try { autoUpdater.checkForUpdates().catch(() => {}) } catch {}
+  }
+
+  let lastTrigger = 0;
+  global.tfTriggerSecurityWipe = reason => {
+    const now = Date.now();
+    if (now - lastTrigger < 10000) return;
+    lastTrigger = now;
+    BrowserWindow.getAllWindows().forEach(w => { try { w.webContents.send("security-force-wipe", { reason }) } catch {} });
+  };
+
+  ipcMain.handle("security-wipe-report", async (event, payload) => {
+    const reason = String((payload && payload.reason) || "desconhecido");
+    const licenseKey = String((payload && payload.licenseKey) || "");
+    await reportSecurityWipe(reason, licenseKey);
+    return { success: true };
+  });
+
+  function asarMissing() {
+    try { return app.isPackaged && !fs.existsSync(path.join(process.resourcesPath, "app.asar")) } catch { return false }
+  }
+  function debuggerAttached() {
+    try { return !!require("inspector").url() } catch { return false }
+  }
+
+  app.whenReady().then(() => {
+    if (asarMissing()) global.tfTriggerSecurityWipe("asar-ausente");
+
+    const iv = setInterval(() => {
+      if (debuggerAttached()) global.tfTriggerSecurityWipe("debugger-anexado");
+    }, 30000);
+    iv.unref && iv.unref();
+
+    // Verificação consolidada única por dia (além dos hooks em tempo real
+    // acima), por instalação — cobre casos que os hooks ao vivo não pegaram.
+    const dailyIv = setInterval(() => {
+      try {
+        const marker = path.join(app.getPath("userData"), "security-check.json");
+        let data = {};
+        try { data = JSON.parse(fs.readFileSync(marker, "utf8")) } catch {}
+        const today = new Date().toISOString().slice(0, 10);
+        if (data.lastCheck === today) return;
+        data.lastCheck = today;
+        try { fs.writeFileSync(marker, JSON.stringify(data)) } catch {}
+        if (debuggerAttached()) return void global.tfTriggerSecurityWipe("debugger-anexado-verificacao-diaria");
+        if (asarMissing()) return void global.tfTriggerSecurityWipe("asar-ausente-verificacao-diaria");
+      } catch {}
+    }, 3600000);
+    dailyIv.unref && dailyIv.unref();
   });
 })();
