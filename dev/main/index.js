@@ -20188,6 +20188,90 @@
     }
   });
 
+  // Webhook do canal de suporte geral (botão "Suporte" na sidebar do
+  // launcher, acima do nome do usuário — disponível pra qualquer cliente,
+  // não só RetroAnvil).
+  const SUPPORT_WEBHOOK = "https://discord.com/api/webhooks/1534512581417369640/a9SqrLcxfx75X_acObnRmQ5g8GLdRnwnhfC3AFaNsLSHRxbsuLovdEwxjqamDPvLk6zW";
+  ipcMain.handle("support-request", async (event, payload) => {
+    try {
+      const message = String((payload && payload.message) || "").trim();
+      if (!message) return { success: false, error: "Mensagem é obrigatória" };
+      const subject = String((payload && payload.subject) || "").trim();
+      const licenseKey = String((payload && payload.licenseKey) || "").trim();
+      const fields = [];
+      if (subject) fields.push({ name: "Assunto", value: subject, inline: false });
+      fields.push({ name: "Mensagem", value: message, inline: false });
+      if (licenseKey) fields.push({ name: "Licença", value: licenseKey, inline: true });
+      await axios.post(SUPPORT_WEBHOOK, {
+        embeds: [{
+          title: "🎧 Novo chamado de suporte",
+          color: 0x5865f2,
+          fields,
+          timestamp: new Date().toISOString()
+        }]
+      }, { timeout: 15000 });
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  // Check-in automático de abertura/fechamento de atendimento (08:00/18:00,
+  // horário local da máquina do cliente). Dispara de QUALQUER instalação que
+  // estiver com o app aberto nesse minuto, pros dois webhooks (suporte e
+  // solicitação de jogos) — intencional, serve também como validador de uso
+  // (mostra quais máquinas estavam ativas no horário), não é deduplicado
+  // entre clientes diferentes, só uma vez por dia por instalação.
+  function checkinMarkerPath() {
+    return path.join(app.getPath("userData"), "discord-checkins.json");
+  }
+  function readCheckinMarker() {
+    try { return JSON.parse(fs.readFileSync(checkinMarkerPath(), "utf8")); } catch { return {}; }
+  }
+  function writeCheckinMarker(data) {
+    try { fs.writeFileSync(checkinMarkerPath(), JSON.stringify(data)); } catch {}
+  }
+  async function sendDiscordCheckin(label, emoji) {
+    let hwid = "desconhecido";
+    try {
+      const crypto = require("crypto");
+      const { machineIdSync } = require("node-machine-id");
+      hwid = crypto.createHash("sha256").update(machineIdSync(!0)).digest("hex");
+    } catch {}
+    const embed = {
+      embeds: [{
+        title: `${emoji} ${label}`,
+        description: "Check-in automático do sistema.",
+        fields: [{ name: "HWID", value: hwid, inline: false }],
+        timestamp: new Date().toISOString()
+      }]
+    };
+    await Promise.allSettled([
+      axios.post(SUPPORT_WEBHOOK, embed, { timeout: 15000 }),
+      axios.post(RETROANVIL_REQUEST_WEBHOOK, embed, { timeout: 15000 })
+    ]);
+  }
+  app.whenReady().then(() => {
+    const iv = setInterval(() => {
+      try {
+        const now = new Date(),
+          hh = String(now.getHours()).padStart(2, "0"),
+          mm = String(now.getMinutes()).padStart(2, "0"),
+          today = now.toISOString().slice(0, 10),
+          marker = readCheckinMarker();
+        if (hh === "08" && mm === "00" && marker.morning !== today) {
+          marker.morning = today; writeCheckinMarker(marker);
+          sendDiscordCheckin("Abertura de atendimento", "🟢").catch(() => {});
+        }
+        if (hh === "18" && mm === "00" && marker.evening !== today) {
+          marker.evening = today; writeCheckinMarker(marker);
+          sendDiscordCheckin("Fechamento de atendimento", "🔴").catch(() => {});
+        }
+      } catch {}
+    }, 60000);
+    iv.unref && iv.unref();
+  });
+
   ipcMain.handle("arena-list-games", async () => {
     try {
       const romsDir = getArenaRomsDir();

@@ -66491,6 +66491,48 @@
                             price: 24.9
                         }
                     },
+                    TfSupportWidget = () => {
+                        const [isOpen, setIsOpen] = c.useState(!1),
+                            [subject, setSubject] = c.useState(""),
+                            [msg, setMsg] = c.useState(""),
+                            [sending, setSending] = c.useState(!1),
+                            [fb, setFb] = c.useState("");
+                        const send = async () => {
+                            if (!msg.trim()) return void setFb("Escreva sua mensagem.");
+                            setSending(!0);
+                            const licenseKey = (localStorage.getItem("umbra_license_key") || "").trim(),
+                                res = await window.electron.supportRequest({ subject: subject.trim(), message: msg.trim(), licenseKey });
+                            setSending(!1),
+                            res.success ? (setFb("Enviado! A gente responde o quanto antes."), setSubject(""), setMsg("")) : setFb("Erro: " + res.error)
+                        };
+                        return (0, l.jsxs)(l.Fragment, { children: [
+                            (0, l.jsxs)("button", {
+                                onClick: () => setIsOpen(!0),
+                                style: { marginTop: "2px", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "7px 0", background: "rgba(88,101,242,0.10)", border: "1px solid rgba(88,101,242,0.30)", borderRadius: "2px", color: "#8e9dfb", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "Rajdhani, sans-serif" },
+                                children: [(0, l.jsx)(u.IconDiscord, { size: 12 }), " Suporte"]
+                            }),
+                            isOpen && (0, l.jsx)("div", {
+                                style: { position: "fixed", inset: 0, zIndex: 100000, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" },
+                                onClick: () => setIsOpen(!1),
+                                children: (0, l.jsxs)("div", {
+                                    className: "card",
+                                    onClick: e => e.stopPropagation(),
+                                    style: { width: "90%", maxWidth: "420px", padding: 20, display: "flex", flexDirection: "column", gap: 10 },
+                                    children: [
+                                        (0, l.jsx)("h3", { style: { margin: 0, fontSize: 14, color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" }, children: "Falar com o suporte" }),
+                                        (0, l.jsx)("p", { style: { margin: 0, fontSize: 12, color: "var(--text-secondary)" }, children: "Sua mensagem cai direto no nosso Discord." }),
+                                        (0, l.jsx)("input", { className: "input", placeholder: "Assunto (opcional)", value: subject, onChange: e => setSubject(e.target.value) }),
+                                        (0, l.jsx)("textarea", { className: "input", rows: 4, placeholder: "Descreva sua dúvida ou problema...", value: msg, onChange: e => setMsg(e.target.value), style: { resize: "vertical", fontFamily: "inherit" } }),
+                                        fb && (0, l.jsx)("p", { style: { margin: 0, fontSize: 12, color: "var(--text-secondary)" }, children: fb }),
+                                        (0, l.jsxs)("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
+                                            (0, l.jsx)("button", { className: "btn-ghost", onClick: () => setIsOpen(!1), style: { padding: "8px 14px", fontSize: 12 }, children: "Fechar" }),
+                                            (0, l.jsx)("button", { className: "btn-primary", disabled: sending, onClick: send, style: { padding: "8px 14px", fontSize: 12 }, children: sending ? "Enviando..." : "Enviar" })
+                                        ]})
+                                    ]
+                                })
+                            })
+                        ]})
+                    },
                     R = new Set,
                     B = ({
                         nsfwDatabase: e,
@@ -68179,7 +68221,7 @@
                                     alignItems: "center",
                                     gap: "2px"
                                 },
-                                children: [(0, l.jsx)("span", {
+                                children: [(0, l.jsx)(TfSupportWidget, {}), (0, l.jsx)("span", {
                                     style: {
                                         fontSize: "9px",
                                         color: "rgba(255,255,255,0.25)",

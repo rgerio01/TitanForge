@@ -203,6 +203,7 @@
                     e.ipcRenderer.on("arena-download-progress", (e, n) => r(n))
                 },
                 arenaRequestGame: r => e.ipcRenderer.invoke("arena-request-game", r),
+                supportRequest: r => e.ipcRenderer.invoke("support-request", r),
                 arenaListGames: () => e.ipcRenderer.invoke("arena-list-games"),
                 arenaLaunchGame: r => e.ipcRenderer.invoke("arena-launch-game", r),
                 arenaRemoveGame: r => e.ipcRenderer.invoke("arena-remove-game", r),
