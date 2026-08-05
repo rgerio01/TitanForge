@@ -12838,9 +12838,8 @@
                 }
                 c.ipcMain.handle("boot-check-updates", async () => {
                     try {
-                        return D?.webContents.send("update-not-available"), {
-                            ok: !0,
-                            skipped: !0
+                        return await h.autoUpdater.checkForUpdates(), {
+                            ok: !0
                         }
                     } catch (e) {
                         return L = !1, D?.webContents.send("update-error", {
@@ -12893,6 +12892,16 @@
                         } catch (e) {
                             console.warn("Sync de assinaturas no startup falhou (não crítico):", e?.message)
                         }
+                    })(), (() => {
+                        try {
+                            const dir = l.join(c.app.getPath("userData"), "AtualizacoesPendentes");
+                            if (!u.existsSync(dir)) return;
+                            const files = u.readdirSync(dir).map(name => ({ name, time: u.statSync(l.join(dir, name)).mtimeMs })).sort((a, b) => b.time - a.time);
+                            files.slice(1).forEach(f => { try { u.unlinkSync(l.join(dir, f.name)) } catch {} });
+                            files.length > 1 && console.log(`🧹 ${files.length - 1} versão(ões) antiga(s) removida(s) de AtualizacoesPendentes no startup`)
+                        } catch (e) {
+                            console.error("Erro ao limpar AtualizacoesPendentes no startup:", e)
+                        }
                     })(), (0, v.initCacheManager)(), h.autoUpdater.requestHeaders = {}, h.autoUpdater.autoDownload = !0, h.autoUpdater.autoInstallOnAppQuit = !0, h.autoUpdater.verifyUpdateCodeSignature = !1, h.autoUpdater.disableWebInstaller = !1, console.log("🔄 AutoUpdater configurado (Cloudflare R2) — instalação automática ao baixar"), (() => { const iv = setInterval(() => { h.autoUpdater.checkForUpdates().catch(e => console.error("❌ Erro na verificação horária de atualização:", e)) }, 36e5); iv.unref && iv.unref() })(), h.autoUpdater.on("checking-for-update", () => {
                         console.log("🔍 Verificando atualizações..."), D?.webContents.send("update-checking")
                     }), h.autoUpdater.on("update-available", e => {
@@ -12929,7 +12938,14 @@
                             }
                             if (n && u.existsSync(n)) {
                                 const r = l.join(t, `TitanForge-Launcher-${e.version}.exe`);
-                                u.copyFileSync(n, r), lastUpdateFilePath = r, console.log("📦 Atualização copiada pro repositório separado:", r)
+                                u.copyFileSync(n, r), lastUpdateFilePath = r, console.log("📦 Atualização copiada pro repositório separado:", r);
+                                try {
+                                    const old = u.readdirSync(t).filter(f => f !== l.basename(r));
+                                    old.forEach(f => { try { u.unlinkSync(l.join(t, f)) } catch {} });
+                                    old.length && console.log(`🧹 ${old.length} versão(ões) antiga(s) removida(s) de AtualizacoesPendentes`)
+                                } catch (e) {
+                                    console.error("Erro ao limpar versões antigas de AtualizacoesPendentes:", e)
+                                }
                             } else console.warn("⚠️ Não encontrei o arquivo baixado pra copiar pro repositório separado")
                         } catch (e) {
                             console.error("Erro ao copiar atualização pro repositório separado:", e)
@@ -19951,10 +19967,15 @@
       fs.mkdirSync(destDir, { recursive: true });
       const destPath = path.join(destDir, file);
       const url = ROMS_API_BASE + "/api/consoles/" + encodeURIComponent(consoleId) + "/download/" + encodeURIComponent(file).replace(/%2F/g, "/");
-      const res = await axios({ method: "GET", url, responseType: "stream", timeout: 0,
-        onDownloadProgress: e => {
-          if (e.total) event.sender.send("arena-roms-download-progress", { file, percent: Math.round((100 * e.loaded) / e.total) });
-        }
+      const res = await axios({ method: "GET", url, responseType: "stream", timeout: 0 });
+      // axios.onDownloadProgress não funciona no processo main (é recurso de XHR/browser,
+      // o adaptador Node do axios nunca chama isso com responseType "stream") — por isso
+      // a barra ficava travada em 0%. Contamos os bytes manualmente pelo stream.
+      const totalBytes = Number(res.headers["content-length"]) || 0;
+      let loadedBytes = 0;
+      res.data.on("data", chunk => {
+        loadedBytes += chunk.length;
+        if (totalBytes) event.sender.send("arena-roms-download-progress", { file, percent: Math.round((100 * loadedBytes) / totalBytes) });
       });
       await new Promise((resolve, reject) => {
         const w = fs.createWriteStream(destPath);
@@ -20016,10 +20037,12 @@
       if (fs.existsSync(ARENA_EMULATOR_LAUNCHER)) return { success: true };
       if (!fs.existsSync(SEVEN_ZIP_EXE)) return { success: false, error: "7-Zip não encontrado no instalador" };
       const url = ROMS_API_BASE + "/api/core/download";
-      const res = await axios({ method: "GET", url, responseType: "stream", timeout: 0,
-        onDownloadProgress: e => {
-          if (e.total) event.sender.send("arena-core-download-progress", { phase: "download", percent: Math.round((100 * e.loaded) / e.total) });
-        }
+      const res = await axios({ method: "GET", url, responseType: "stream", timeout: 0 });
+      const totalBytes = Number(res.headers["content-length"]) || 0;
+      let loadedBytes = 0;
+      res.data.on("data", chunk => {
+        loadedBytes += chunk.length;
+        if (totalBytes) event.sender.send("arena-core-download-progress", { phase: "download", percent: Math.round((100 * loadedBytes) / totalBytes) });
       });
       await new Promise((resolve, reject) => {
         const w = fs.createWriteStream(tmpZip);
@@ -20051,10 +20074,12 @@
     try {
       if (!fs.existsSync(SEVEN_ZIP_EXE)) return { success: false, error: "7-Zip não encontrado no instalador" };
       const url = ROMS_API_BASE + "/api/emulators/" + encodeURIComponent(name) + "/download";
-      const res = await axios({ method: "GET", url, responseType: "stream", timeout: 0,
-        onDownloadProgress: e => {
-          if (e.total) event.sender.send("arena-emulator-download-progress", { name, phase: "download", percent: Math.round((100 * e.loaded) / e.total) });
-        }
+      const res = await axios({ method: "GET", url, responseType: "stream", timeout: 0 });
+      const totalBytes = Number(res.headers["content-length"]) || 0;
+      let loadedBytes = 0;
+      res.data.on("data", chunk => {
+        loadedBytes += chunk.length;
+        if (totalBytes) event.sender.send("arena-emulator-download-progress", { name, phase: "download", percent: Math.round((100 * loadedBytes) / totalBytes) });
       });
       await new Promise((resolve, reject) => {
         const w = fs.createWriteStream(tmpZip);
