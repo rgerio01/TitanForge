@@ -208,6 +208,7 @@
                 }),
                 arenaListGames: () => e.ipcRenderer.invoke("arena-list-games"),
                 arenaLaunchGame: r => e.ipcRenderer.invoke("arena-launch-game", r),
+                arenaRemoveGame: r => e.ipcRenderer.invoke("arena-remove-game", r),
                 arenaRomsPathGet: () => e.ipcRenderer.invoke("arena-roms-path-get"),
                 arenaRomsPathSet: () => e.ipcRenderer.invoke("arena-roms-path-set"),
                 arenaSystemEmulatorMap: () => e.ipcRenderer.invoke("arena-system-emulator-map"),

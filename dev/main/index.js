@@ -20122,6 +20122,24 @@
     }
   });
 
+  ipcMain.handle("arena-remove-game", async (event, payload) => {
+    try {
+      const system = payload && payload.system;
+      const file = payload && payload.file;
+      if (!system || !file) return { success: false, error: "Parâmetros inválidos" };
+      const sysDir = path.join(getArenaRomsDir(), system);
+      const romPath = path.join(sysDir, file);
+      // Mesma trava do lançamento: impede escapar da pasta de roms do sistema.
+      if (path.dirname(romPath) !== sysDir || !fs.existsSync(romPath)) {
+        return { success: false, error: "Jogo não encontrado" };
+      }
+      fs.unlinkSync(romPath);
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
   ipcMain.handle("arena-uninstall", async () => {
     try {
       fs.rmSync(ARENA_DIR, { recursive: true, force: true });

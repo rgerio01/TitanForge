@@ -80004,7 +80004,7 @@
 
   // Card em tela cheia com o vídeo do jogo tocando e um botão "Iniciar Jogo"
   // embaixo — abre ao clicar num jogo já adicionado, em vez de lançar direto.
-  function openRetroGameModal(title, imageUrl, videoUrl, onStart){
+  function openRetroGameModal(title, imageUrl, videoUrl, onStart, onRemove){
     ensureCarouselStyle();
     const overlay = document.createElement("div");
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;";
@@ -80055,6 +80055,24 @@
     btnRow.appendChild(startBtn);
     btnRow.appendChild(closeBtn);
     footer.appendChild(btnRow);
+
+    if (onRemove) {
+      const removeBtn = button("🗑 Remover Jogo (libera espaço)", "secondary");
+      removeBtn.style.cssText += "color:#ff6b6b;border-color:rgba(255,107,107,0.35);";
+      removeBtn.onclick = async () => {
+        if (!confirm('Apagar "' + title + '" do computador? Isso remove o arquivo da ROM pra sempre — dá pra baixar de novo depois pelo catálogo.')) return;
+        removeBtn.disabled = true;
+        removeBtn.textContent = "Removendo...";
+        const r = await onRemove();
+        if (r && r.success) {
+          overlay.remove();
+        } else {
+          removeBtn.disabled = false;
+          removeBtn.textContent = "Erro: " + ((r && r.error) || "não foi possível remover");
+        }
+      };
+      footer.appendChild(removeBtn);
+    }
     box.appendChild(footer);
 
     overlay.appendChild(box);
@@ -80119,7 +80137,12 @@
         const r = await window.electron.arenaLaunchGame({ system: g.system, file: g.file, gamepads });
         if (!r.success) status.textContent = "Erro: " + r.error;
       };
-      gCard.onclick = () => openRetroGameModal(g.title, url, media && media.videoUrl, doLaunch);
+      const doRemove = async () => {
+        const r = await window.electron.arenaRemoveGame({ system: g.system, file: g.file });
+        if (r.success) renderGameGrid(root, system, games.filter(x => x !== g), status);
+        return r;
+      };
+      gCard.onclick = () => openRetroGameModal(g.title, url, media && media.videoUrl, doLaunch, doRemove);
       grid.appendChild(gCard);
     });
     c.appendChild(grid);
@@ -80213,34 +80236,69 @@
   // Sem capa/vídeo em streaming aqui — dependia do túnel responder pra cada
   // card individualmente e ficava com caixa preta vazia toda vez que a
   // conexão falhava. Volta pro badge (sempre funciona, sem depender de rede).
+  // Capa/vídeo de amostra em streaming (sem baixar nada) como fundo do card,
+  // com o badge de texto como fallback se a imagem falhar/não existir — não
+  // trava mais tudo se o túnel piscar, graças ao vigia automático.
   function buildConsoleCard(id, name, count, sampleImageUrl, sampleVideoUrl, onClick){
     ensureCarouselStyle();
     const neon = SYSTEM_BRAND_COLOR[id] || hashColorForConsole(id);
     const sCard = css(document.createElement("div"), {
-      flex: "0 0 170px", scrollSnapAlign: "start", display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center", gap: "8px", aspectRatio: "4/3",
-      borderRadius: "6px", cursor: "pointer", position: "relative", overflow: "hidden",
+      flex: "0 0 190px", scrollSnapAlign: "start", position: "relative", overflow: "hidden",
+      aspectRatio: "3/4", borderRadius: "8px", cursor: "pointer",
       border: "1px solid var(--border)", transition: "border-color .15s,transform .15s",
-      background: "var(--bg-card)", padding: "10px"
+      background: "#0a0604"
     });
     sCard.className = "tf-retro-card";
     sCard.style.setProperty("--tf-neon", neon);
     sCard.onclick = onClick;
 
-    // Barrinha de acento sempre visível na cor da marca.
     const accentBar = css(document.createElement("div"), {
-      position: "absolute", top: "0", left: "0", right: "0", height: "3px", background: neon
+      position: "absolute", top: "0", left: "0", right: "0", height: "3px", zIndex: "4", background: neon
     });
     sCard.appendChild(accentBar);
 
-    const badgeWrap = document.createElement("div");
-    badgeWrap.style.cssText = "flex:1;display:flex;align-items:center;justify-content:center;width:100%;";
+    const badgeWrap = css(document.createElement("div"), { position: "absolute", inset: "0", display: "flex", alignItems: "center", justifyContent: "center" });
     badgeWrap.innerHTML = consoleIconSvg(id);
     sCard.appendChild(badgeWrap);
 
-    const content = document.createElement("div");
-    content.style.cssText = "text-align:center;display:flex;flex-direction:column;gap:2px;";
-    content.innerHTML = '<div style="font-size:10.5px;color:var(--accent);">' + count.toLocaleString("pt-BR") + ' jogo(s)</div>';
+    if (sampleImageUrl) {
+      const img = document.createElement("img");
+      img.src = sampleImageUrl;
+      img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:1;";
+      img.onerror = () => { img.remove(); }; // some pro badge, que já está por baixo
+      sCard.appendChild(img);
+    }
+    if (sampleVideoUrl) {
+      let video = null, hoverTimer = null;
+      sCard.addEventListener("mouseenter", () => {
+        hoverTimer = setTimeout(() => {
+          video = document.createElement("video");
+          video.src = sampleVideoUrl; video.muted = true; video.loop = true; video.autoplay = true; video.playsInline = true;
+          video.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;";
+          video.onerror = () => { if (video) { video.remove(); video = null; } };
+          sCard.appendChild(video);
+          video.play().catch(() => {});
+        }, 400);
+      });
+      sCard.addEventListener("mouseleave", () => {
+        clearTimeout(hoverTimer);
+        if (video) { video.remove(); video = null; }
+      });
+    }
+
+    const gradient = css(document.createElement("div"), {
+      position: "absolute", inset: "0", zIndex: "3", pointerEvents: "none",
+      background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.2) 55%, transparent 100%)"
+    });
+    sCard.appendChild(gradient);
+
+    const content = css(document.createElement("div"), {
+      position: "absolute", left: "0", right: "0", bottom: "0", zIndex: "4",
+      padding: "10px 12px", display: "flex", flexDirection: "column", gap: "4px"
+    });
+    content.innerHTML =
+      '<div style="font-size:13px;color:#fff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 4px rgba(0,0,0,0.8);">' + name + '</div>' +
+      '<div style="font-size:10.5px;color:#ffb454;text-shadow:0 1px 3px rgba(0,0,0,0.8);">' + count.toLocaleString("pt-BR") + ' jogo(s)</div>';
     sCard.appendChild(content);
 
     return { sCard, content };
@@ -80304,6 +80362,14 @@
   async function renderInstalled(root){
     root.innerHTML = "";
     const c = card(retroHeader("🕹️", "RETRO ANVIL", "Escolha um console, depois um jogo, e ele abre direto no emulador."));
+
+    // Botão "Início" bem marcado — deixa claro que essa é a tela principal,
+    // já que antes o "Baixar ROMs" ficava laranja sempre (parecia que você
+    // já estava lá dentro, mesmo estando na tela inicial).
+    const homeBtn = button("🏠 Início", "primary");
+    homeBtn.disabled = true;
+    homeBtn.style.cssText += "opacity:1;cursor:default;";
+
     const addBtn = button("Adicionar Jogos", "secondary");
     const status = document.createElement("p");
     status.style.cssText = "font-size:12px;color:var(--text-secondary);margin-top:10px;min-height:16px;";
@@ -80319,9 +80385,10 @@
       renderConsoleGrid(root, consolesEl, status);
     };
 
-    const catalogBtn = button("Baixar ROMs", "primary");
+    const catalogBtn = button("Baixar ROMs", "secondary");
     catalogBtn.onclick = () => renderRomsCatalogConsoles(root);
 
+    c.appendChild(homeBtn);
     c.appendChild(addBtn);
     c.appendChild(catalogBtn);
     c.appendChild(controllerConfigBtn(status));
