@@ -80532,17 +80532,28 @@
     c.appendChild(grid);
     root.appendChild(c);
 
-    const r = await window.electron.arenaRomsListGames(consoleId);
+    const [r, ownedRes] = await Promise.all([
+      window.electron.arenaRomsListGames(consoleId),
+      window.electron.arenaListGames()
+    ]);
     if (!r.success) { status.textContent = "Erro: " + r.error; return; }
     const allGames = r.games;
     status.textContent = allGames.length.toLocaleString("pt-BR") + " jogos.";
+
+    // Sabe quais já foram baixados (mesmo console + mesmo arquivo) pra avisar
+    // antes de sobrescrever, em vez de só sair baixando de novo.
+    const ownedSet = new Set(
+      ((ownedRes && ownedRes.games) || [])
+        .filter(og => og.system === consoleId)
+        .map(og => og.file.toLowerCase())
+    );
 
     let visible = 60;
     function draw(){
       const term = searchInp.value.trim().toLowerCase();
       const filtered = term ? allGames.filter(g => g.name.toLowerCase().includes(term)) : allGames;
       grid.innerHTML = "";
-      filtered.slice(0, visible).forEach(g => grid.appendChild(romCard(consoleId, g)));
+      filtered.slice(0, visible).forEach(g => grid.appendChild(romCard(consoleId, g, ownedSet)));
       if (filtered.length > visible) {
         const more = button("Carregar mais (" + (filtered.length - visible) + " restantes)", "secondary");
         more.style.gridColumn = "1 / -1";
@@ -80554,8 +80565,9 @@
     draw();
   }
 
-  function romCard(consoleId, g){
+  function romCard(consoleId, g, ownedSet){
     ensureCarouselStyle();
+    let alreadyOwned = !!(ownedSet && ownedSet.has(String(g.file || "").toLowerCase()));
     const box = document.createElement("div");
     box.className = "tf-retro-card";
     box.style.cssText = "border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg-card);display:flex;flex-direction:column;";
@@ -80597,17 +80609,20 @@
     name.style.cssText = "font-size:12px;color:var(--text-primary);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
     info.appendChild(name);
 
-    const dlBtn = button("Baixar", "primary");
+    const dlBtn = button(alreadyOwned ? "Baixado ✓" : "Baixar", "primary");
     dlBtn.style.cssText += "width:100%;margin:0;text-align:center;";
     dlBtn.onclick = async () => {
+      if (alreadyOwned && !confirm('Você já tem "' + g.name + '" baixado. Baixar de novo substitui o arquivo atual. Continuar?')) return;
       dlBtn.disabled = true;
       dlBtn.textContent = "Baixando... 0%";
       const off = window.electron.onArenaRomsDownloadProgress(data => {
         if (data.file === g.file) dlBtn.textContent = "Baixando... " + data.percent + "%";
       });
       const res = await window.electron.arenaRomsDownloadGame(consoleId, g.file);
+      off && off();
       dlBtn.disabled = false;
       dlBtn.textContent = res.success ? "Baixado ✓" : "Erro — tentar de novo";
+      if (res.success) alreadyOwned = true;
     };
     info.appendChild(dlBtn);
     box.appendChild(info);

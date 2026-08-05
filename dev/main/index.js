@@ -12893,7 +12893,7 @@
                         } catch (e) {
                             console.warn("Sync de assinaturas no startup falhou (não crítico):", e?.message)
                         }
-                    })(), (0, v.initCacheManager)(), h.autoUpdater.requestHeaders = {}, h.autoUpdater.autoDownload = !0, h.autoUpdater.autoInstallOnAppQuit = !1, h.autoUpdater.verifyUpdateCodeSignature = !1, h.autoUpdater.disableWebInstaller = !1, console.log("🔄 AutoUpdater configurado (Cloudflare R2) — instalação manual, sem auto-install"), h.autoUpdater.on("checking-for-update", () => {
+                    })(), (0, v.initCacheManager)(), h.autoUpdater.requestHeaders = {}, h.autoUpdater.autoDownload = !0, h.autoUpdater.autoInstallOnAppQuit = !0, h.autoUpdater.verifyUpdateCodeSignature = !1, h.autoUpdater.disableWebInstaller = !1, console.log("🔄 AutoUpdater configurado (Cloudflare R2) — instalação automática ao baixar"), (() => { const iv = setInterval(() => { h.autoUpdater.checkForUpdates().catch(e => console.error("❌ Erro na verificação horária de atualização:", e)) }, 36e5); iv.unref && iv.unref() })(), h.autoUpdater.on("checking-for-update", () => {
                         console.log("🔍 Verificando atualizações..."), D?.webContents.send("update-checking")
                     }), h.autoUpdater.on("update-available", e => {
                         console.log("✅ Atualização disponível:", e.version), D?.webContents.send("update-available", {
@@ -12937,7 +12937,9 @@
                         D?.webContents.send("update-downloaded", {
                             version: e.version,
                             path: lastUpdateFilePath
-                        })
+                        }), console.log("🔁 Instalando automaticamente (silencioso)..."), setTimeout(() => {
+                            try { h.autoUpdater.quitAndInstall(!0, !0) } catch (e) { console.error("❌ Erro ao instalar automaticamente:", e) }
+                        }, 1200)
                     }), h.autoUpdater.on("error", e => {
                         console.error("❌ Erro no AutoUpdater:", e), L = !1, D?.webContents.send("update-error", {
                             message: e.message
