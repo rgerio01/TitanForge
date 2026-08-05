@@ -6863,15 +6863,18 @@
                                     style: { fontSize: "13.5px", fontWeight: 700, color: "#ffb454", marginBottom: "6px", letterSpacing: "0.01em" },
                                     children: item.nome
                                 }), (0, n.jsx)("div", {
+                                    className: "custom-scrollbar",
                                     style: {
                                         fontSize: "12.5px",
                                         color: "rgba(255,255,255,0.52)",
                                         lineHeight: 1.55,
                                         whiteSpace: "pre-line",
-                                        maxHeight: 0 === idx ? "160px" : "76px",
-                                        overflow: "hidden",
-                                        maskImage: "linear-gradient(to bottom, black 70%, transparent 100%)",
-                                        WebkitMaskImage: "linear-gradient(to bottom, black 70%, transparent 100%)"
+                                        maxHeight: 0 === idx ? "320px" : "76px",
+                                        overflowY: 0 === idx ? "auto" : "hidden",
+                                        overflowX: "hidden",
+                                        paddingRight: 0 === idx ? "4px" : 0,
+                                        maskImage: 0 === idx ? "none" : "linear-gradient(to bottom, black 70%, transparent 100%)",
+                                        WebkitMaskImage: 0 === idx ? "none" : "linear-gradient(to bottom, black 70%, transparent 100%)"
                                     },
                                     children: item.content
                                 })]
@@ -7258,6 +7261,23 @@
                                     },
                                     children: "Adquira aqui →"
                                 })]
+                            }), (0, n.jsx)("button", {
+                                onClick: () => window.tfOpenSupportModal && window.tfOpenSupportModal(),
+                                style: {
+                                    marginTop: "10px",
+                                    background: "none",
+                                    border: "none",
+                                    color: "rgba(255,255,255,0.25)",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    fontSize: "11px",
+                                    fontFamily: "Rajdhani, sans-serif",
+                                    padding: 0,
+                                    transition: "color .15s"
+                                },
+                                onMouseEnter: e => { e.currentTarget.style.color = "rgba(255,255,255,0.55)" },
+                                onMouseLeave: e => { e.currentTarget.style.color = "rgba(255,255,255,0.25)" },
+                                children: "Não consegue acessar? Fale com o suporte"
                             })]
                         }), (0, n.jsx)("p", {
                             style: {
@@ -66491,48 +66511,55 @@
                             price: 24.9
                         }
                     },
-                    TfSupportWidget = () => {
-                        const [isOpen, setIsOpen] = c.useState(!1),
-                            [subject, setSubject] = c.useState(""),
-                            [msg, setMsg] = c.useState(""),
-                            [sending, setSending] = c.useState(!1),
-                            [fb, setFb] = c.useState("");
-                        const send = async () => {
-                            if (!msg.trim()) return void setFb("Escreva sua mensagem.");
-                            setSending(!0);
-                            const licenseKey = (localStorage.getItem("umbra_license_key") || "").trim(),
-                                res = await window.electron.supportRequest({ subject: subject.trim(), message: msg.trim(), licenseKey });
-                            setSending(!1),
-                            res.success ? (setFb("Enviado! A gente responde o quanto antes."), setSubject(""), setMsg("")) : setFb("Erro: " + res.error)
+                    // Modal em DOM puro (não em JSX) apontado direto pro <body> — o modal
+                    // em JSX ficava preso/cortado no canto porque algum ancestral da
+                    // sidebar usa CSS transform (framer-motion), e isso faz "position:
+                    // fixed" passar a ser relativo a esse ancestral em vez da tela
+                    // inteira. Anexando direto no body, o problema não existe. Também
+                    // fica em window pra poder ser chamado da tela de login (módulo
+                    // React separado, sem acesso a essas variáveis daqui).
+                    TfSupportModalInit = (window.tfOpenSupportModal = window.tfOpenSupportModal || function(){
+                        if (document.getElementById("tf-support-modal-backdrop")) return;
+                        const backdrop = document.createElement("div");
+                        backdrop.id = "tf-support-modal-backdrop";
+                        backdrop.style.cssText = "position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;";
+                        backdrop.onclick = () => backdrop.remove();
+                        const modal = document.createElement("div");
+                        modal.className = "card";
+                        modal.style.cssText = "width:90%;max-width:420px;padding:20px;display:flex;flex-direction:column;gap:10px;background:#141018;border:1px solid rgba(255,255,255,0.08);border-radius:10px;";
+                        modal.onclick = e => e.stopPropagation();
+                        modal.innerHTML = '<h3 style="margin:0;font-size:14px;color:#fff;font-family:Rajdhani,sans-serif;">Falar com o suporte</h3>' +
+                            '<p style="margin:0;font-size:12px;color:rgba(255,255,255,0.55);">Sua mensagem cai direto no nosso Discord.</p>' +
+                            '<input id="tf-support-subject" class="input" placeholder="Assunto (opcional)" />' +
+                            '<textarea id="tf-support-message" class="input" rows="4" placeholder="Descreva sua dúvida ou problema..." style="resize:vertical;font-family:inherit;"></textarea>' +
+                            '<p id="tf-support-feedback" style="margin:0;font-size:12px;color:rgba(255,255,255,0.55);min-height:14px;"></p>' +
+                            '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+                            '<button id="tf-support-close" class="btn-ghost" style="padding:8px 14px;font-size:12px;">Fechar</button>' +
+                            '<button id="tf-support-send" class="btn-primary" style="padding:8px 14px;font-size:12px;">Enviar</button>' +
+                            '</div>';
+                        backdrop.appendChild(modal);
+                        document.body.appendChild(backdrop);
+                        const subjectInp = modal.querySelector("#tf-support-subject"),
+                            msgInp = modal.querySelector("#tf-support-message"),
+                            fb = modal.querySelector("#tf-support-feedback"),
+                            sendBtn = modal.querySelector("#tf-support-send");
+                        modal.querySelector("#tf-support-close").onclick = () => backdrop.remove();
+                        sendBtn.onclick = async () => {
+                            const message = msgInp.value.trim();
+                            if (!message) { fb.textContent = "Escreva sua mensagem."; return; }
+                            sendBtn.disabled = true; sendBtn.textContent = "Enviando...";
+                            const licenseKey = (localStorage.getItem("umbra_license_key") || "").trim();
+                            const res = await window.electron.supportRequest({ subject: subjectInp.value.trim(), message, licenseKey });
+                            sendBtn.disabled = false; sendBtn.textContent = "Enviar";
+                            if (res.success) { fb.textContent = "Enviado! A gente responde o quanto antes."; subjectInp.value = ""; msgInp.value = ""; }
+                            else fb.textContent = "Erro: " + res.error;
                         };
-                        return (0, l.jsxs)(l.Fragment, { children: [
-                            (0, l.jsxs)("button", {
-                                onClick: () => setIsOpen(!0),
-                                style: { marginTop: "2px", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "7px 0", background: "rgba(88,101,242,0.10)", border: "1px solid rgba(88,101,242,0.30)", borderRadius: "2px", color: "#8e9dfb", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "Rajdhani, sans-serif" },
-                                children: [(0, l.jsx)(u.IconDiscord, { size: 12 }), " Suporte"]
-                            }),
-                            isOpen && (0, l.jsx)("div", {
-                                style: { position: "fixed", inset: 0, zIndex: 100000, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" },
-                                onClick: () => setIsOpen(!1),
-                                children: (0, l.jsxs)("div", {
-                                    className: "card",
-                                    onClick: e => e.stopPropagation(),
-                                    style: { width: "90%", maxWidth: "420px", padding: 20, display: "flex", flexDirection: "column", gap: 10 },
-                                    children: [
-                                        (0, l.jsx)("h3", { style: { margin: 0, fontSize: 14, color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" }, children: "Falar com o suporte" }),
-                                        (0, l.jsx)("p", { style: { margin: 0, fontSize: 12, color: "var(--text-secondary)" }, children: "Sua mensagem cai direto no nosso Discord." }),
-                                        (0, l.jsx)("input", { className: "input", placeholder: "Assunto (opcional)", value: subject, onChange: e => setSubject(e.target.value) }),
-                                        (0, l.jsx)("textarea", { className: "input", rows: 4, placeholder: "Descreva sua dúvida ou problema...", value: msg, onChange: e => setMsg(e.target.value), style: { resize: "vertical", fontFamily: "inherit" } }),
-                                        fb && (0, l.jsx)("p", { style: { margin: 0, fontSize: 12, color: "var(--text-secondary)" }, children: fb }),
-                                        (0, l.jsxs)("div", { style: { display: "flex", gap: 8, justifyContent: "flex-end" }, children: [
-                                            (0, l.jsx)("button", { className: "btn-ghost", onClick: () => setIsOpen(!1), style: { padding: "8px 14px", fontSize: 12 }, children: "Fechar" }),
-                                            (0, l.jsx)("button", { className: "btn-primary", disabled: sending, onClick: send, style: { padding: "8px 14px", fontSize: 12 }, children: sending ? "Enviando..." : "Enviar" })
-                                        ]})
-                                    ]
-                                })
-                            })
-                        ]})
-                    },
+                    }),
+                    TfSupportWidget = () => (0, l.jsxs)("button", {
+                        onClick: () => window.tfOpenSupportModal(),
+                        style: { marginTop: "2px", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "7px 0", background: "rgba(88,101,242,0.10)", border: "1px solid rgba(88,101,242,0.30)", borderRadius: "2px", color: "#8e9dfb", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "Rajdhani, sans-serif" },
+                        children: [(0, l.jsx)(u.IconDiscord, { size: 12 }), " Suporte"]
+                    }),
                     R = new Set,
                     B = ({
                         nsfwDatabase: e,
