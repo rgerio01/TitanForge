@@ -80370,20 +80370,12 @@
     homeBtn.disabled = true;
     homeBtn.style.cssText += "opacity:1;cursor:default;";
 
-    const addBtn = button("Adicionar Jogos", "secondary");
+    const addBtn = button("Solicitar Novos Jogos", "secondary");
     const status = document.createElement("p");
     status.style.cssText = "font-size:12px;color:var(--text-secondary);margin-top:10px;min-height:16px;";
     const consolesEl = document.createElement("div");
 
-    addBtn.onclick = async () => {
-      const pick = await window.electron.arenaPickFolder();
-      if (pick.canceled) return;
-      status.textContent = "Escaneando e organizando arquivos...";
-      const res = await window.electron.arenaScanAndImport(pick.path);
-      if (!res.success) { status.textContent = "Erro: " + res.error; return; }
-      status.textContent = `Importados ${res.moved} jogo(s), ${res.skipped} arquivo(s) não reconhecido(s).`;
-      renderConsoleGrid(root, consolesEl, status);
-    };
+    addBtn.onclick = () => renderRequestGameForm(root);
 
     const catalogBtn = button("Baixar ROMs", "secondary");
     catalogBtn.onclick = () => renderRomsCatalogConsoles(root);
@@ -80397,6 +80389,67 @@
     c.appendChild(consolesEl);
     root.appendChild(c);
     renderConsoleGrid(root, consolesEl, status);
+  }
+
+  async function renderRequestGameForm(root){
+    root.innerHTML = "";
+    const c = card(retroHeader("🎮", "SOLICITAR NOVOS JOGOS", "Não achou o jogo que queria no catálogo? Peça aqui — cai direto no nosso Discord."));
+    const backBtn = button("← Voltar", "secondary");
+    backBtn.onclick = () => renderInstalled(root);
+    c.appendChild(backBtn);
+
+    const form = document.createElement("div");
+    form.style.cssText = "display:flex;flex-direction:column;gap:10px;margin-top:14px;max-width:480px;";
+
+    const gameLabel = document.createElement("label");
+    gameLabel.textContent = "Nome do jogo *";
+    gameLabel.style.cssText = "font-size:12px;color:var(--text-secondary);";
+    const gameInp = document.createElement("input");
+    gameInp.placeholder = "Ex: Super Mario World";
+    gameInp.style.cssText = "padding:9px 10px;border-radius:6px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--text-primary);font-size:13px;";
+
+    const consoleLabel = document.createElement("label");
+    consoleLabel.textContent = "Console/Plataforma (opcional)";
+    consoleLabel.style.cssText = "font-size:12px;color:var(--text-secondary);";
+    const consoleInp = document.createElement("input");
+    consoleInp.placeholder = "Ex: SNES, PS2, Nintendo Switch...";
+    consoleInp.style.cssText = gameInp.style.cssText;
+
+    const notesLabel = document.createElement("label");
+    notesLabel.textContent = "Observações (opcional)";
+    notesLabel.style.cssText = "font-size:12px;color:var(--text-secondary);";
+    const notesInp = document.createElement("textarea");
+    notesInp.placeholder = "Alguma versão específica, região, etc.";
+    notesInp.rows = 3;
+    notesInp.style.cssText = gameInp.style.cssText + "resize:vertical;font-family:inherit;";
+
+    const status = document.createElement("p");
+    status.style.cssText = "font-size:12px;color:var(--text-secondary);min-height:16px;margin:0;";
+
+    const sendBtn = button("Enviar solicitação", "primary");
+    sendBtn.onclick = async () => {
+      const game = gameInp.value.trim();
+      if (!game) { status.textContent = "Digite o nome do jogo."; return; }
+      sendBtn.disabled = true;
+      status.textContent = "Enviando...";
+      const licenseKey = (localStorage.getItem("umbra_license_key") || "").trim();
+      const res = await window.electron.arenaRequestGame({ game, console: consoleInp.value.trim(), notes: notesInp.value.trim(), licenseKey });
+      sendBtn.disabled = false;
+      if (res.success) {
+        status.textContent = "Solicitação enviada! Assim que possível a gente avalia e adiciona.";
+        gameInp.value = ""; consoleInp.value = ""; notesInp.value = "";
+      } else {
+        status.textContent = "Erro ao enviar: " + res.error;
+      }
+    };
+
+    form.appendChild(gameLabel); form.appendChild(gameInp);
+    form.appendChild(consoleLabel); form.appendChild(consoleInp);
+    form.appendChild(notesLabel); form.appendChild(notesInp);
+    form.appendChild(sendBtn);
+    form.appendChild(status);
+    c.appendChild(form);
+    root.appendChild(c);
   }
 
   function formatBytes(n){

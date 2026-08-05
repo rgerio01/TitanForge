@@ -202,10 +202,7 @@
                 onArenaDownloadProgress: r => {
                     e.ipcRenderer.on("arena-download-progress", (e, n) => r(n))
                 },
-                arenaPickFolder: () => e.ipcRenderer.invoke("arena-pick-folder"),
-                arenaScanAndImport: r => e.ipcRenderer.invoke("arena-scan-and-import", {
-                    sourceFolder: r
-                }),
+                arenaRequestGame: r => e.ipcRenderer.invoke("arena-request-game", r),
                 arenaListGames: () => e.ipcRenderer.invoke("arena-list-games"),
                 arenaLaunchGame: r => e.ipcRenderer.invoke("arena-launch-game", r),
                 arenaRemoveGame: r => e.ipcRenderer.invoke("arena-remove-game", r),

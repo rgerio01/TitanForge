@@ -19765,23 +19765,6 @@
     }
   });
 
-  // Mapeamento heurístico extensão -> pasta de sistema (roms/<sistema>).
-  // Ajustar depois pra bater exatamente com o es_systems.cfg real do pacote.
-  const EXT_TO_SYSTEM = {
-    ".nes": "nes", ".fds": "nes", ".unif": "nes",
-    ".sfc": "snes", ".smc": "snes",
-    ".gb": "gb", ".gbc": "gbc", ".gba": "gba",
-    ".md": "megadrive", ".gen": "megadrive", ".smd": "megadrive",
-    ".n64": "n64", ".z64": "n64", ".v64": "n64",
-    ".nds": "nds",
-    ".gg": "gamegear", ".sms": "mastersystem",
-    ".pce": "pcengine",
-    ".cue": "psx", ".pbp": "psx",
-    ".32x": "sega32x",
-    ".a26": "atari2600", ".a78": "atari7800",
-    ".ws": "wonderswan", ".wsc": "wonderswancolor"
-  };
-
   // Emulador/core padrão por sistema (extraído do es_systems.cfg do próprio
   // pacote RetroBat) — usado pra chamar o emulatorLauncher.exe direto, sem
   // abrir a interface do RetroBat/EmulationStation.
@@ -20176,86 +20159,30 @@
     }
   });
 
-  ipcMain.handle("arena-pick-folder", async event => {
+  // Webhook fixo do Discord onde caem as solicitações de novos jogos do
+  // RetroAnvil (mesma convenção dos outros webhooks hardcoded deste arquivo,
+  // ex: chargeback/resgate) — não é editável pela UI, só recebe as mensagens.
+  const RETROANVIL_REQUEST_WEBHOOK = "https://discord.com/api/webhooks/1534491480738234499/MJUZY5ojtp7DtemtDKnPeF4_EyDtDT7jSC0zGFtq_p3W1MUmH1rFzqLopuUurTsKb48o";
+  ipcMain.handle("arena-request-game", async (event, payload) => {
     try {
-      const win = require("electron").BrowserWindow.fromWebContents(event.sender);
-      const result = await dialog.showOpenDialog(win, { properties: ["openDirectory"] });
-      if (result.canceled || !result.filePaths.length) return { canceled: true };
-      return { canceled: false, path: result.filePaths[0] };
-    } catch (e) {
-      return { canceled: true, error: String((e && e.message) || e) };
-    }
-  });
-
-  // .iso sozinho é ambíguo (PS1, PS2, GameCube, etc. usam a mesma extensão).
-  // PS1 e PS2 gravam um SYSTEM.CNF no início do disco que diz como bootar:
-  // "BOOT2 =" é exclusivo de PS2, "BOOT =" (sem o 2) é PS1. Lendo os primeiros
-  // MB do arquivo dá pra achar essa string sem precisar interpretar o ISO9660
-  // inteiro. Cai pro tamanho só como último recurso se não achar nenhum dos dois.
-  function resolveSystemForFile(file, ext) {
-    if (ext === ".iso") {
-      try {
-        const bytesToRead = 24 * 1024 * 1024;
-        const fd = fs.openSync(file, "r");
-        const size = fs.fstatSync(fd).size;
-        const buf = Buffer.alloc(Math.min(bytesToRead, size));
-        fs.readSync(fd, buf, 0, buf.length, 0);
-        fs.closeSync(fd);
-        const text = buf.toString("latin1");
-        if (text.includes("BOOT2")) return "ps2";
-        if (text.includes("BOOT ") || text.includes("BOOT=")) return "psx";
-      } catch {}
-      try {
-        const sizeMB = fs.statSync(file).size / (1024 * 1024);
-        return sizeMB > 900 ? "ps2" : "psx";
-      } catch {
-        return "psx";
-      }
-    }
-    return EXT_TO_SYSTEM[ext];
-  }
-
-  // Varre uma pasta (recursivo) escolhida pelo próprio usuário, contendo jogos
-  // que ele já possui, e organiza pra dentro de roms/<sistema>/. Não busca,
-  // baixa nem hospeda nada — só organiza arquivos que já estão no disco dele.
-  function walk(dir, out) {
-    let entries;
-    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full, out);
-      else out.push(full);
-    }
-  }
-
-  ipcMain.handle("arena-scan-and-import", async (event, payload) => {
-    const sourceFolder = payload && payload.sourceFolder;
-    try {
-      if (!sourceFolder || !fs.existsSync(sourceFolder)) return { success: false, error: "Pasta inválida" };
-      const files = [];
-      walk(sourceFolder, files);
-
-      const bySystem = {};
-      let moved = 0, skipped = 0;
-
-      for (const file of files) {
-        const ext = path.extname(file).toLowerCase();
-        const system = resolveSystemForFile(file, ext);
-        if (!system) { skipped++; continue; }
-        const destDir = path.join(getArenaRomsDir(), system);
-        fs.mkdirSync(destDir, { recursive: true });
-        const destFile = path.join(destDir, path.basename(file));
-        if (fs.existsSync(destFile)) { skipped++; continue; }
-        try {
-          fs.renameSync(file, destFile);
-        } catch {
-          fs.copyFileSync(file, destFile);
-        }
-        bySystem[system] = (bySystem[system] || 0) + 1;
-        moved++;
-      }
-
-      return { success: true, moved, skipped, bySystem };
+      const game = String((payload && payload.game) || "").trim();
+      if (!game) return { success: false, error: "Nome do jogo é obrigatório" };
+      const consoleName = String((payload && payload.console) || "").trim();
+      const notes = String((payload && payload.notes) || "").trim();
+      const licenseKey = String((payload && payload.licenseKey) || "").trim();
+      const fields = [{ name: "Jogo", value: game, inline: false }];
+      if (consoleName) fields.push({ name: "Console/Plataforma", value: consoleName, inline: true });
+      if (licenseKey) fields.push({ name: "Licença", value: licenseKey, inline: true });
+      if (notes) fields.push({ name: "Observações", value: notes, inline: false });
+      await axios.post(RETROANVIL_REQUEST_WEBHOOK, {
+        embeds: [{
+          title: "🎮 Solicitação de novo jogo — RetroAnvil",
+          color: 0xd97a2c,
+          fields,
+          timestamp: new Date().toISOString()
+        }]
+      }, { timeout: 15000 });
+      return { success: true };
     } catch (e) {
       return { success: false, error: String((e && e.message) || e) };
     }
