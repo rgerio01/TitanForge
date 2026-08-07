@@ -12883,16 +12883,27 @@
                         } catch (e) {
                             console.error("❌ Erro no monitoramento de integridade:", e)
                         }
-                    }, 3e4), (async () => {
-                        try {
-                            const e = await (0, m.detectSteamPath)();
-                            if (!e) return;
-                            if (!u.existsSync(l.join(e, "OpenSteamTool.dll")) && !u.existsSync(l.join(e, "OpenSteamTool.dll.disabled"))) return;
-                            const t = await (0, S.syncOpenSteamToolSignatures)(e);
-                            t.synced && console.log(`✅ Assinaturas da Steam sincronizadas (${t.synced}/${t.checked})`)
-                        } catch (e) {
-                            console.warn("Sync de assinaturas no startup falhou (não crítico):", e?.message)
-                        }
+                    }, 3e4), (() => {
+                        const syncSignatures = async silent => {
+                            try {
+                                const e = await (0, m.detectSteamPath)();
+                                if (!e) return;
+                                if (!u.existsSync(l.join(e, "OpenSteamTool.dll")) && !u.existsSync(l.join(e, "OpenSteamTool.dll.disabled"))) return;
+                                const t = await (0, S.syncOpenSteamToolSignatures)(e);
+                                t.synced && console.log(`✅ Assinaturas da Steam sincronizadas (${t.synced}/${t.checked})`)
+                            } catch (e) {
+                                silent || console.warn("Sync de assinaturas falhou (não crítico):", e?.message)
+                            }
+                        };
+                        syncSignatures(!1);
+                        // Steam pode se atualizar (mudando steamclient64.dll/steamui.dll) a
+                        // qualquer momento com o TitanForge já aberto, e o upstream que
+                        // publica a assinatura correspondente pode demorar horas — rechecar
+                        // periodicamente evita depender de reiniciar o app pra pegar a
+                        // correção assim que ela sai, sem precisar de update nenhum do
+                        // programa em si.
+                        const sigIv = setInterval(() => syncSignatures(!0), 18e5);
+                        sigIv.unref && sigIv.unref();
                     })(), (() => {
                         try {
                             const dir = l.join(c.app.getPath("userData"), "AtualizacoesPendentes");
@@ -15870,12 +15881,18 @@
                     y = [e => e, e => `https://gh-proxy.com/${e}`, e => `https://ghproxy.net/${e}`, e => `https://ghfast.top/${e}`],
                     b = [{
                         component: "steamclient",
-                        dll: "steamclient64.dll"
+                        dll: "steamclient64.dll",
+                        kind: "pattern"
                     }, {
                         component: "steamui",
-                        dll: "steamui.dll"
+                        dll: "steamui.dll",
+                        kind: "pattern"
+                    }, {
+                        component: "steamclient",
+                        dll: "steamclient64.dll",
+                        kind: "ipc"
                     }],
-                    x = (e, t) => [`https://raw.githubusercontent.com/OpenSteam001/steam-monitor/pattern/${e}/${t}.toml`, `https://cdn.jsdelivr.net/gh/OpenSteam001/steam-monitor@pattern/${e}/${t}.toml`];
+                    x = (k, e, t) => [`https://raw.githubusercontent.com/OpenSteam001/steam-monitor/${k}/${e}/${t}.toml`, `https://cdn.jsdelivr.net/gh/OpenSteam001/steam-monitor@${k}/${e}/${t}.toml`];
 
                 function w(e) {
                     try {
@@ -15893,7 +15910,8 @@
                     };
                     for (const {
                             component: o,
-                            dll: i
+                            dll: i,
+                            kind: k
                         }
                         of b) {
                         const a = l.join(e, i);
@@ -15901,13 +15919,13 @@
                         r++;
                         const s = w(a);
                         if (!s) continue;
-                        const u = l.join(e, "opensteamtool", "pattern", o, `${s}.toml`);
+                        const u = l.join(e, "opensteamtool", k, o, `${s}.toml`);
                         if (c.existsSync(u)) {
                             n++;
                             continue
                         }
                         let d = null;
-                        for (const e of x(o, s)) try {
+                        for (const e of x(k, o, s)) try {
                             const t = await p.default.get(e, {
                                     timeout: 15e3,
                                     responseType: "text",
@@ -15925,10 +15943,10 @@
                         if (d) try {
                             c.mkdirSync(l.dirname(u), {
                                 recursive: !0
-                            }), c.writeFileSync(u, d, "utf-8"), n++, t?.("Compatibilidade da Steam atualizada."), console.log(`[hook] assinatura instalada: ${o}/${s.slice(0,12)}`)
+                            }), c.writeFileSync(u, d, "utf-8"), n++, t?.("Compatibilidade da Steam atualizada."), console.log(`[hook] assinatura instalada: ${k}/${o}/${s.slice(0,12)}`)
                         } catch (e) {
-                            console.warn(`[hook] falha ao gravar assinatura ${o}:`, e?.message)
-                        } else console.warn(`[hook] assinatura ${o}/${s.slice(0,12)} não encontrada upstream (ainda)`)
+                            console.warn(`[hook] falha ao gravar assinatura ${k}/${o}:`, e?.message)
+                        } else console.warn(`[hook] assinatura ${k}/${o}/${s.slice(0,12)} não encontrada upstream (ainda)`)
                     }
                     return {
                         synced: n,
