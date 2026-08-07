@@ -1,4 +1,10 @@
 /*! For license information please see index.js.LICENSE.txt */
+// Prioriza IPv4 na resolução de DNS do processo inteiro — em algumas redes o
+// IPv6 pra endpoints como Cloudflare R2/Supabase/GitHub fica inalcançável
+// (timeout) mesmo com IPv4 funcionando normal, e o Node por padrão tenta
+// IPv6 primeiro. Corrige downloads/updates que travavam com "ETIMEDOUT" em
+// endereço IPv6 (ex: pacote de jogos, atualizações, webhooks).
+try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
 (() => {
     var e, t, n = {
             7: (e, t, n) => {
@@ -15191,6 +15197,7 @@
                             error: "Steam não encontrada",
                             games: []
                         };
+                        try { (0, m.patchAutoUpdateBehavior)(e) } catch {}
                         const t = [l.join(e, "config", S.LUA_CONFIG_DIRNAME), l.join(e, "config", "stplug-in")];
                         let n = new Set;
                         for (const e of t) {
@@ -19366,10 +19373,48 @@
                     } catch (e) {
                         return console.log("❌ Erro ao acessar registro:", e), null
                     }
+                }, t.patchAutoUpdateBehavior = function patchAutoUpdateBehavior(steamPath) {
+                    // Marca os jogos instalados via bypass (depot sem licença real) pra
+                    // só checar atualização quando o jogador abrir o jogo, em vez da
+                    // Steam tentar sozinha em segundo plano — isso é o que causa o
+                    // "Access Denied"/"sem conexão à internet" que aparece na fila de
+                    // downloads (o servidor da Steam recusa o pedido de manifesto pra
+                    // depot sem licença; não tem nada a ver com internet de verdade).
+                    // Só mexe nos AppIDs que têm .lua de bypass — jogos comprados de
+                    // verdade continuam com o comportamento padrão de atualização.
+                    try {
+                        const luaDirs = [c.join(steamPath, "config", "lua"), c.join(steamPath, "config", "stplug-in")];
+                        const bypassAppIds = new Set;
+                        for (const dir of luaDirs) {
+                            if (!s.existsSync(dir)) continue;
+                            for (const f of s.readdirSync(dir)) {
+                                const id = f.replace(/\.lua$/i, "");
+                                /^\d+$/.test(id) && bypassAppIds.add(id)
+                            }
+                        }
+                        if (0 === bypassAppIds.size) return;
+                        const appsDir = c.join(steamPath, "steamapps");
+                        if (!s.existsSync(appsDir)) return;
+                        let patched = 0;
+                        for (const id of bypassAppIds) {
+                            try {
+                                const p = c.join(appsDir, `appmanifest_${id}.acf`);
+                                if (!s.existsSync(p)) continue;
+                                let content = s.readFileSync(p, "utf-8");
+                                const next = /"AutoUpdateBehavior"\s*"\d+"/.test(content)
+                                    ? content.replace(/"AutoUpdateBehavior"\s*"\d+"/, '"AutoUpdateBehavior"\t\t"1"')
+                                    : content.replace(/("AppState"\s*\r?\n\s*\{)/, '$1\r\n\t"AutoUpdateBehavior"\t\t"1"');
+                                if (next !== content) { s.writeFileSync(p, next, "utf-8"); patched++ }
+                            } catch {}
+                        }
+                        patched && console.log(`🔧 AutoUpdateBehavior ajustado em ${patched} jogo(s) de bypass (evita checagem automática de update em depot sem licença real).`)
+                    } catch (e) {
+                        console.warn("Falha ao ajustar AutoUpdateBehavior:", e?.message)
+                    }
                 }, t.installSteamFiles = async function(e, t) {
                     try {
                         if (console.log("📦 Iniciando instalação dos arquivos..."), console.log("Download path:", e), console.log("Steam path:", t), !d.cacheManager) throw new Error("Cache manager not initialized");
-                        await b(), console.log("💾 Salvando arquivos no cache local..."), await d.cacheManager.saveToCacheFromZip(e), console.log("✅ Arquivos salvos no cache!"), console.log("📋 Copiando arquivos do cache para Steam..."), await d.cacheManager.copyCachedFilesToSteam(t), console.log("✅ Arquivos copiados para Steam!"), console.log("✅ Instalação concluída com sucesso!"), await x(t)
+                        await b(), console.log("💾 Salvando arquivos no cache local..."), await d.cacheManager.saveToCacheFromZip(e), console.log("✅ Arquivos salvos no cache!"), console.log("📋 Copiando arquivos do cache para Steam..."), await d.cacheManager.copyCachedFilesToSteam(t), console.log("✅ Arquivos copiados para Steam!"), patchAutoUpdateBehavior(t), console.log("✅ Instalação concluída com sucesso!"), await x(t)
                     } catch (e) {
                         throw console.error("❌ Erro durante instalação:", e), e
                     }
