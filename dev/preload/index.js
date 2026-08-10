@@ -31,6 +31,7 @@
                 }),
                 licenseWatch: r => e.ipcRenderer.invoke("license-watch", r),
                 licenseUnwatch: () => e.ipcRenderer.invoke("license-unwatch"),
+                trialStart: () => e.ipcRenderer.invoke("trial-start"),
                 onLicenseChanged: r => {
                     e.ipcRenderer.on("license-changed", (e, n) => r(n))
                 },

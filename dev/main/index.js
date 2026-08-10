@@ -12702,7 +12702,8 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                 let T = null,
                     A = null,
                     I = null,
-                    R = "";
+                    R = "",
+                    currentGameLimit = null;
 
                 function P(e) {
                     return e ? [e.status, e.bypass, e.premiumaccounts, e.multiplayer, e.nsfw, e.add_games, e.expires_at, e.nome, e.email, e.numero].join("|") : ""
@@ -12711,6 +12712,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     if (A && D) try {
                         const { data: e } = await TF.rpc("get_license_info", { p_key: A });
                         if (!e) return;
+                        currentGameLimit = e.game_limit ?? null;
                         const t = P(e);
                         if (t === R) return;
                         R = t, D.webContents.send("license-changed", e);
@@ -13032,7 +13034,19 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     A = n, R = "";
                     return I = setInterval(N, 15e3), N(), { success: !0 };
                 }), c.ipcMain.handle("license-unwatch", async () => {
-                    return A = null, I && (clearInterval(I), I = null), { success: !0 };
+                    return A = null, I && (clearInterval(I), I = null), currentGameLimit = null, { success: !0 };
+                }), c.ipcMain.handle("trial-start", async () => {
+                    try {
+                        const crypto = require("crypto");
+                        const { machineIdSync } = require("node-machine-id");
+                        const hwid = crypto.createHash("sha256").update(machineIdSync(!0)).digest("hex");
+                        const { data, error } = await TF.rpc("start_free_trial", { p_hwid: hwid });
+                        if (error) { console.error("Erro ao iniciar teste gratis:", error); return { success: !1, message: "Nao foi possivel iniciar o teste gratis" }; }
+                        data && data.success && data.license && (() => { try { global.tfNotifyLogin && global.tfNotifyLogin(data.license.key) } catch {} })();
+                        return data;
+                    } catch (e) {
+                        return console.error("Erro ao iniciar teste gratis:", e), { success: !1, message: "Nao foi possivel iniciar o teste gratis" };
+                    }
                 }), c.ipcMain.handle("denuvo-list-games", async () => {
                     try {
                         const {
@@ -14426,7 +14440,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         const e = Date.now();
                         if (Z && e - Z.fetchedAt < 6e5) return console.log(`📦 [IPC] Retornando cache (${Z.data.length} entradas)`), {
                             success: !0,
-                            games: Z.data
+                            games: currentGameLimit ? Z.data.slice(0, currentGameLimit) : Z.data
                         };
                         console.log("🌐 [IPC] Carregando banco de dados de jogos...");
                         const t = await d.default.get("https://generator.ryuu.lol/files/games.json", {
@@ -14446,7 +14460,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             fetchedAt: e
                         }, console.log(`✅ [IPC] Banco de dados: ${r.length} entradas`), r.length > 0 && console.log("🔍 [IPC] Primeira entrada processada"), {
                             success: !0,
-                            games: r
+                            games: currentGameLimit ? r.slice(0, currentGameLimit) : r
                         }
                     } catch (e) {
                         return console.error("❌ [IPC] Erro ao carregar banco de dados:", e?.message || e), e?.response && console.error("❌ [IPC] HTTP Status:", e.response.status), {

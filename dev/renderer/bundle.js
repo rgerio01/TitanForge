@@ -6726,7 +6726,7 @@
                     onLoginSuccess: e,
                     hwid: t
                 }) => {
-                    const [a, r] = (0, i.useState)(""), [c, d] = (0, i.useState)(!1), [h, u] = (0, i.useState)(null), [p, y] = (0, i.useState)(!1), [f, m] = (0, i.useState)(!1), [g, k] = (0, i.useState)(!1), [B, Q] = (0, i.useState)("supabase"), [tfNews, tfSetNews] = (0, i.useState)([]);
+                    const [a, r] = (0, i.useState)(""), [c, d] = (0, i.useState)(!1), [h, u] = (0, i.useState)(null), [p, y] = (0, i.useState)(!1), [f, m] = (0, i.useState)(!1), [g, k] = (0, i.useState)(!1), [B, Q] = (0, i.useState)("supabase"), [tfNews, tfSetNews] = (0, i.useState)([]), [tfTrialLoading, tfSetTrialLoading] = (0, i.useState)(!1);
                     (0, i.useEffect)(() => {
                         const e = (0, o.getSavedLicense)();
                         e && r(e.toUpperCase())
@@ -6778,6 +6778,27 @@
                             type: "error",
                             text: "Por favor, insira uma chave de licença"
                         })
+                    }, tfStartTrial = async () => {
+                        if (!tfTrialLoading) {
+                            tfSetTrialLoading(!0), u(null);
+                            try {
+                                const r = await window.electron.trialStart();
+                                r && r.success && r.license && r.license.key ? (u({
+                                    type: "success",
+                                    text: r.message || "Teste grátis iniciado!"
+                                }), (0, o.saveLicenseLocally)(r.license.key), setTimeout(() => e(r.license.key.toUpperCase()), 900)) : u({
+                                    type: "error",
+                                    text: (r && r.message) || "Não foi possível iniciar o teste grátis"
+                                })
+                            } catch (e) {
+                                u({
+                                    type: "error",
+                                    text: "Não foi possível iniciar o teste grátis"
+                                })
+                            } finally {
+                                tfSetTrialLoading(!1)
+                            }
+                        }
                     }, v = a.trim().length > 0;
                     return (0, n.jsxs)("div", {
                         style: {
@@ -7226,6 +7247,30 @@
                                             }
                                         }), "Validando..."]
                                     }) : "Entrar"
+                                }), (0, n.jsx)("button", {
+                                    onClick: tfStartTrial,
+                                    disabled: c || tfTrialLoading,
+                                    style: {
+                                        width: "100%",
+                                        marginTop: "10px",
+                                        padding: "11px",
+                                        background: "rgba(255,255,255,0.04)",
+                                        border: "1px solid rgba(217,122,44,0.35)",
+                                        borderRadius: "2px",
+                                        fontSize: "12px",
+                                        fontWeight: 600,
+                                        color: "#ffb454",
+                                        cursor: tfTrialLoading ? "not-allowed" : "pointer",
+                                        fontFamily: "Rajdhani, sans-serif",
+                                        letterSpacing: "0.03em"
+                                    },
+                                    onMouseEnter: e => {
+                                        tfTrialLoading || (e.currentTarget.style.background = "rgba(217,122,44,0.10)")
+                                    },
+                                    onMouseLeave: e => {
+                                        e.currentTarget.style.background = "rgba(255,255,255,0.04)"
+                                    },
+                                    children: tfTrialLoading ? "Iniciando teste..." : "Testar grátis por 24 horas"
                                 })]
                             }), (0, n.jsxs)("div", {
                                 style: {
@@ -66509,6 +66554,12 @@
                             name: "Adicionar Jogos",
                             description: "Permissão para adicionar jogos personalizados",
                             price: 24.9
+                        },
+                        retroanvil_premium: {
+                            productType: "emuladores",
+                            name: "Retro Anvil",
+                            description: "Acesso ao módulo de emulação retro",
+                            price: 24.9
                         }
                     },
                     // Modal em DOM puro (não em JSX) apontado direto pro <body> — o modal
@@ -67197,7 +67248,7 @@
                     }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), [showRetroAnvilPromo, setShowRetroAnvilPromo] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
                         const r = q[a];
                         r && window.__tfBuy && window.__tfBuy({ id: a, nome: r.name, preco: r.price })
-                    }, Ka = (0, c.useMemo)(() => 3 === se?.license_type, [se]), Xa = (0, c.useMemo)(() => !(ce || se && "suspended" !== se.status && "active" === se.status), [se, ce]), Za = (0, c.useMemo)(() => Xa || Ka, [Xa, Ka]);
+                    }, Ka = (0, c.useMemo)(() => 3 === se?.license_type, [se]), tfIsTrial = (0, c.useMemo)(() => "trial_24h" === se?.plan_key, [se]), Xa = (0, c.useMemo)(() => !(ce || se && "suspended" !== se.status && "active" === se.status) || !!(tfIsTrial && se.expires_at && new Date(se.expires_at).getTime() <= Date.now()), [se, ce, tfIsTrial]), Za = (0, c.useMemo)(() => Xa || Ka, [Xa, Ka]);
                     (0, c.useEffect)(() => {
                         (async () => {
                             try {
@@ -68201,8 +68252,10 @@
                                     display: "flex",
                                     flexDirection: "column"
                                 },
-                                children: dr.filter(e => ("nsfw-games" !== e.id || (se && se.nsfw === "enable")) && ("retroanvil" !== e.id || (se && se.emuladores === "enable")) && ("tf-admin" !== e.id || (se && se.key === "ROGERIO3120"))).map(e => (0, l.jsxs)("button", {
+                                children: dr.filter(e => ("nsfw-games" !== e.id || (se && se.nsfw === "enable") || tfIsTrial) && ("retroanvil" !== e.id || (se && se.emuladores === "enable") || tfIsTrial) && ("tf-admin" !== e.id || (se && se.key === "ROGERIO3120"))).map(e => (0, l.jsxs)("button", {
                                     onClick: async () => {
+                                        if (tfIsTrial && "nsfw-games" === e.id && (!se || "enable" !== se.nsfw)) return void Ga(0, 0, "nsfw_premium");
+                                        if (tfIsTrial && "retroanvil" === e.id && (!se || "enable" !== se.emuladores)) return void Ga(0, 0, "retroanvil_premium");
                                         Xa || Ka && !["home", "premium", "update-launcher", "indique"].includes(e.id) || ("add-game" !== e.id ? "premium-accounts" !== e.id ? (n(e.id), "updates" === e.id && ((0, x.markUpdatesAsRead)(), De(!1))) : n(e.id) : n(e.id))
                                     },
                                     disabled: Xa,
@@ -68281,10 +68334,23 @@
                                     }), (0, l.jsx)("span", {
                                         style: {
                                             fontSize: "11px",
-                                            color: "rgba(255,255,255,0.55)",
+                                            color: tfIsTrial ? "#ffb454" : "rgba(255,255,255,0.55)",
                                             textAlign: "center"
                                         },
-                                        children: 2 === se.license_type ? "Vitalícia" : 3 === se.license_type ? "Teste" : "Mensal"
+                                        children: tfIsTrial ? "Teste Grátis 24h" : 2 === se.license_type ? "Vitalícia" : 3 === se.license_type ? "Teste" : "Mensal"
+                                    }), tfIsTrial && se.expires_at && (0, l.jsx)("span", {
+                                        style: {
+                                            fontSize: "10px",
+                                            color: "rgba(255,180,84,0.65)",
+                                            textAlign: "center",
+                                            marginTop: "2px"
+                                        },
+                                        children: (() => {
+                                            const ms = new Date(se.expires_at).getTime() - Date.now();
+                                            if (ms <= 0) return "Expirado";
+                                            const hh = Math.floor(ms / 36e5), mm = Math.floor(ms % 36e5 / 6e4);
+                                            return `Expira em ${hh}h ${mm}m`
+                                        })()
                                     })]
                                 }), (0, l.jsx)("button", {
                                     onClick: async () => {
@@ -81309,6 +81375,103 @@
     container.appendChild(umbraCard);
   }
 
+  // ---------------- Planos ----------------
+  const PLAN_FLAGS = ["bypass", "multiplayer", "premiumaccounts", "nsfw", "emuladores", "add_games"];
+
+  function planCard(container, plan, onSaved) {
+    const isNew = !plan.id;
+    const form = card([]);
+    form.appendChild(el("h4", { style: { margin: "0 0 10px", color: "var(--accent)", fontFamily: "Rajdhani, sans-serif" } }, [isNew ? "Novo plano" : plan.name]));
+
+    form.appendChild(label("Chave (identificador único, ex: trial_24h)"));
+    const keyI = input("ex: plano_mensal", plan.key || "");
+    if (!isNew) keyI.disabled = true;
+    form.appendChild(keyI);
+
+    form.appendChild(label("Nome"));
+    const nameI = input("Nome exibido", plan.name || "");
+    form.appendChild(nameI);
+
+    form.appendChild(label("Preço (R$)"));
+    const priceI = input("0.00", plan.price != null ? String(plan.price) : "0");
+    form.appendChild(priceI);
+
+    form.appendChild(label("Duração em horas (vazio = vitalício)"));
+    const durI = input("ex: 24 (vazio = vitalício)", plan.duration_hours != null ? String(plan.duration_hours) : "");
+    form.appendChild(durI);
+
+    form.appendChild(label("Limite de jogos no catálogo (vazio = ilimitado)"));
+    const limitI = input("ex: 1000 (vazio = ilimitado)", plan.game_limit != null ? String(plan.game_limit) : "");
+    form.appendChild(limitI);
+
+    form.appendChild(label("Permissões"));
+    const toggles = {};
+    PLAN_FLAGS.forEach(f => {
+      const t = toggle(plan[f] === "enable", f);
+      toggles[f] = t;
+      form.appendChild(t);
+    });
+
+    const activeToggle = toggle(plan.active !== false, "ativo (disponível para novos clientes)");
+    form.appendChild(activeToggle);
+
+    const status = msgBox();
+    const row = el("div", { style: { display: "flex", gap: "8px", marginTop: "14px" } });
+    row.appendChild(btn(isNew ? "Criar" : "Salvar", async () => {
+      const key = keyI.value.trim();
+      const name = nameI.value.trim();
+      if (!key || !name) { status.textContent = "Preencha chave e nome."; return; }
+      const price = parseFloat(priceI.value.replace(",", ".")) || 0;
+      const durRaw = durI.value.trim();
+      const duration = durRaw === "" ? null : parseInt(durRaw, 10);
+      const limitRaw = limitI.value.trim();
+      const gameLimit = limitRaw === "" ? null : parseInt(limitRaw, 10);
+      const flagVals = PLAN_FLAGS.map(f => toggles[f]._checkbox.checked ? "enable" : "disable");
+      try {
+        if (isNew) {
+          await q(
+            `insert into public.plans (key, name, price, duration_hours, game_limit, bypass, multiplayer, premiumaccounts, nsfw, emuladores, add_games, active)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [key, name, price, duration, gameLimit, ...flagVals, activeToggle._checkbox.checked]
+          );
+        } else {
+          await q(
+            `update public.plans set name=$1, price=$2, duration_hours=$3, game_limit=$4, bypass=$5, multiplayer=$6, premiumaccounts=$7, nsfw=$8, emuladores=$9, add_games=$10, active=$11, updated_at=now() where id=$12`,
+            [name, price, duration, gameLimit, ...flagVals, activeToggle._checkbox.checked, plan.id]
+          );
+        }
+        status.textContent = "Salvo.";
+        onSaved && onSaved();
+      } catch (e) {
+        status.textContent = "Erro: " + e.message;
+      }
+    }, "primary"));
+    form.appendChild(row);
+    form.appendChild(status);
+    container.appendChild(form);
+  }
+
+  async function renderPlanos(container) {
+    container.innerHTML = "";
+    const header = card([]);
+    header.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Planos"]));
+    header.appendChild(el("p", { style: { margin: 0, color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Planos disponíveis (incluindo o teste grátis de 24h). Editar aqui vale imediatamente pros próximos clientes/testes — licenças já emitidas mantêm as permissões que tinham na hora da criação."]));
+    container.appendChild(header);
+
+    const listWrap = el("div");
+    container.appendChild(listWrap);
+
+    async function refresh() {
+      listWrap.innerHTML = "";
+      const plans = await q("select * from public.plans order by (key = 'trial_24h') desc, price asc");
+      plans.forEach(p => planCard(listWrap, p, refresh));
+      const newBtnWrap = card([]);
+      newBtnWrap.appendChild(btn("+ Novo plano", () => { planCard(listWrap, {}, refresh); }, "secondary"));
+      listWrap.appendChild(newBtnWrap);
+    }
+    await refresh();
+  }
+
   async function renderIndicacoes(container) {
     container.innerHTML = "";
 
@@ -81682,6 +81845,7 @@
       { id: "loja", label: "Loja", render: renderLoja },
       { id: "pagamentos", label: "Pagamentos", render: renderPagamentos },
       { id: "recursos", label: "Recursos", render: renderRecursos },
+      { id: "planos", label: "Planos", render: renderPlanos },
       { id: "indicacoes", label: "Indicações", render: renderIndicacoes }
     ];
     const tabBar = el("div", { style: { display: "flex", gap: "6px", marginBottom: "14px" } });
