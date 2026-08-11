@@ -67209,9 +67209,11 @@
                         current: 0,
                         total: 0,
                         currentGame: ""
-                    }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [tfInstallingAllDlc, tfSetInstallingAllDlc] = (0, c.useState)(!1), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), [showRetroAnvilPromo, setShowRetroAnvilPromo] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
+                    }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [tfInstallingAllDlc, tfSetInstallingAllDlc] = (0, c.useState)(!1), [tfAllPlans, tfSetAllPlans] = (0, c.useState)([]), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), [showRetroAnvilPromo, setShowRetroAnvilPromo] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
                         const r = q[a];
                         r && window.__tfBuy && window.__tfBuy({ id: a, nome: r.name, preco: r.price })
+                    }, tfBuyUpgrade = planKey => {
+                        window.__tfBuy && window.__tfBuy({ id: "plan_upgrade", nome: "Upgrade de plano", serverPriced: !0, targetPlanKey: planKey })
                     }, Ka = (0, c.useMemo)(() => 3 === se?.license_type, [se]), tfIsTrial = (0, c.useMemo)(() => "trial_24h" === se?.plan_key, [se]), Xa = (0, c.useMemo)(() => !(ce || se && "suspended" !== se.status && "active" === se.status) || !!(tfIsTrial && se.expires_at && new Date(se.expires_at).getTime() <= Date.now()), [se, ce, tfIsTrial]), Za = (0, c.useMemo)(() => Xa || Ka, [Xa, Ka]);
                     (0, c.useEffect)(() => {
                         (async () => {
@@ -67222,6 +67224,10 @@
                                 console.error("Erro ao carregar social links:", e)
                             }
                         })()
+                    }, []), (0, c.useEffect)(() => {
+                        window.electron.listSignupPlans().then(e => {
+                            e && e.success && tfSetAllPlans(e.plans || [])
+                        }).catch(() => {})
                     }, []), (0, c.useEffect)(() => {
                         if ("home" !== r || Ka) return;
                         let e = !1;
@@ -71205,7 +71211,35 @@
                                                     width: "220px"
                                                 }
                                             })]
-                                        }), 0 === cr.length ? (0, l.jsxs)("div", {
+                                        }), (() => {
+                                            const currentPlan = tfAllPlans.find(p => p.key === se?.plan_key);
+                                            const currentPrice = currentPlan ? Number(currentPlan.price) : 0;
+                                            const upgradeOptions = tfAllPlans.filter(p => "trial_24h" !== p.key && Number(p.price) > currentPrice).sort((a, b) => Number(a.price) - Number(b.price));
+                                            return upgradeOptions.length > 0 && (0, l.jsxs)("div", {
+                                                className: "card",
+                                                style: { padding: "16px 18px" },
+                                                children: [
+                                                    (0, l.jsx)("h3", { style: { fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px", fontFamily: "Rajdhani, sans-serif" }, children: "Fazer upgrade de plano" }),
+                                                    (0, l.jsx)("p", { style: { fontSize: "11.5px", color: "var(--text-secondary)", margin: "0 0 12px" }, children: "Você paga só a diferença pro plano escolhido." }),
+                                                    (0, l.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "10px" },
+                                                        children: upgradeOptions.map(plan => (0, l.jsxs)("div", {
+                                                            key: plan.key,
+                                                            style: { background: "rgba(255,255,255,0.025)", border: "1px solid rgba(217,122,44,0.25)", borderRadius: "2px", padding: "12px" },
+                                                            children: [
+                                                                (0, l.jsx)("p", { style: { fontSize: "12.5px", fontWeight: 700, color: "#fff", margin: "0 0 4px" }, children: plan.name }),
+                                                                (0, l.jsxs)("p", { style: { fontSize: "15px", fontWeight: 800, color: "#ffb454", margin: "0 0 10px" }, children: ["+ R$ ", (Number(plan.price) - currentPrice).toFixed(2).replace(".", ",")] }),
+                                                                (0, l.jsx)("button", {
+                                                                    onClick: () => tfBuyUpgrade(plan.key),
+                                                                    className: "btn-primary",
+                                                                    style: { width: "100%", justifyContent: "center", padding: "7px", fontSize: "11.5px" },
+                                                                    children: "Fazer upgrade"
+                                                                })
+                                                            ]
+                                                        }, plan.key))
+                                                    })
+                                                ]
+                                            })
+                                        })(), 0 === cr.length ? (0, l.jsxs)("div", {
                                             className: "card",
                                             style: {
                                                 padding: "40px 24px",
@@ -80460,9 +80494,11 @@
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;";
     const box = document.createElement("div");
     box.style.cssText = "background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:24px;max-width:380px;width:90%;font-family:Rajdhani,sans-serif;text-align:center;";
-    box.innerHTML =
-      '<h3 style="margin:0 0 4px;color:var(--text-primary);">' + (product.nome || "Compra") + '</h3>' +
-      '<p style="margin:0 0 16px;color:var(--accent);font-size:20px;font-weight:800;">R$ ' + Number(product.preco).toFixed(2).replace(".", ",") + '</p>';
+    box.innerHTML = '<h3 style="margin:0 0 4px;color:var(--text-primary);">' + (product.nome || "Compra") + '</h3>';
+    const priceEl = document.createElement("p");
+    priceEl.style.cssText = "margin:0 0 16px;color:var(--accent);font-size:20px;font-weight:800;";
+    priceEl.textContent = product.serverPriced ? "Calculando valor..." : "R$ " + Number(product.preco).toFixed(2).replace(".", ",");
+    box.appendChild(priceEl);
     const status = document.createElement("p");
     status.style.cssText = "font-size:13px;color:var(--text-secondary);margin:0 0 14px;min-height:18px;";
     status.textContent = "Gerando cobrança PIX...";
@@ -80499,12 +80535,11 @@
     }
     closeBtn.onclick = () => { stop(); overlay.remove(); };
 
-    const r = await window.electron.titanforgePixCreate({
-      licenseKey,
-      productId: String(product.id),
-      amount: Number(product.preco),
-      description: product.nome,
-    });
+    const r = await window.electron.titanforgePixCreate(
+      product.serverPriced
+        ? { licenseKey, productId: String(product.id), targetPlanKey: product.targetPlanKey }
+        : { licenseKey, productId: String(product.id), amount: Number(product.preco), description: product.nome }
+    );
     if (stopped) return;
     if (!r.success) {
       status.textContent = "Erro ao gerar PIX: " + (r.error || "tente novamente.");
@@ -80518,6 +80553,7 @@
     }
 
     status.textContent = "Escaneie o QR Code ou copie o código pra pagar:";
+    if (product.serverPriced && r.amount != null) priceEl.textContent = "R$ " + Number(r.amount).toFixed(2).replace(".", ",");
     if (r.qrCodeBase64) qrImg.src = "data:image/png;base64," + r.qrCodeBase64;
     if (r.qrCode) qrText.value = r.qrCode;
     qrWrap.style.display = "block";
