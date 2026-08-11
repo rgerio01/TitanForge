@@ -59,6 +59,7 @@
                     productType: n
                 }),
                 getSignupPrice: () => e.ipcRenderer.invoke("get-signup-price"),
+                listSignupPlans: () => e.ipcRenderer.invoke("list-signup-plans"),
                 signupCreatePix: r => e.ipcRenderer.invoke("signup-create-pix", r),
                 signupCreateCard: r => e.ipcRenderer.invoke("signup-create-card", r),
                 signupCheckStatus: r => e.ipcRenderer.invoke("signup-check-status", r),
@@ -143,6 +144,7 @@
                 downloadManifestorLua: (r, n, i) => e.ipcRenderer.invoke("download-manifestor-lua", r, n, i),
                 updateGameFiles: r => e.ipcRenderer.invoke("update-game-files", r),
                 downloadDlcManifest: (r, n) => e.ipcRenderer.invoke("download-dlc-manifest", r, n),
+                listInstalledDlc: r => e.ipcRenderer.invoke("list-installed-dlc", r),
                 requestGameRyuu: r => e.ipcRenderer.invoke("request-game-ryuu", r),
                 removeGame: r => e.ipcRenderer.invoke("remove-game", r),
                 getMyGames: () => e.ipcRenderer.invoke("get-my-games"),

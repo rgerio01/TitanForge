@@ -13700,6 +13700,18 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     } catch (e) {
                         return { success: !1, amount: 60 };
                     }
+                }), c.ipcMain.handle("list-signup-plans", async () => {
+                    try {
+                        const { data, error } = await TF.from("plans")
+                            .select("key,name,price,game_limit,dlc_limit,bypass,multiplayer,premiumaccounts,nsfw,emuladores,add_games")
+                            .eq("active", !0)
+                            .neq("key", "trial_24h")
+                            .order("price", { ascending: !0 });
+                        if (error) return { success: !1, plans: [] };
+                        return { success: !0, plans: data || [] };
+                    } catch (e) {
+                        return { success: !1, plans: [] };
+                    }
                 }), c.ipcMain.handle("signup-create-pix", async (e, t) => {
                     try {
                         if (!t.nome || !t.email || !t.numero) return {
@@ -13714,8 +13726,11 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             error: "E-mail inválido"
                         };
                         const referredBy = t.referredBy ? String(t.referredBy).trim().toUpperCase().slice(0, 20) : null;
+                        const planKey = t.planKey ? String(t.planKey).trim().slice(0, 40) : null;
                         const { data: pixResp, error: pixErr } = await TF.functions.invoke("pix-create", {
-                            body: { productId: "signup_vitalicia", nome, email, numero, referredBy }
+                            body: planKey
+                                ? { productId: "plan_signup", planKey, nome, email, numero, referredBy }
+                                : { productId: "signup_vitalicia", nome, email, numero, referredBy }
                         });
                         if (pixErr || !pixResp || !pixResp.success) {
                             return { success: !1, error: (pixResp && pixResp.error) || "Não foi possível gerar o PIX" };
@@ -15088,6 +15103,18 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             success: !1,
                             error: e.message
                         }
+                    }
+                }), c.ipcMain.handle("list-installed-dlc", async (e, dlcAppIds) => {
+                    try {
+                        const steamPath = await (0, m.detectSteamPath)();
+                        if (!steamPath) return { success: !1, installed: [] };
+                        const depotDir = l.join(steamPath, "config", "depotcache");
+                        if (!u.existsSync(depotDir)) return { success: !0, installed: [] };
+                        const files = u.readdirSync(depotDir);
+                        const installed = (dlcAppIds || []).filter(id => files.some(f => f.startsWith(`${id}_`) && f.toLowerCase().endsWith(".manifest")));
+                        return { success: !0, installed };
+                    } catch (e) {
+                        return { success: !1, installed: [] };
                     }
                 }), c.ipcMain.handle("request-game-ryuu", async (e, t) => {
                     console.log(`📨 Solicitando jogo AppID ${t}`);

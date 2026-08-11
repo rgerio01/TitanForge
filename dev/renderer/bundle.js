@@ -69057,7 +69057,9 @@
                                                                             gameAppid: a,
                                                                             gameName: e.name || `App ${a}`,
                                                                             dlcs: n
-                                                                        })
+                                                                        }), n.length > 0 && window.electron.listInstalledDlc(n.map(d => d.appid)).then(res => {
+                                                                            res && res.success && res.installed && res.installed.length > 0 && Ta(prev => { const s = new Set(prev); res.installed.forEach(id => s.add(id)); return s; })
+                                                                        }).catch(() => {})
                                                                     },
                                                                     children: (0, l.jsxs)("svg", {
                                                                         width: "11",
@@ -73684,9 +73686,9 @@
                                                 fontSize: "11px",
                                                 color: "rgba(255,255,255,0.30)"
                                             },
-                                            children: 0 === La.dlcs.length ? "Nenhuma DLC disponível" : `${La.dlcs.length} DLC${1!==La.dlcs.length?"s":""} encontrada${1!==La.dlcs.length?"s":""}`
+                                            children: 0 === La.dlcs.length ? "Nenhuma DLC disponível" : `${La.dlcs.length} DLC${1!==La.dlcs.length?"s":""} encontrada${1!==La.dlcs.length?"s":""}` + (null != se?.dlc_limit ? ` · seu plano libera até ${se.dlc_limit} por jogo` : "")
                                         })]
-                                    }), La.dlcs.length > 0 && (0, l.jsx)("button", {
+                                    }), La.dlcs.length > 0 && null == se?.dlc_limit && (0, l.jsx)("button", {
                                         disabled: tfInstallingAllDlc,
                                         onClick: async () => {
                                             const ids = La.dlcs.map(d => d.appid);
@@ -73799,7 +73801,8 @@
                                         children: La.dlcs.map(e => {
                                             const t = Aa.has(e.appid),
                                                 a = Pa.has(e.appid),
-                                                r = e.header_image || `https://cdn.cloudflare.steamstatic.com/steam/apps/${e.appid}/header.jpg`;
+                                                r = e.header_image || `https://cdn.cloudflare.steamstatic.com/steam/apps/${e.appid}/header.jpg`,
+                                                tfDlcCapped = !a && null != se?.dlc_limit && La.dlcs.filter(d => Pa.has(d.appid)).length >= se.dlc_limit;
                                             return (0, l.jsxs)("div", {
                                                 style: {
                                                     background: a ? "rgba(22,163,74,0.06)" : "rgba(255,255,255,0.025)",
@@ -73883,8 +73886,9 @@
                                                         },
                                                         children: ["ID: ", e.appid]
                                                     }), (0, l.jsx)("button", {
-                                                        disabled: t || a,
+                                                        disabled: t || a || tfDlcCapped,
                                                         onClick: async () => {
+                                                            if (tfDlcCapped) return void alert(`Seu plano libera até ${se.dlc_limit} DLC${1===se.dlc_limit?"":"s"} por jogo. Fale com o suporte pra saber como liberar mais.`);
                                                             za(t => new Set(t).add(e.appid)), console.log(`📥 Baixando DLC: dlcAppId=${e.appid}, baseGameAppId=${La.gameAppid}`);
                                                             try {
                                                                 const t = await window.electron.downloadDlcManifest(e.appid, La.gameAppid);
@@ -78291,17 +78295,15 @@
                     onClose: e,
                     onLicenseCreated: t
                 }) => {
-                    const [a, o] = (0, n.useState)("pix"), [y, f] = (0, n.useState)("form"), [m, g] = (0, n.useState)(""), [k, x] = (0, n.useState)(""), [v, b] = (0, n.useState)(""), [w, M] = (0, n.useState)(""), [S, C] = (0, n.useState)(""), [j, L] = (0, n.useState)(""), [I, A] = (0, n.useState)("idle"), [z, P] = (0, n.useState)(""), [T, E] = (0, n.useState)({
+                    const [a, o] = (0, n.useState)("pix"), [y, f] = (0, n.useState)("plan-select"), [m, g] = (0, n.useState)(""), [k, x] = (0, n.useState)(""), [v, b] = (0, n.useState)(""), [w, M] = (0, n.useState)(""), [S, C] = (0, n.useState)(""), [j, L] = (0, n.useState)(""), [I, A] = (0, n.useState)("idle"), [z, P] = (0, n.useState)(""), [T, E] = (0, n.useState)({
                         status: "idle"
-                    }), [_, q] = (0, n.useState)(null), [R, B] = (0, n.useState)(""), [D, O] = (0, n.useState)(""), [V, H] = (0, n.useState)(""), [F, N] = (0, n.useState)(""), [U, W] = (0, n.useState)(""), [$, G] = (0, n.useState)(""), [K, X] = (0, n.useState)(""), [Z, J] = (0, n.useState)(""), [Y, Q] = (0, n.useState)(""), [ee, te] = (0, n.useState)(""), [ae, re] = (0, n.useState)(""), [ne, ie] = (0, n.useState)(""), [oe, se] = (0, n.useState)(!1), [le, ce] = (0, n.useState)(!1), [de, he] = (0, n.useState)(1), [ue, pe] = (0, n.useState)([]), [ye, fe] = (0, n.useState)(!1), [me, ge] = (0, n.useState)(null), [ke, xe] = (0, n.useState)(!1), [ve, be] = (0, n.useState)(null), [we, Me] = (0, n.useState)(!1), [Se, Ce] = (0, n.useState)(0), [je, Le] = (0, n.useState)(!0);
+                    }), [_, q] = (0, n.useState)(null), [R, B] = (0, n.useState)(""), [D, O] = (0, n.useState)(""), [V, H] = (0, n.useState)(""), [F, N] = (0, n.useState)(""), [U, W] = (0, n.useState)(""), [$, G] = (0, n.useState)(""), [K, X] = (0, n.useState)(""), [Z, J] = (0, n.useState)(""), [Y, Q] = (0, n.useState)(""), [ee, te] = (0, n.useState)(""), [ae, re] = (0, n.useState)(""), [ne, ie] = (0, n.useState)(""), [oe, se] = (0, n.useState)(!1), [le, ce] = (0, n.useState)(!1), [de, he] = (0, n.useState)(1), [ue, pe] = (0, n.useState)([]), [ye, fe] = (0, n.useState)(!1), [me, ge] = (0, n.useState)(null), [ke, xe] = (0, n.useState)(!1), [ve, be] = (0, n.useState)(null), [we, Me] = (0, n.useState)(!1), [Se, Ce] = (0, n.useState)(0), [je, Le] = (0, n.useState)(!0), [tfPlanKey, tfSetPlanKey] = (0, n.useState)(null), [tfPlanName, tfSetPlanName] = (0, n.useState)(""), [tfPlans, tfSetPlans] = (0, n.useState)([]), [tfPlansLoading, tfSetPlansLoading] = (0, n.useState)(!0);
                     (0, n.useEffect)(() => {
                         let e = !0;
-                        return Le(!0), window.electron.getSignupPrice().then(t => {
-                            e && Ce(t && t.amount ? t.amount : 60)
-                        }).catch(() => {
-                            e && Ce(60)
+                        return tfSetPlansLoading(!0), window.electron.listSignupPlans().then(t => {
+                            e && t && t.success && tfSetPlans(t.plans || [])
                         }).finally(() => {
-                            e && Le(!1)
+                            e && tfSetPlansLoading(!1)
                         }), () => {
                             e = !1
                         }
@@ -78424,6 +78426,50 @@
                                         })
                                     },
                                     onClose: e
+                                }) : "plan-select" === y ? (0, r.jsxs)("div", {
+                                    style: { padding: "24px", overflowY: "auto" },
+                                    children: [
+                                        (0, r.jsx)("h2", { style: { fontSize: 16, fontWeight: 800, color: "#fff", margin: "0 0 4px", fontFamily: "Rajdhani, sans-serif" }, children: "Escolha seu plano" }),
+                                        (0, r.jsx)("p", { style: { fontSize: 12, color: "rgba(255,255,255,0.45)", margin: "0 0 16px" }, children: "Você pode fazer upgrade depois comprando outro plano." }),
+                                        tfPlansLoading ? (0, r.jsx)("p", { style: { fontSize: 12, color: "rgba(255,255,255,0.4)" }, children: "Carregando planos..." }) : (0, r.jsx)("div", {
+                                            style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
+                                            children: tfPlans.map(plan => {
+                                                const bullets = [];
+                                                bullets.push(null == plan.game_limit ? "Catálogo completo" : `${plan.game_limit} jogos`);
+                                                if (0 !== plan.dlc_limit) bullets.push(null == plan.dlc_limit ? "Todas as DLCs" : `Até ${plan.dlc_limit} DLCs por jogo`);
+                                                "enable" === plan.bypass && bullets.push("Bypass");
+                                                "enable" === plan.multiplayer && bullets.push("Multiplayer");
+                                                "enable" === plan.premiumaccounts && bullets.push("Contas Premium");
+                                                "enable" === plan.add_games && bullets.push("Adicionar jogos");
+                                                "enable" === plan.nsfw && bullets.push("Conteúdo +18");
+                                                "enable" === plan.emuladores && bullets.push("Retro Anvil");
+                                                return (0, r.jsxs)("div", {
+                                                    key: plan.key,
+                                                    onClick: () => {
+                                                        tfSetPlanKey(plan.key), tfSetPlanName(plan.name), Ce(Number(plan.price)), Le(!1), f("form")
+                                                    },
+                                                    style: {
+                                                        cursor: "pointer",
+                                                        background: "rgba(255,255,255,0.03)",
+                                                        border: "1px solid rgba(217,122,44,0.25)",
+                                                        borderRadius: 10,
+                                                        padding: "14px",
+                                                        display: "flex",
+                                                        flexDirection: "column",
+                                                        gap: 6,
+                                                        transition: "border-color .15s, background .15s"
+                                                    },
+                                                    onMouseEnter: e => { e.currentTarget.style.borderColor = "rgba(217,122,44,0.6)" },
+                                                    onMouseLeave: e => { e.currentTarget.style.borderColor = "rgba(217,122,44,0.25)" },
+                                                    children: [
+                                                        (0, r.jsx)("span", { style: { fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: "Rajdhani, sans-serif" }, children: plan.name }),
+                                                        (0, r.jsxs)("span", { style: { fontSize: 18, fontWeight: 800, color: "#ffb454" }, children: ["R$ ", Number(plan.price).toFixed(2).replace(".", ",")] }),
+                                                        (0, r.jsx)("ul", { style: { margin: "4px 0 0", padding: "0 0 0 16px", listStyle: "disc" }, children: bullets.map((b, i) => (0, r.jsx)("li", { style: { fontSize: 11, color: "rgba(255,255,255,0.6)", marginBottom: 2 }, children: b }, i)) })
+                                                    ]
+                                                })
+                                            })
+                                        })
+                                    ]
                                 }) : (0, r.jsx)(p, {
                                     tab: a,
                                     setTab: o,
@@ -78496,7 +78542,8 @@
                                             email: k.trim(),
                                             numero: v.trim(),
                                             referredBy: "valid" === I ? j.trim().toUpperCase() : void 0,
-                                            couponCode: "valid" === T.status ? S.trim() : void 0
+                                            couponCode: "valid" === T.status ? S.trim() : void 0,
+                                            planKey: tfPlanKey || void 0
                                         });
                                         if (xe(!1), t.success) return t.free && t.licenseKey ? (ge(t.licenseKey), void f("success")) : void(t.order && (q(t.order), f("qrcode")));
                                         be(t.error || "Falha")
@@ -81439,6 +81486,10 @@
     const limitI = input("ex: 1000 (vazio = ilimitado)", plan.game_limit != null ? String(plan.game_limit) : "");
     form.appendChild(limitI);
 
+    form.appendChild(label("Limite de DLCs por jogo (vazio = todas, 0 = nenhuma)"));
+    const dlcLimitI = input("ex: 2 (vazio = todas, 0 = nenhuma)", plan.dlc_limit != null ? String(plan.dlc_limit) : "");
+    form.appendChild(dlcLimitI);
+
     form.appendChild(label("Permissões"));
     const toggles = {};
     PLAN_FLAGS.forEach(f => {
@@ -81461,18 +81512,20 @@
       const duration = durRaw === "" ? null : parseInt(durRaw, 10);
       const limitRaw = limitI.value.trim();
       const gameLimit = limitRaw === "" ? null : parseInt(limitRaw, 10);
+      const dlcLimitRaw = dlcLimitI.value.trim();
+      const dlcLimit = dlcLimitRaw === "" ? null : parseInt(dlcLimitRaw, 10);
       const flagVals = PLAN_FLAGS.map(f => toggles[f]._checkbox.checked ? "enable" : "disable");
       try {
         if (isNew) {
           await q(
-            `insert into public.plans (key, name, price, duration_hours, game_limit, bypass, multiplayer, premiumaccounts, nsfw, emuladores, add_games, active)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-            [key, name, price, duration, gameLimit, ...flagVals, activeToggle._checkbox.checked]
+            `insert into public.plans (key, name, price, duration_hours, game_limit, dlc_limit, bypass, multiplayer, premiumaccounts, nsfw, emuladores, add_games, active)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+            [key, name, price, duration, gameLimit, dlcLimit, ...flagVals, activeToggle._checkbox.checked]
           );
         } else {
           await q(
-            `update public.plans set name=$1, price=$2, duration_hours=$3, game_limit=$4, bypass=$5, multiplayer=$6, premiumaccounts=$7, nsfw=$8, emuladores=$9, add_games=$10, active=$11, updated_at=now() where id=$12`,
-            [name, price, duration, gameLimit, ...flagVals, activeToggle._checkbox.checked, plan.id]
+            `update public.plans set name=$1, price=$2, duration_hours=$3, game_limit=$4, dlc_limit=$5, bypass=$6, multiplayer=$7, premiumaccounts=$8, nsfw=$9, emuladores=$10, add_games=$11, active=$12, updated_at=now() where id=$13`,
+            [name, price, duration, gameLimit, dlcLimit, ...flagVals, activeToggle._checkbox.checked, plan.id]
           );
         }
         status.textContent = "Salvo.";
