@@ -14469,6 +14469,51 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         return { success: !1 };
                     }
                 });
+                let almazCatalogCache = null;
+                function getAlmazCatalog() {
+                    if (almazCatalogCache) return almazCatalogCache;
+                    try {
+                        const p = l.join(__dirname, "../renderer/data/almaz_catalog.json");
+                        if (!u.existsSync(p)) return almazCatalogCache = new Map, almazCatalogCache;
+                        const arr = JSON.parse(u.readFileSync(p, "utf-8"));
+                        almazCatalogCache = new Map(arr.map(([appid, name]) => [String(appid), name]));
+                        console.log(`✅ Catálogo Servidor 2 (ALMAZ) carregado: ${almazCatalogCache.size} jogos`)
+                    } catch (e) {
+                        console.error("❌ Erro ao carregar catálogo Servidor 2:", e.message), almazCatalogCache = new Map
+                    }
+                    return almazCatalogCache
+                }
+                let almazLuaCache = null;
+                function getAlmazLua(appid) {
+                    if (!almazLuaCache) {
+                        try {
+                            const p = l.join(__dirname, "../renderer/data/almaz_lua.json");
+                            almazLuaCache = u.existsSync(p) ? JSON.parse(u.readFileSync(p, "utf-8")) : {};
+                            console.log(`✅ Base de .lua do Servidor 2 (ALMAZ) carregada: ${Object.keys(almazLuaCache).length} entradas`)
+                        } catch (e) {
+                            console.error("❌ Erro ao carregar base .lua do Servidor 2:", e.message), almazLuaCache = {}
+                        }
+                    }
+                    return almazLuaCache[String(appid)] || null
+                }
+                const ALMAZ_NSFW_KEYWORDS = ["hentai", "eroge", "rule34", " r18", "r-18", " xxx ", "nsfw", "succubus", "adult only", "sex", "erotic", "erótic", "doujin", "ahegao", "onahole", "18+", "18禁", "hardcore porn", " porn"];
+                function almazIsNsfwByName(name) {
+                    const t = String(name || "").toLowerCase();
+                    return ALMAZ_NSFW_KEYWORDS.some(kw => t.includes(kw))
+                }
+                function mergeWithAlmazCatalog(ryuuGames) {
+                    const almaz = getAlmazCatalog();
+                    if (0 === almaz.size) return ryuuGames.map(g => ({ ...g, source: "ryuu" }));
+                    const ryuuIds = new Set(ryuuGames.map(g => String(g.appid)));
+                    const merged = ryuuGames.map(g => ({ ...g, source: almaz.has(String(g.appid)) ? "both" : "ryuu" }));
+                    let almazOnly = 0;
+                    for (const [appid, name] of almaz) {
+                        if (ryuuIds.has(appid)) continue;
+                        merged.push({ appid, name, type: "game", nsfw: almazIsNsfwByName(name), source: "almaz" });
+                        almazOnly++
+                    }
+                    return console.log(`🔗 [IPC] Merge Servidor 2: ${almaz.size} no catálogo ALMAZ, ${almazOnly} exclusivos (não estavam no Ryuu)`), merged
+                }
                 let Z = null;
                 c.ipcMain.handle("fetch-ryuu-games", async () => {
                     console.log("🌐 [IPC] fetch-ryuu-games chamado");
@@ -14490,11 +14535,12 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         });
                         console.log("📥 [IPC] Banco de dados carregado");
                         const n = t.data,
-                            r = Array.isArray(n) ? n : [];
+                            rawRyuu = Array.isArray(n) ? n : [],
+                            r = mergeWithAlmazCatalog(rawRyuu);
                         return Z = {
                             data: r,
                             fetchedAt: e
-                        }, console.log(`✅ [IPC] Banco de dados: ${r.length} entradas`), r.length > 0 && console.log("🔍 [IPC] Primeira entrada processada"), {
+                        }, console.log(`✅ [IPC] Banco de dados: ${r.length} entradas (Ryuu + Servidor 2)`), r.length > 0 && console.log("🔍 [IPC] Primeira entrada processada"), {
                             success: !0,
                             games: currentGameLimit ? r.slice(0, currentGameLimit) : r
                         }
@@ -14995,9 +15041,9 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             error: e.message
                         }
                     }
-                }), c.ipcMain.handle("download-manifestor-lua", async (e, t, n, r = !1) => {
+                }), c.ipcMain.handle("download-manifestor-lua", async (e, t, n, r = !1, s = 1) => {
                     try {
-                        console.log(`📥 Baixando jogo AppID: ${t}`);
+                        console.log(`📥 Baixando jogo AppID: ${t} (Servidor ${s})`);
                         const e = await (0, m.detectSteamPath)();
                         if (!e) return {
                             success: !1,
@@ -15013,6 +15059,24 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             r[t]?.success && r[t]?.data?.name && (i = r[t].data.name, console.log(`🎮 Nome do jogo: ${i}`))
                         } catch (e) {
                             console.log("⚠️ Não foi possível buscar nome do jogo na Steam API")
+                        }
+                        if (2 === s) {
+                            const lua = getAlmazLua(t);
+                            if (!lua) return {
+                                success: !1,
+                                error: "Jogo não disponível no Servidor 2."
+                            };
+                            const p = l.join(e, "config", S.LUA_CONFIG_DIRNAME),
+                                stplug = l.join(e, "config", "stplug-in");
+                            u.existsSync(p) || u.mkdirSync(p, { recursive: !0 }), u.existsSync(stplug) || u.mkdirSync(stplug, { recursive: !0 });
+                            const fname = `${t}.lua`;
+                            return u.writeFileSync(l.join(p, fname), lua), u.writeFileSync(l.join(stplug, fname), lua), console.log(`✅ .lua (Servidor 2) salvo: ${fname}`), r ? console.log("⏭️ Steam restart pulado (bulk download)") : (console.log("🔄 Reiniciando Steam..."), await (0, m.restartSteam)(e)), {
+                                success: !0,
+                                filePath: p,
+                                gameName: i,
+                                luaCount: 1,
+                                manifestCount: 0
+                            }
                         }
                         console.log("🚀 Iniciando download do ManifestHub...");
                         const a = await Y(t);

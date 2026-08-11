@@ -64920,7 +64920,8 @@
                             type: String(e.type || ""),
                             drm: !0 === e.drm,
                             nsfw: tfIsAdultContent(e.nsfw, e.name),
-                            dlc: a(e.dlc)
+                            dlc: a(e.dlc),
+                            source: e.source || "ryuu"
                         }));
                         return r = i, n = null, i
                     })(), n)
@@ -66996,6 +66997,7 @@
                         [instalando, setInstalando] = c.useState(new Set),
                         [instalados, setInstalados] = c.useState(new Set),
                         [erroInstalacao, setErroInstalacao] = c.useState(null),
+                        [escolhaServidor, setEscolhaServidor] = c.useState(null),
                         [trailerHoverAppid, setTrailerHoverAppid] = c.useState(null),
                         [trailerHoverUrl, setTrailerHoverUrl] = c.useState(null),
                         trailerHoverActiveRef = c.useRef(null),
@@ -67043,10 +67045,10 @@
                             vivo = !1
                         }
                     }, []);
-                    const instalarJogo = async e => {
+                    const executarInstalacao = async (e, servidor) => {
                         instalando.has(e.appid) || instalados.has(e.appid) || (setErroInstalacao(null), setInstalando(t => new Set(t).add(e.appid)), (async () => {
                             try {
-                                const t = await window.electron.downloadManifestorLua(e.appid, e.name, !1);
+                                const t = await window.electron.downloadManifestorLua(e.appid, e.name, !1, servidor);
                                 t.success ? setInstalados(t => new Set(t).add(e.appid)) : setErroInstalacao({
                                     appid: e.appid,
                                     msg: t.error || "Falha ao instalar"
@@ -67063,6 +67065,9 @@
                                 })
                             }
                         })())
+                    };
+                    const instalarJogo = e => {
+                        instalando.has(e.appid) || instalados.has(e.appid) || ("both" === e.source ? setEscolhaServidor(e) : executarInstalacao(e, "almaz" === e.source ? 2 : 1))
                     };
                     const filtrados = c.useMemo(() => {
                         const q = busca.trim().toLowerCase(),
@@ -67155,6 +67160,9 @@
                                             loop: !0,
                                             playsInline: !0,
                                             style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 1, background: "#000" }
+                                        }), "both" === e.source && (0, l.jsx)("div", {
+                                            style: { position: "absolute", top: "6px", right: "6px", zIndex: 2, background: "rgba(0,0,0,0.7)", border: "1px solid rgba(217,122,44,0.5)", borderRadius: "10px", padding: "2px 7px", fontSize: "9px", fontWeight: 700, color: "#ffb454" },
+                                            children: "2 servidores"
                                         })]
                                     }), (0, l.jsxs)("div", {
                                         className: "game-info",
@@ -67229,6 +67237,39 @@
                             onInstall: () => {
                                 instalarJogo(detailsGame), setDetailsGame(null)
                             }
+                        }), escolhaServidor && (0, l.jsx)("div", {
+                            style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" },
+                            onClick: () => setEscolhaServidor(null),
+                            children: (0, l.jsxs)("div", {
+                                onClick: e => e.stopPropagation(),
+                                style: { width: "320px", background: "var(--bg-card)", border: "1px solid rgba(217,122,44,0.3)", borderRadius: "8px", padding: "20px" },
+                                children: [
+                                    (0, l.jsx)("h3", { style: { fontSize: "14px", fontWeight: 800, color: "#fff", margin: "0 0 4px", fontFamily: "Rajdhani, sans-serif" }, children: "Escolha o servidor" }),
+                                    (0, l.jsxs)("p", { style: { fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 16px" }, children: [escolhaServidor.name, " está disponível em 2 servidores."] }),
+                                    (0, l.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" },
+                                        children: [
+                                            (0, l.jsx)("button", {
+                                                className: "btn-primary",
+                                                style: { width: "100%", justifyContent: "center", padding: "10px" },
+                                                onClick: () => { executarInstalacao(escolhaServidor, 1), setEscolhaServidor(null) },
+                                                children: "Servidor 1"
+                                            }),
+                                            (0, l.jsx)("button", {
+                                                className: "btn-primary",
+                                                style: { width: "100%", justifyContent: "center", padding: "10px" },
+                                                onClick: () => { executarInstalacao(escolhaServidor, 2), setEscolhaServidor(null) },
+                                                children: "Servidor 2"
+                                            }),
+                                            (0, l.jsx)("button", {
+                                                className: "btn-ghost",
+                                                style: { width: "100%", justifyContent: "center", padding: "8px", fontSize: "12px" },
+                                                onClick: () => setEscolhaServidor(null),
+                                                children: "Cancelar"
+                                            })
+                                        ]
+                                    })
+                                ]
+                            })
                         })]
                     })
                 };
@@ -67482,7 +67523,8 @@
                                             header_image: e.header_image || "https://ryuu.lol/manifests/placeholder.png",
                                             drm: !0 === e.drm,
                                             nsfw: !0 === e.nsfw || tfNsfwKeywordHit(e.name),
-                                            dlc: tfParseDlc(e.dlc)
+                                            dlc: tfParseDlc(e.dlc),
+                                            source: e.source || "ryuu"
                                         })),
                                         n = r.filter(e => !e.nsfw),
                                         i = r.filter(e => e.nsfw);

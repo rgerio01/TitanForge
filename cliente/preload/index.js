@@ -141,7 +141,7 @@
                 enableHidDll: () => e.ipcRenderer.invoke("enable-hid-dll"),
                 ensureHidDllActive: () => e.ipcRenderer.invoke("ensure-hid-dll-active"),
                 searchManifestorGames: r => e.ipcRenderer.invoke("search-manifestor-games", r),
-                downloadManifestorLua: (r, n, i) => e.ipcRenderer.invoke("download-manifestor-lua", r, n, i),
+                downloadManifestorLua: (r, n, i, s) => e.ipcRenderer.invoke("download-manifestor-lua", r, n, i, s),
                 updateGameFiles: r => e.ipcRenderer.invoke("update-game-files", r),
                 downloadDlcManifest: (r, n) => e.ipcRenderer.invoke("download-dlc-manifest", r, n),
                 listInstalledDlc: r => e.ipcRenderer.invoke("list-installed-dlc", r),
