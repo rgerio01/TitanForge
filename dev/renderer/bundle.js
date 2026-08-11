@@ -71315,15 +71315,22 @@
                                                                             children: [(0, l.jsx)(Icon, { size: 14, style: { color: "#ffb454", flexShrink: 0 } }), (0, l.jsx)("h3", { style: { fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0, lineHeight: 1.3 }, children: plan.name })]
                                                                         }),
                                                                         (0, l.jsx)("p", { style: { fontSize: "11px", color: "rgba(255,255,255,0.45)", lineHeight: 1.6, flex: 1, marginBottom: "14px" }, children: PLAN_DESC[plan.key] || "" }),
-                                                                        (0, l.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginBottom: "10px" },
-                                                                            children: [(0, l.jsx)("span", { style: { fontSize: "16px", fontWeight: 900, background: "linear-gradient(135deg,#ffb454,#ff8a3d)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontFamily: "Rajdhani, sans-serif" }, children: isUpgrade ? "+ R$ " + (Number(plan.price) - currentPrice).toFixed(2).replace(".", ",") : "R$ " + Number(plan.price).toFixed(2).replace(".", ",") })]
-                                                                        }),
-                                                                        (0, l.jsx)("button", {
-                                                                            disabled: !isUpgrade,
-                                                                            onClick: () => isUpgrade && tfBuyUpgrade(plan.key),
-                                                                            className: isUpgrade ? "btn-primary" : "btn-ghost",
-                                                                            style: { width: "100%", justifyContent: "center", padding: "8px", fontSize: "12px", fontWeight: 700, cursor: isUpgrade ? "pointer" : "not-allowed" },
-                                                                            children: isCurrent ? "✓ Seu plano atual" : isUpgrade ? "Fazer upgrade" : "Já incluído"
+                                                                        (0, l.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "auto" },
+                                                                            children: [
+                                                                                (0, l.jsxs)("span", { style: { fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "Rajdhani, sans-serif", letterSpacing: "-0.01em" }, children: [isUpgrade ? "+ R$ " : "R$ ", (isUpgrade ? Number(plan.price) - currentPrice : Number(plan.price)).toFixed(2).replace(".", ",")] }),
+                                                                                (0, l.jsx)("button", {
+                                                                                    disabled: !isUpgrade,
+                                                                                    onClick: () => isUpgrade && tfBuyUpgrade(plan.key),
+                                                                                    style: isUpgrade ? {
+                                                                                        padding: "7px 14px", background: "linear-gradient(135deg,#d97a2c,#a855f7)", border: "none", borderRadius: "2px", color: "#fff", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "Rajdhani, sans-serif", flexShrink: 0, transition: "opacity .15s"
+                                                                                    } : {
+                                                                                        padding: "7px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "2px", color: "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 700, cursor: "not-allowed", fontFamily: "Rajdhani, sans-serif", flexShrink: 0
+                                                                                    },
+                                                                                    onMouseEnter: e => { isUpgrade && (e.currentTarget.style.opacity = "0.85") },
+                                                                                    onMouseLeave: e => { isUpgrade && (e.currentTarget.style.opacity = "1") },
+                                                                                    children: isCurrent ? "✓ Atual" : isUpgrade ? "Fazer upgrade" : "Incluído"
+                                                                                })
+                                                                            ]
                                                                         })
                                                                     ]
                                                                 })]
@@ -71349,7 +71356,12 @@
                                                                         children: [(0, l.jsx)(u.IconGamepad, { size: 14, style: { color: "#c084fc", flexShrink: 0 } }), (0, l.jsx)("h3", { style: { fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: 0, lineHeight: 1.3 }, children: "Retro Anvil" })]
                                                                     }),
                                                                     (0, l.jsx)("p", { style: { fontSize: "11px", color: "rgba(255,255,255,0.45)", lineHeight: 1.6, flex: 1, marginBottom: "14px" }, children: "Emuladores retrô com biblioteca própria. Vendas temporariamente suspensas." }),
-                                                                    (0, l.jsx)("button", { disabled: !0, className: "btn-ghost", style: { width: "100%", justifyContent: "center", padding: "8px", fontSize: "12px", fontWeight: 700, cursor: "not-allowed" }, children: "Indisponível" })
+                                                                    (0, l.jsxs)("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginTop: "auto" },
+                                                                        children: [
+                                                                            (0, l.jsx)("span", { style: { fontSize: "16px", fontWeight: 800, color: "rgba(255,255,255,0.35)", fontFamily: "Rajdhani, sans-serif" }, children: "—" }),
+                                                                            (0, l.jsx)("button", { disabled: !0, style: { padding: "7px 14px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "2px", color: "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: 700, cursor: "not-allowed", fontFamily: "Rajdhani, sans-serif", flexShrink: 0 }, children: "Indisponível" })
+                                                                        ]
+                                                                    })
                                                                 ]
                                                             })]
                                                         })]

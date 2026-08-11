@@ -12930,7 +12930,8 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             newVersion: e.version
                         })
                     }), h.autoUpdater.on("update-not-available", () => {
-                        console.log("ℹ️ Nenhuma atualização disponível"), L = !1, D?.webContents.send("update-not-available")
+                        console.log("ℹ️ Nenhuma atualização disponível"), L = !1, D?.webContents.send("update-not-available");
+                        try { u.unlinkSync(l.join(c.app.getPath("userData"), "last-update-attempt.json")) } catch {}
                     }), h.autoUpdater.on("download-progress", e => {
                         console.log(`📥 Download: ${e.percent.toFixed(2)}%`), D?.webContents.send("update-download-progress", {
                             percent: e.percent,
@@ -12940,6 +12941,26 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         })
                     }), h.autoUpdater.on("update-downloaded", e => {
                         console.log("✅ Atualização baixada, aguardando confirmação do usuário:", e.version), L = !1;
+                        if (e.version === c.app.getVersion()) {
+                            return console.error(`⛔ AutoUpdater tentou baixar a MESMA versão já instalada (${e.version}) — abortando instalação pra não entrar em loop. Isso indica um release publicado com conteúdo desatualizado.`), void (D?.webContents.send("update-error", { message: "Update para a mesma versão detectado — instalação cancelada por segurança." }))
+                        }
+                        try {
+                            const guardFile = l.join(c.app.getPath("userData"), "last-update-attempt.json");
+                            let prev = null;
+                            try { prev = JSON.parse(u.readFileSync(guardFile, "utf8")) } catch {}
+                            const now = Date.now();
+                            if (prev && prev.version === e.version && now - prev.time < 6e5) {
+                                const attempts = (prev.attempts || 1) + 1;
+                                u.writeFileSync(guardFile, JSON.stringify({ version: e.version, time: prev.time, attempts }));
+                                if (attempts >= 3) {
+                                    return console.error(`⛔ AutoUpdater tentou instalar a versão ${e.version} ${attempts}x nos últimos 10min sem sucesso — abortando pra não entrar em loop. Provável build publicada quebrada.`), void (D?.webContents.send("update-error", { message: `Instalação repetida da mesma versão (${attempts}x) — cancelada por segurança. Contate o suporte.` }))
+                                }
+                            } else {
+                                u.writeFileSync(guardFile, JSON.stringify({ version: e.version, time: now, attempts: 1 }))
+                            }
+                        } catch (guardErr) {
+                            console.error("Erro no guard anti-loop do updater (não bloqueante):", guardErr)
+                        }
                         try {
                             const t = l.join(c.app.getPath("userData"), "AtualizacoesPendentes");
                             u.existsSync(t) || u.mkdirSync(t, {
