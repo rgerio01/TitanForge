@@ -71218,8 +71218,13 @@
                                             const BADGES = { avancado: "⭐ MAIS POPULAR", completo: "👑 MELHOR CUSTO-BENEFÍCIO" };
                                             const ICONS = { basico: u.IconShop, avancado: u.IconShield, completo: u.IconCrown, contas_premium: u.IconUser };
                                             const PLAN_DESC = { basico: "Catálogo essencial pra começar sem compromisso.", avancado: "Catálogo ampliado, bypass e multiplayer liberados.", completo: "+40 mil jogos, bypass, multiplayer e liberação de novos títulos.", contas_premium: "Contas oficiais premium liberadas, prontas pra jogar." };
-                                            const FALLBACK = { basico: ["🛍️", "%23241a12"], avancado: ["⭐", "%232a1608"], completo: ["👑", "%232a2008"], contas_premium: ["👤", "%23241426"] };
-                                            const fallbackSvg = (emoji, bg) => 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"%3E%3Crect fill="' + bg + '" width="200" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="64"%3E' + emoji + '%3C/text%3E%3C/svg%3E';
+                                            const FALLBACK = {
+                                                basico: { emoji: "🛍️", tag: "ESSENCIAL", big: "PLANO BASICO", accent: "%23ffb454", bg1: "%23241a12", bg2: "%23100b06" },
+                                                avancado: { emoji: "⭐", tag: "MAIS PEDIDO", big: "PLANO AVANCADO", accent: "%23ff8a3d", bg1: "%232a1608", bg2: "%23130a03" },
+                                                completo: { emoji: "👑", tag: "TUDO LIBERADO", big: "PLANO COMPLETO", accent: "%23ffd76a", bg1: "%232a2008", bg2: "%23130f03" },
+                                                contas_premium: { emoji: "👤", tag: "CONTAS OFICIAIS", big: "CONTAS PREMIUM", accent: "%23e879f9", bg1: "%23241426", bg2: "%23100915" }
+                                            };
+                                            const fallbackSvg = f => 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"%3E%3Cdefs%3E%3ClinearGradient id="g" x1="0" y1="0" x2="0" y2="1"%3E%3Cstop offset="0" stop-color="' + f.bg1 + '"/%3E%3Cstop offset="1" stop-color="' + f.bg2 + '"/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="200" height="300" fill="url(%23g)"/%3E%3Cpath d="M100,45 L138,60 V108 C138,145 122,168 100,182 C78,168 62,145 62,108 V60 Z" fill="none" stroke="' + f.accent + '" stroke-width="3" opacity="0.9"/%3E%3Ctext x="100" y="122" font-size="46" text-anchor="middle" dominant-baseline="middle"%3E' + f.emoji + '%3C/text%3E%3Ctext x="100" y="160" font-size="10" font-weight="800" letter-spacing="2" text-anchor="middle" fill="' + f.accent + '" font-family="Arial, sans-serif"%3E' + f.tag + '%3C/text%3E%3Ctext x="100" y="228" font-size="15" font-weight="900" text-anchor="middle" fill="%23ffffff" font-family="Arial, sans-serif" opacity="0.92"%3E' + f.big + '%3C/text%3E%3C/svg%3E';
                                             if (0 === planItems.length) return null;
                                             return (0, l.jsxs)("div", {
                                                 className: "card",
@@ -71233,7 +71238,7 @@
                                                             const isCurrent = plan.key === se?.plan_key;
                                                             const badge = BADGES[plan.key];
                                                             const Icon = ICONS[plan.key] || u.IconShop;
-                                                            const [emoji, bg] = FALLBACK[plan.key] || ["🛍️", "%23111114"];
+                                                            const fb = FALLBACK[plan.key] || { emoji: "🛍️", tag: "TITANFORGE", big: plan.name.toUpperCase(), accent: "%23ffb454", bg1: "%23181818", bg2: "%230c0c0c" };
                                                             return (0, l.jsxs)("div", {
                                                                 key: plan.key,
                                                                 className: "group",
@@ -71253,11 +71258,11 @@
                                                                 children: [(0, l.jsxs)("div", {
                                                                     style: { width: "100%", aspectRatio: "2/3", background: "var(--bg-input)", position: "relative", overflow: "hidden", flexShrink: 0 },
                                                                     children: [(0, l.jsx)("img", {
-                                                                        src: plan.imagem || fallbackSvg(emoji, bg),
+                                                                        src: plan.imagem || fallbackSvg(fb),
                                                                         alt: plan.name,
                                                                         style: { width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.35s ease" },
                                                                         className: "group-hover:scale-[1.04]",
-                                                                        onError: e => { e.target.src = fallbackSvg(emoji, bg) }
+                                                                        onError: e => { e.target.src = fallbackSvg(fb) }
                                                                     }), badge && (0, l.jsx)("div", {
                                                                         style: { position: "absolute", top: "8px", left: "50%", transform: "translateX(-50%)", zIndex: 2, background: "linear-gradient(135deg,#d97a2c,#ff2d78)", borderRadius: "20px", padding: "3px 10px", fontSize: "9px", fontWeight: 800, color: "#fff", letterSpacing: "0.04em", whiteSpace: "nowrap", boxShadow: "0 4px 10px rgba(0,0,0,0.35)" },
                                                                         children: badge
@@ -71289,7 +71294,7 @@
                                                             children: [(0, l.jsxs)("div", {
                                                                 style: { width: "100%", aspectRatio: "2/3", background: "var(--bg-input)", position: "relative", overflow: "hidden", flexShrink: 0 },
                                                                 children: [(0, l.jsx)("img", {
-                                                                    src: fallbackSvg("🕹️", "%2318102a"),
+                                                                    src: fallbackSvg({ emoji: "🕹️", tag: "EM BREVE", big: "RETRO ANVIL", accent: "%23c084fc", bg1: "%23241a3a", bg2: "%230d0818" }),
                                                                     alt: "Retro Anvil",
                                                                     style: { width: "100%", height: "100%", objectFit: "cover" }
                                                                 }), (0, l.jsx)("div", {
