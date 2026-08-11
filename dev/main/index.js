@@ -15062,28 +15062,44 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         }
                         if (2 === s) {
                             const lua = getAlmazLua(t);
-                            if (!lua) return {
-                                success: !1,
-                                error: "Jogo não disponível no Servidor 2."
-                            };
-                            const p = l.join(e, "config", S.LUA_CONFIG_DIRNAME),
-                                stplug = l.join(e, "config", "stplug-in");
-                            u.existsSync(p) || u.mkdirSync(p, { recursive: !0 }), u.existsSync(stplug) || u.mkdirSync(stplug, { recursive: !0 });
-                            const fname = `${t}.lua`;
-                            return u.writeFileSync(l.join(p, fname), lua), u.writeFileSync(l.join(stplug, fname), lua), console.log(`✅ .lua (Servidor 2) salvo: ${fname}`), r ? console.log("⏭️ Steam restart pulado (bulk download)") : (console.log("🔄 Reiniciando Steam..."), await (0, m.restartSteam)(e)), {
-                                success: !0,
-                                filePath: p,
-                                gameName: i,
-                                luaCount: 1,
-                                manifestCount: 0
+                            if (lua) {
+                                const p = l.join(e, "config", S.LUA_CONFIG_DIRNAME),
+                                    stplug = l.join(e, "config", "stplug-in");
+                                u.existsSync(p) || u.mkdirSync(p, { recursive: !0 }), u.existsSync(stplug) || u.mkdirSync(stplug, { recursive: !0 });
+                                const fname = `${t}.lua`;
+                                return u.writeFileSync(l.join(p, fname), lua), u.writeFileSync(l.join(stplug, fname), lua), console.log(`✅ .lua (Servidor 2) salvo: ${fname}`), r ? console.log("⏭️ Steam restart pulado (bulk download)") : (console.log("🔄 Reiniciando Steam..."), await (0, m.restartSteam)(e)), {
+                                    success: !0,
+                                    filePath: p,
+                                    gameName: i,
+                                    luaCount: 1,
+                                    manifestCount: 0
+                                }
                             }
+                            console.log("⚠️ Servidor 2 não tem esse jogo, tentando Servidor 1 como fallback...")
                         }
                         console.log("🚀 Iniciando download do ManifestHub...");
-                        const a = await Y(t);
-                        if (!a) return {
-                            success: !1,
-                            error: "Não foi possível baixar o jogo. O ID pode estar incorreto ou o jogo ainda não está disponível."
-                        };
+                        let a = await Y(t);
+                        if (!a) {
+                            const lua = getAlmazLua(t);
+                            if (lua) {
+                                console.log("⚠️ Servidor 1 falhou, usando Servidor 2 como fallback...");
+                                const p = l.join(e, "config", S.LUA_CONFIG_DIRNAME),
+                                    stplug = l.join(e, "config", "stplug-in");
+                                u.existsSync(p) || u.mkdirSync(p, { recursive: !0 }), u.existsSync(stplug) || u.mkdirSync(stplug, { recursive: !0 });
+                                const fname = `${t}.lua`;
+                                return u.writeFileSync(l.join(p, fname), lua), u.writeFileSync(l.join(stplug, fname), lua), console.log(`✅ .lua (Servidor 2, fallback) salvo: ${fname}`), r ? console.log("⏭️ Steam restart pulado (bulk download)") : (console.log("🔄 Reiniciando Steam..."), await (0, m.restartSteam)(e)), {
+                                    success: !0,
+                                    filePath: p,
+                                    gameName: i,
+                                    luaCount: 1,
+                                    manifestCount: 0
+                                }
+                            }
+                            return {
+                                success: !1,
+                                error: "Não foi possível baixar o jogo em nenhum dos servidores. O ID pode estar incorreto ou o jogo ainda não está disponível."
+                            }
+                        }
                         const s = l.join(b.tmpdir(), `game_${t}.zip`);
                         u.writeFileSync(s, a), console.log(`💾 .zip salvo temporariamente em: ${s}`);
                         const c = new y(s).getEntries();
