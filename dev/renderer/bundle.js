@@ -71255,28 +71255,33 @@
                                         }), (() => {
                                             const currentPlan = tfAllPlans.find(p => p.key === se?.plan_key);
                                             const currentPrice = currentPlan ? Number(currentPlan.price) : 0;
-                                            const upgradeOptions = tfAllPlans.filter(p => "trial_24h" !== p.key && Number(p.price) > currentPrice).sort((a, b) => Number(a.price) - Number(b.price));
-                                            return upgradeOptions.length > 0 && (0, l.jsxs)("div", {
+                                            const planItems = tfAllPlans.filter(p => "trial_24h" !== p.key).sort((a, b) => Number(a.price) - Number(b.price));
+                                            return planItems.length > 0 && (0, l.jsxs)("div", {
                                                 className: "card",
                                                 style: { padding: "16px 18px" },
                                                 children: [
-                                                    (0, l.jsx)("h3", { style: { fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px", fontFamily: "Rajdhani, sans-serif" }, children: "Fazer upgrade de plano" }),
-                                                    (0, l.jsx)("p", { style: { fontSize: "11.5px", color: "var(--text-secondary)", margin: "0 0 12px" }, children: "Você paga só a diferença pro plano escolhido." }),
+                                                    (0, l.jsx)("h3", { style: { fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px", fontFamily: "Rajdhani, sans-serif" }, children: "Planos" }),
+                                                    (0, l.jsx)("p", { style: { fontSize: "11.5px", color: "var(--text-secondary)", margin: "0 0 12px" }, children: se?.plan_key ? "Trocar de plano paga só a diferença." : "Escolha um plano pra sua licença." }),
                                                     (0, l.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "10px" },
-                                                        children: upgradeOptions.map(plan => (0, l.jsxs)("div", {
-                                                            key: plan.key,
-                                                            style: { background: "rgba(255,255,255,0.025)", border: "1px solid rgba(217,122,44,0.25)", borderRadius: "2px", padding: "12px" },
-                                                            children: [
-                                                                (0, l.jsx)("p", { style: { fontSize: "12.5px", fontWeight: 700, color: "#fff", margin: "0 0 4px" }, children: plan.name }),
-                                                                (0, l.jsxs)("p", { style: { fontSize: "15px", fontWeight: 800, color: "#ffb454", margin: "0 0 10px" }, children: ["+ R$ ", (Number(plan.price) - currentPrice).toFixed(2).replace(".", ",")] }),
-                                                                (0, l.jsx)("button", {
-                                                                    onClick: () => tfBuyUpgrade(plan.key),
-                                                                    className: "btn-primary",
-                                                                    style: { width: "100%", justifyContent: "center", padding: "7px", fontSize: "11.5px" },
-                                                                    children: "Fazer upgrade"
-                                                                })
-                                                            ]
-                                                        }, plan.key))
+                                                        children: planItems.map(plan => {
+                                                            const isUpgrade = Number(plan.price) > currentPrice;
+                                                            const isCurrent = plan.key === se?.plan_key;
+                                                            return (0, l.jsxs)("div", {
+                                                                key: plan.key,
+                                                                style: { background: "rgba(255,255,255,0.025)", border: "1px solid " + (isCurrent ? "rgba(22,163,74,0.35)" : "rgba(217,122,44,0.25)"), borderRadius: "2px", padding: "12px", opacity: isUpgrade ? 1 : .65 },
+                                                                children: [
+                                                                    (0, l.jsx)("p", { style: { fontSize: "12.5px", fontWeight: 700, color: "#fff", margin: "0 0 4px" }, children: plan.name }),
+                                                                    (0, l.jsx)("p", { style: { fontSize: "15px", fontWeight: 800, color: "#ffb454", margin: "0 0 10px" }, children: isUpgrade ? "+ R$ " + (Number(plan.price) - currentPrice).toFixed(2).replace(".", ",") : "R$ " + Number(plan.price).toFixed(2).replace(".", ",") }),
+                                                                    (0, l.jsx)("button", {
+                                                                        disabled: !isUpgrade,
+                                                                        onClick: () => isUpgrade && tfBuyUpgrade(plan.key),
+                                                                        className: isUpgrade ? "btn-primary" : "btn-ghost",
+                                                                        style: { width: "100%", justifyContent: "center", padding: "7px", fontSize: "11.5px", cursor: isUpgrade ? "pointer" : "not-allowed" },
+                                                                        children: isCurrent ? "Seu plano atual" : isUpgrade ? "Fazer upgrade" : "Já incluído"
+                                                                    })
+                                                                ]
+                                                            }, plan.key)
+                                                        })
                                                     })
                                                 ]
                                             })
