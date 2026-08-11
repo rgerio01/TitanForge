@@ -71256,32 +71256,68 @@
                                             const currentPlan = tfAllPlans.find(p => p.key === se?.plan_key);
                                             const currentPrice = currentPlan ? Number(currentPlan.price) : 0;
                                             const planItems = tfAllPlans.filter(p => "trial_24h" !== p.key).sort((a, b) => Number(a.price) - Number(b.price));
-                                            return planItems.length > 0 && (0, l.jsxs)("div", {
+                                            const BADGES = { avancado: "⭐ MAIS POPULAR", completo: "👑 MELHOR CUSTO-BENEFÍCIO" };
+                                            const ICONS = { basico: u.IconShop, avancado: u.IconShield, completo: u.IconCrown, contas_premium: u.IconUser };
+                                            if (0 === planItems.length) return null;
+                                            return (0, l.jsxs)("div", {
                                                 className: "card",
-                                                style: { padding: "16px 18px" },
+                                                style: { padding: "20px 22px", background: "linear-gradient(160deg, rgba(217,122,44,0.06), rgba(255,255,255,0.02))" },
                                                 children: [
-                                                    (0, l.jsx)("h3", { style: { fontSize: "13px", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px", fontFamily: "Rajdhani, sans-serif" }, children: "Planos" }),
-                                                    (0, l.jsx)("p", { style: { fontSize: "11.5px", color: "var(--text-secondary)", margin: "0 0 12px" }, children: se?.plan_key ? "Trocar de plano paga só a diferença." : "Escolha um plano pra sua licença." }),
-                                                    (0, l.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "10px" },
-                                                        children: planItems.map(plan => {
+                                                    (0, l.jsx)("h3", { style: { fontSize: "15px", fontWeight: 800, color: "#fff", margin: "0 0 4px", fontFamily: "Rajdhani, sans-serif", letterSpacing: "0.02em" }, children: "🚀 Planos TitanForge" }),
+                                                    (0, l.jsx)("p", { style: { fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 16px" }, children: se?.plan_key ? "Trocar de plano paga só a diferença — sem perder sua licença." : "Escolha o plano ideal pra sua licença." }),
+                                                    (0, l.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "14px" },
+                                                        children: [...planItems.map(plan => {
                                                             const isUpgrade = Number(plan.price) > currentPrice;
                                                             const isCurrent = plan.key === se?.plan_key;
+                                                            const badge = BADGES[plan.key];
+                                                            const Icon = ICONS[plan.key] || u.IconShop;
                                                             return (0, l.jsxs)("div", {
                                                                 key: plan.key,
-                                                                style: { background: "rgba(255,255,255,0.025)", border: "1px solid " + (isCurrent ? "rgba(22,163,74,0.35)" : "rgba(217,122,44,0.25)"), borderRadius: "2px", padding: "12px", opacity: isUpgrade ? 1 : .65 },
+                                                                style: {
+                                                                    position: "relative",
+                                                                    background: badge ? "linear-gradient(160deg, rgba(217,122,44,0.16), rgba(255,255,255,0.03))" : "rgba(255,255,255,0.03)",
+                                                                    border: "1px solid " + (isCurrent ? "rgba(22,163,74,0.5)" : badge ? "rgba(255,180,84,0.55)" : "rgba(217,122,44,0.25)"),
+                                                                    borderRadius: "10px",
+                                                                    padding: "16px 14px",
+                                                                    opacity: isUpgrade || isCurrent ? 1 : .6,
+                                                                    boxShadow: badge ? "0 8px 24px rgba(217,122,44,0.18)" : "none",
+                                                                    transition: "transform .15s"
+                                                                },
+                                                                onMouseEnter: e => { isUpgrade && (e.currentTarget.style.transform = "translateY(-3px)") },
+                                                                onMouseLeave: e => { e.currentTarget.style.transform = "translateY(0)" },
                                                                 children: [
-                                                                    (0, l.jsx)("p", { style: { fontSize: "12.5px", fontWeight: 700, color: "#fff", margin: "0 0 4px" }, children: plan.name }),
-                                                                    (0, l.jsx)("p", { style: { fontSize: "15px", fontWeight: 800, color: "#ffb454", margin: "0 0 10px" }, children: isUpgrade ? "+ R$ " + (Number(plan.price) - currentPrice).toFixed(2).replace(".", ",") : "R$ " + Number(plan.price).toFixed(2).replace(".", ",") }),
+                                                                    badge && (0, l.jsx)("div", { style: { position: "absolute", top: "-10px", left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg,#d97a2c,#ff2d78)", color: "#fff", fontSize: "9.5px", fontWeight: 800, padding: "3px 10px", borderRadius: "20px", whiteSpace: "nowrap", boxShadow: "0 4px 10px rgba(0,0,0,0.35)" }, children: badge }),
+                                                                    (0, l.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginTop: badge ? "6px" : 0, marginBottom: "10px" },
+                                                                        children: [
+                                                                            (0, l.jsx)("div", { style: { width: "30px", height: "30px", borderRadius: "8px", background: "rgba(255,180,84,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }, children: (0, l.jsx)(Icon, { size: 16, style: { color: "#ffb454" } }) }),
+                                                                            (0, l.jsx)("p", { style: { fontSize: "13.5px", fontWeight: 800, color: "#fff", margin: 0 }, children: plan.name })
+                                                                        ]
+                                                                    }),
+                                                                    (0, l.jsx)("p", { style: { fontSize: "20px", fontWeight: 900, background: "linear-gradient(135deg,#ffb454,#ff8a3d)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: "0 0 12px" }, children: isUpgrade ? "+ R$ " + (Number(plan.price) - currentPrice).toFixed(2).replace(".", ",") : "R$ " + Number(plan.price).toFixed(2).replace(".", ",") }),
                                                                     (0, l.jsx)("button", {
                                                                         disabled: !isUpgrade,
                                                                         onClick: () => isUpgrade && tfBuyUpgrade(plan.key),
                                                                         className: isUpgrade ? "btn-primary" : "btn-ghost",
-                                                                        style: { width: "100%", justifyContent: "center", padding: "7px", fontSize: "11.5px", cursor: isUpgrade ? "pointer" : "not-allowed" },
-                                                                        children: isCurrent ? "Seu plano atual" : isUpgrade ? "Fazer upgrade" : "Já incluído"
+                                                                        style: { width: "100%", justifyContent: "center", padding: "8px", fontSize: "12px", fontWeight: 700, cursor: isUpgrade ? "pointer" : "not-allowed" },
+                                                                        children: isCurrent ? "✓ Seu plano atual" : isUpgrade ? "Fazer upgrade" : "Já incluído"
                                                                     })
                                                                 ]
                                                             }, plan.key)
-                                                        })
+                                                        }), (0, l.jsxs)("div", {
+                                                            key: "retroanvil-card",
+                                                            style: { position: "relative", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(168,85,247,0.35)", borderRadius: "10px", padding: "16px 14px", opacity: .7 },
+                                                            children: [
+                                                                (0, l.jsx)("div", { style: { position: "absolute", top: "-10px", left: "50%", transform: "translateX(-50%)", background: "linear-gradient(135deg,#a855f7,#6366f1)", color: "#fff", fontSize: "9.5px", fontWeight: 800, padding: "3px 10px", borderRadius: "20px", whiteSpace: "nowrap", boxShadow: "0 4px 10px rgba(0,0,0,0.35)" }, children: "🕹️ EM BREVE" }),
+                                                                (0, l.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginTop: "6px", marginBottom: "10px" },
+                                                                    children: [
+                                                                        (0, l.jsx)("div", { style: { width: "30px", height: "30px", borderRadius: "8px", background: "rgba(168,85,247,0.16)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }, children: (0, l.jsx)(u.IconGamepad, { size: 16, style: { color: "#c084fc" } }) }),
+                                                                        (0, l.jsx)("p", { style: { fontSize: "13.5px", fontWeight: 800, color: "#fff", margin: 0 }, children: "Retro Anvil" })
+                                                                    ]
+                                                                }),
+                                                                (0, l.jsx)("p", { style: { fontSize: "11px", color: "var(--text-secondary)", margin: "0 0 12px", lineHeight: 1.4 }, children: "Emuladores retrô com biblioteca própria. Vendas temporariamente suspensas." }),
+                                                                (0, l.jsx)("button", { disabled: !0, className: "btn-ghost", style: { width: "100%", justifyContent: "center", padding: "8px", fontSize: "12px", fontWeight: 700, cursor: "not-allowed" }, children: "Indisponível" })
+                                                            ]
+                                                        })]
                                                     })
                                                 ]
                                             })
