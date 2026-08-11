@@ -13703,7 +13703,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                 }), c.ipcMain.handle("list-signup-plans", async () => {
                     try {
                         const { data, error } = await TF.from("plans")
-                            .select("key,name,price,game_limit,dlc_limit,bypass,multiplayer,premiumaccounts,nsfw,emuladores,add_games")
+                            .select("key,name,price,game_limit,dlc_limit,bypass,multiplayer,premiumaccounts,nsfw,emuladores,add_games,imagem")
                             .eq("active", !0)
                             .neq("key", "trial_24h")
                             .order("price", { ascending: !0 });
