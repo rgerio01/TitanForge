@@ -67245,7 +67245,7 @@
                         current: 0,
                         total: 0,
                         currentGame: ""
-                    }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), [showRetroAnvilPromo, setShowRetroAnvilPromo] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
+                    }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [tfInstallingAllDlc, tfSetInstallingAllDlc] = (0, c.useState)(!1), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), [showRetroAnvilPromo, setShowRetroAnvilPromo] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
                         const r = q[a];
                         r && window.__tfBuy && window.__tfBuy({ id: a, nome: r.name, preco: r.price })
                     }, Ka = (0, c.useMemo)(() => 3 === se?.license_type, [se]), tfIsTrial = (0, c.useMemo)(() => "trial_24h" === se?.plan_key, [se]), Xa = (0, c.useMemo)(() => !(ce || se && "suspended" !== se.status && "active" === se.status) || !!(tfIsTrial && se.expires_at && new Date(se.expires_at).getTime() <= Date.now()), [se, ce, tfIsTrial]), Za = (0, c.useMemo)(() => Xa || Ka, [Xa, Ka]);
@@ -73686,6 +73686,41 @@
                                             },
                                             children: 0 === La.dlcs.length ? "Nenhuma DLC disponível" : `${La.dlcs.length} DLC${1!==La.dlcs.length?"s":""} encontrada${1!==La.dlcs.length?"s":""}`
                                         })]
+                                    }), La.dlcs.length > 0 && (0, l.jsx)("button", {
+                                        disabled: tfInstallingAllDlc,
+                                        onClick: async () => {
+                                            const ids = La.dlcs.map(d => d.appid);
+                                            tfSetInstallingAllDlc(!0), za(prev => { const s = new Set(prev); ids.forEach(id => s.add(id)); return s; });
+                                            try {
+                                                const r = await window.electron.downloadManifestorLua(La.gameAppid, La.gameName, !1);
+                                                r && r.success && Ta(prev => { const s = new Set(prev); ids.forEach(id => s.add(id)); return s; })
+                                            } finally {
+                                                tfSetInstallingAllDlc(!1), za(prev => { const s = new Set(prev); ids.forEach(id => s.delete(id)); return s; })
+                                            }
+                                        },
+                                        style: {
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "5px",
+                                            background: "rgba(22,163,74,0.14)",
+                                            border: "1px solid rgba(22,163,74,0.28)",
+                                            borderRadius: "2px",
+                                            padding: "7px 10px",
+                                            fontSize: "11px",
+                                            fontWeight: 700,
+                                            color: "#4ade80",
+                                            cursor: tfInstallingAllDlc ? "not-allowed" : "pointer",
+                                            fontFamily: "Rajdhani, sans-serif",
+                                            opacity: tfInstallingAllDlc ? .65 : 1,
+                                            whiteSpace: "nowrap",
+                                            flexShrink: 0
+                                        },
+                                        children: tfInstallingAllDlc ? (0, l.jsxs)(l.Fragment, {
+                                            children: [(0, l.jsx)(h.Loader2, { className: "animate-spin", style: { width: "11px", height: "11px" } }), " Instalando..."]
+                                        }) : (0, l.jsxs)(l.Fragment, {
+                                            children: [(0, l.jsx)(u.IconDownload, { size: 11 }), " Instalar todas"]
+                                        })
                                     }), (0, l.jsx)("button", {
                                         onClick: () => Ia(null),
                                         style: {
