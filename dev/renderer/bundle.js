@@ -73725,7 +73725,7 @@
                                                 fontSize: "11px",
                                                 color: "rgba(255,255,255,0.30)"
                                             },
-                                            children: 0 === La.dlcs.length ? "Nenhuma DLC disponível" : `${La.dlcs.length} DLC${1!==La.dlcs.length?"s":""} encontrada${1!==La.dlcs.length?"s":""}` + (null != se?.dlc_limit ? ` · seu plano libera até ${se.dlc_limit} por jogo` : "")
+                                            children: 0 === La.dlcs.length ? "Nenhuma DLC disponível" : `${La.dlcs.length} DLC${1!==La.dlcs.length?"s":""} encontrada${1!==La.dlcs.length?"s":""}` + (null != se?.dlc_limit ? " · seu plano libera DLCs bônus selecionadas" : "")
                                         })]
                                     }), La.dlcs.length > 0 && null == se?.dlc_limit && (0, l.jsx)("button", {
                                         disabled: tfInstallingAllDlc,
@@ -73927,7 +73927,7 @@
                                                     }), (0, l.jsx)("button", {
                                                         disabled: t || a || tfDlcCapped,
                                                         onClick: async () => {
-                                                            if (tfDlcCapped) return void alert(`Seu plano libera até ${se.dlc_limit} DLC${1===se.dlc_limit?"":"s"} por jogo. Fale com o suporte pra saber como liberar mais.`);
+                                                            if (tfDlcCapped) return void alert("As DLCs bônus do seu plano pra este jogo já foram usadas. Fale com o suporte pra saber como liberar mais.");
                                                             za(t => new Set(t).add(e.appid)), console.log(`📥 Baixando DLC: dlcAppId=${e.appid}, baseGameAppId=${La.gameAppid}`);
                                                             try {
                                                                 const t = await window.electron.downloadDlcManifest(e.appid, La.gameAppid);
@@ -78474,8 +78474,8 @@
                                             style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
                                             children: tfPlans.map(plan => {
                                                 const bullets = [];
-                                                bullets.push(null == plan.game_limit ? "Catálogo completo" : `${plan.game_limit} jogos`);
-                                                if (0 !== plan.dlc_limit) bullets.push(null == plan.dlc_limit ? "Todas as DLCs" : `Até ${plan.dlc_limit} DLCs por jogo`);
+                                                bullets.push(null == plan.game_limit ? "+40 mil jogos" : `${plan.game_limit} jogos`);
+                                                if (0 !== plan.dlc_limit) bullets.push(null == plan.dlc_limit ? "Todas as DLCs incluídas" : "DLCs bônus selecionadas");
                                                 "enable" === plan.bypass && bullets.push("Bypass");
                                                 "enable" === plan.multiplayer && bullets.push("Multiplayer");
                                                 "enable" === plan.premiumaccounts && bullets.push("Contas Premium");
