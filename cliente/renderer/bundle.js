@@ -73817,8 +73817,15 @@
                                             const ids = La.dlcs.map(d => d.appid);
                                             tfSetInstallingAllDlc(!0), za(prev => { const s = new Set(prev); ids.forEach(id => s.add(id)); return s; });
                                             try {
-                                                const r = await window.electron.downloadManifestorLua(La.gameAppid, La.gameName, !1);
-                                                r && r.success && Ta(prev => { const s = new Set(prev); ids.forEach(id => s.add(id)); return s; })
+                                                for (let idx = 0; idx < ids.length; idx++) {
+                                                    const id = ids[idx];
+                                                    try {
+                                                        const r = await window.electron.downloadDlcManifest(id, La.gameAppid, idx < ids.length - 1);
+                                                        r && r.success && Ta(prev => new Set(prev).add(id))
+                                                    } catch (e) {
+                                                        console.error(`❌ Erro ao baixar DLC ${id}:`, e)
+                                                    }
+                                                }
                                             } finally {
                                                 tfSetInstallingAllDlc(!1), za(prev => { const s = new Set(prev); ids.forEach(id => s.delete(id)); return s; })
                                             }

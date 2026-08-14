@@ -15138,7 +15138,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             error: e.message
                         }
                     }
-                }), c.ipcMain.handle("download-dlc-manifest", async (e, t, n) => {
+                }), c.ipcMain.handle("download-dlc-manifest", async (e, t, n, bulk = !1) => {
                     try {
                         console.log("\n🧩 ====== INSTALANDO DLC ======"), console.log(`🧩 DLC AppID:       ${t}`), console.log(`🧩 Jogo base AppID: ${n}`);
                         const e = await (0, m.detectSteamPath)();
@@ -15187,11 +15187,14 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             luaInstalled: c,
                             manifestCount: p
                         };
-                        console.log("♻️ Reiniciando Steam para aplicar DLC...");
-                        try {
-                            await (0, m.restartSteam)(e), console.log("✅ Steam reiniciado com sucesso")
-                        } catch (e) {
-                            console.warn(`⚠️ Não foi possível reiniciar Steam automaticamente: ${e.message}`)
+                        if (bulk) console.log("⏭️ Steam restart pulado (instalação em massa)");
+                        else {
+                            console.log("♻️ Reiniciando Steam para aplicar DLC...");
+                            try {
+                                await (0, m.restartSteam)(e), console.log("✅ Steam reiniciado com sucesso")
+                            } catch (e) {
+                                console.warn(`⚠️ Não foi possível reiniciar Steam automaticamente: ${e.message}`)
+                            }
                         }
                         return {
                             success: !0,

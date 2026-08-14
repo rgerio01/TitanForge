@@ -143,7 +143,7 @@
                 searchManifestorGames: r => e.ipcRenderer.invoke("search-manifestor-games", r),
                 downloadManifestorLua: (r, n, i, s) => e.ipcRenderer.invoke("download-manifestor-lua", r, n, i, s),
                 updateGameFiles: r => e.ipcRenderer.invoke("update-game-files", r),
-                downloadDlcManifest: (r, n) => e.ipcRenderer.invoke("download-dlc-manifest", r, n),
+                downloadDlcManifest: (r, n, i) => e.ipcRenderer.invoke("download-dlc-manifest", r, n, i),
                 listInstalledDlc: r => e.ipcRenderer.invoke("list-installed-dlc", r),
                 requestGameRyuu: r => e.ipcRenderer.invoke("request-game-ryuu", r),
                 removeGame: r => e.ipcRenderer.invoke("remove-game", r),
