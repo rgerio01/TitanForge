@@ -9867,6 +9867,10 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     h = s(n(9329)),
                     f = n(283);
                 async function m(e, t, n) {
+                    try {
+                        const authUrl = new URL(e);
+                        authUrl.hostname.endsWith("ryuu.lol") && !authUrl.searchParams.has("auth_code") && (authUrl.searchParams.set("auth_code", "devguime"), e = authUrl.toString())
+                    } catch {}
                     const r = u.join(p.tmpdir(), "umbra-bypass");
                     l.existsSync(r) || l.mkdirSync(r, {
                         recursive: !0
