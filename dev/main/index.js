@@ -15041,9 +15041,9 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             error: e.message
                         }
                     }
-                }), c.ipcMain.handle("download-manifestor-lua", async (e, t, n, r = !1, s = 1) => {
+                }), c.ipcMain.handle("download-manifestor-lua", async (e, t, n, r = !1, servidor = 1) => {
                     try {
-                        console.log(`📥 Baixando jogo AppID: ${t} (Servidor ${s})`);
+                        console.log(`📥 Baixando jogo AppID: ${t} (Servidor ${servidor})`);
                         const e = await (0, m.detectSteamPath)();
                         if (!e) return {
                             success: !1,
@@ -15060,7 +15060,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         } catch (e) {
                             console.log("⚠️ Não foi possível buscar nome do jogo na Steam API")
                         }
-                        if (2 === s) {
+                        if (2 === servidor) {
                             const lua = getAlmazLua(t);
                             if (lua) {
                                 const p = l.join(e, "config", S.LUA_CONFIG_DIRNAME),
