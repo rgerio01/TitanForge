@@ -15185,12 +15185,35 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                                 u.writeFileSync(t, e.getData()), p++, d.push(`[MANIFEST] ${n}`), console.log(`✅ .manifest DLC instalado: ${n}`)
                             }
                         }
-                        if (u.unlinkSync(o), console.log("\n🧩 ====== RESULTADO DLC ======"), console.log(`   .lua instalado:      ${c}`), console.log(`   .manifest DLC:       ${p}`), console.log(`   Arquivos instalados: ${d.join(", ")}`), 0 === p) return console.warn(`⚠️ Nenhum .manifest encontrado para DLC ${t} no ZIP do jogo base ${n}`), {
-                            success: !1,
-                            error: `Manifests da DLC ${t} não encontrados no pacote do jogo base.`,
-                            luaInstalled: c,
-                            manifestCount: p
-                        };
+                        if (u.unlinkSync(o), console.log("\n🧩 ====== RESULTADO DLC ======"), console.log(`   .lua instalado:      ${c}`), console.log(`   .manifest DLC:       ${p}`), console.log(`   Arquivos instalados: ${d.join(", ")}`), 0 === p) {
+                            console.warn(`⚠️ Nenhum .manifest encontrado para DLC ${t} no ZIP do jogo base ${n}, tentando Servidor 2 (ALMAZ)...`);
+                            const almazDlcLua = getAlmazLua(t);
+                            if (almazDlcLua) {
+                                const dlcFname = `${t}.lua`;
+                                u.writeFileSync(l.join(a, dlcFname), almazDlcLua), console.log(`✅ .lua da DLC (Servidor 2) salvo: ${dlcFname}`), d.push(`[LUA] ${dlcFname} (Servidor 2)`);
+                                if (bulk) console.log("⏭️ Steam restart pulado (instalação em massa)");
+                                else {
+                                    console.log("♻️ Reiniciando Steam para aplicar DLC...");
+                                    try {
+                                        await (0, m.restartSteam)(e), console.log("✅ Steam reiniciado com sucesso")
+                                    } catch (e) {
+                                        console.warn(`⚠️ Não foi possível reiniciar Steam automaticamente: ${e.message}`)
+                                    }
+                                }
+                                return {
+                                    success: !0,
+                                    luaInstalled: !0,
+                                    manifestCount: 0,
+                                    installedFiles: d
+                                }
+                            }
+                            return {
+                                success: !1,
+                                error: `DLC ${t} não encontrada em nenhum dos servidores.`,
+                                luaInstalled: c,
+                                manifestCount: p
+                            };
+                        }
                         if (bulk) console.log("⏭️ Steam restart pulado (instalação em massa)");
                         else {
                             console.log("♻️ Reiniciando Steam para aplicar DLC...");
@@ -15217,9 +15240,10 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         const steamPath = await (0, m.detectSteamPath)();
                         if (!steamPath) return { success: !1, installed: [] };
                         const depotDir = l.join(steamPath, "config", "depotcache");
-                        if (!u.existsSync(depotDir)) return { success: !0, installed: [] };
-                        const files = u.readdirSync(depotDir);
-                        const installed = (dlcAppIds || []).filter(id => files.some(f => f.startsWith(`${id}_`) && f.toLowerCase().endsWith(".manifest")));
+                        const luaDir = l.join(steamPath, "config", S.LUA_CONFIG_DIRNAME);
+                        const manifestFiles = u.existsSync(depotDir) ? u.readdirSync(depotDir) : [];
+                        const luaFiles = u.existsSync(luaDir) ? u.readdirSync(luaDir) : [];
+                        const installed = (dlcAppIds || []).filter(id => manifestFiles.some(f => f.startsWith(`${id}_`) && f.toLowerCase().endsWith(".manifest")) || luaFiles.some(f => f.toLowerCase() === `${id}.lua`.toLowerCase()));
                         return { success: !0, installed };
                     } catch (e) {
                         return { success: !1, installed: [] };
