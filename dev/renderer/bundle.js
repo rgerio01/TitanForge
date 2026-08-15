@@ -74063,7 +74063,7 @@
                                                             za(t => new Set(t).add(e.appid)), console.log(`📥 Baixando DLC: dlcAppId=${e.appid}, baseGameAppId=${La.gameAppid}`);
                                                             try {
                                                                 const t = await window.electron.downloadDlcManifest(e.appid, La.gameAppid);
-                                                                console.log("📦 Resultado DLC:", t), t.success ? Ta(t => new Set(t).add(e.appid)) : console.error("❌ Erro ao baixar DLC:", t.error)
+                                                                console.log("📦 Resultado DLC:", t), t.success ? Ta(t => new Set(t).add(e.appid)) : (console.error("❌ Erro ao baixar DLC:", t.error), alert(`Não foi possível instalar esta DLC: ${t.error || "conteúdo indisponível nos servidores no momento."}`))
                                                             } finally {
                                                                 za(t => {
                                                                     const a = new Set(t);
