@@ -66379,6 +66379,7 @@
             },
             6835: function(e, t, a) {
                 "use strict";
+                const tfSupabase = a(5677).supabase;
                 var r, n = this && this.__createBinding || (Object.create ? function(e, t, a, r) {
                         void 0 === r && (r = a);
                         var n = Object.getOwnPropertyDescriptor(t, a);
@@ -67331,7 +67332,7 @@
                         current: 0,
                         total: 0,
                         currentGame: ""
-                    }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [tfInstallingAllDlc, tfSetInstallingAllDlc] = (0, c.useState)(!1), [tfAllPlans, tfSetAllPlans] = (0, c.useState)([]), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), [showRetroAnvilPromo, setShowRetroAnvilPromo] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
+                    }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [tfInstallingAllDlc, tfSetInstallingAllDlc] = (0, c.useState)(!1), [tfAllPlans, tfSetAllPlans] = (0, c.useState)([]), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), [showRetroAnvilPromo, setShowRetroAnvilPromo] = (0, c.useState)(!1), [showAvaliacao, setShowAvaliacao] = (0, c.useState)(!1), [avaliacaoRating, setAvaliacaoRating] = (0, c.useState)(0), [avaliacaoSugestao, setAvaliacaoSugestao] = (0, c.useState)(""), [avaliacaoEnviando, setAvaliacaoEnviando] = (0, c.useState)(!1), [avaliacaoEnviada, setAvaliacaoEnviada] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
                         const r = q[a];
                         r && window.__tfBuy && window.__tfBuy({ id: a, nome: r.name, preco: r.price })
                     }, tfBuyUpgrade = planKey => {
@@ -67524,6 +67525,24 @@
                     }, [se]), (0, c.useEffect)(() => {
                         se && "suspended" !== se.status && "true" !== localStorage.getItem("tf_retroanvil_promo_v1") && "true" === localStorage.getItem("tf_referral_promo_v1") && setShowRetroAnvilPromo(!0)
                     }, [se]), (0, c.useEffect)(() => {
+                        if (!se || "suspended" === se.status || !t) return;
+                        let cancelado = !1, timer = null;
+                        (async () => {
+                            try {
+                                const { data: ultimaAvaliacao } = await tfSupabase.rpc("get_last_avaliacao", { p_hwid: t });
+                                if (ultimaAvaliacao) {
+                                    const dias = (Date.now() - new Date(ultimaAvaliacao).getTime()) / 864e5;
+                                    if (dias < 30) return
+                                }
+                            } catch (e) {
+                                console.error("Erro ao checar última avaliação:", e)
+                            }
+                            if (cancelado) return;
+                            const atraso = (45 + 105 * Math.random()) * 6e4;
+                            timer = setTimeout(() => { cancelado || setShowAvaliacao(!0) }, atraso)
+                        })();
+                        return () => { cancelado = !0, timer && clearTimeout(timer) }
+                    }, [se, t]), (0, c.useEffect)(() => {
                         (async () => {
                             if (!(Bt.length > 0)) {
                                 Rt(!0);
@@ -68149,6 +68168,58 @@
                                     },
                                     children: "Mal posso esperar! 🎮"
                                 })]
+                            })
+                        }), showAvaliacao && (0, l.jsx)("div", {
+                            style: { position: "fixed", inset: 0, zIndex: 999998, background: "rgba(8,8,9,0.82)", display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "all" },
+                            children: (0, l.jsxs)("div", {
+                                className: "card",
+                                style: { textAlign: "center", padding: "30px 28px", maxWidth: "420px", borderColor: "rgba(217,122,44,0.35)" },
+                                children: avaliacaoEnviada ? [
+                                    (0, l.jsx)("div", { style: { fontSize: "34px", marginBottom: "10px" }, children: "🙏" }),
+                                    (0, l.jsx)("h2", { style: { fontSize: "17px", fontWeight: 800, color: "#fff", margin: "0 0 8px", fontFamily: "Rajdhani, sans-serif" }, children: "Valeu pela avaliação!" }),
+                                    (0, l.jsx)("p", { style: { fontSize: "13px", color: "rgba(255,255,255,0.65)", margin: "0 0 18px" }, children: "Sua opinião ajuda a gente a melhorar o TitanForge." }),
+                                    (0, l.jsx)("button", {
+                                        onClick: () => setShowAvaliacao(!1),
+                                        style: { width: "100%", padding: "11px 14px", background: "linear-gradient(135deg, #d97a2c, #ff2d78)", border: "none", borderRadius: 10, color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "Rajdhani, sans-serif" },
+                                        children: "Fechar"
+                                    })
+                                ] : [
+                                    (0, l.jsx)("div", { style: { fontSize: "34px", marginBottom: "10px" }, children: "⭐" }),
+                                    (0, l.jsx)("h2", { style: { fontSize: "17px", fontWeight: 800, color: "#fff", margin: "0 0 8px", fontFamily: "Rajdhani, sans-serif" }, children: "O que você acha do TitanForge?" }),
+                                    (0, l.jsx)("p", { style: { fontSize: "13px", color: "rgba(255,255,255,0.65)", margin: "0 0 16px" }, children: "Sua avaliação leva 10 segundos e ajuda muito." }),
+                                    (0, l.jsx)("div", { style: { display: "flex", justifyContent: "center", gap: "6px", marginBottom: "16px" },
+                                        children: [1, 2, 3, 4, 5].map(n => (0, l.jsx)("button", {
+                                            onClick: () => setAvaliacaoRating(n),
+                                            style: { background: "none", border: "none", cursor: "pointer", fontSize: "30px", padding: 0, lineHeight: 1, filter: n <= avaliacaoRating ? "none" : "grayscale(1) opacity(0.35)", transition: "filter .15s" },
+                                            children: "⭐"
+                                        }, n))
+                                    }), (0, l.jsx)("textarea", {
+                                        value: avaliacaoSugestao,
+                                        onChange: e => setAvaliacaoSugestao(e.target.value),
+                                        placeholder: "Sugestões e melhorias (opcional)",
+                                        rows: 3,
+                                        style: { width: "100%", resize: "vertical", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", borderRadius: 8, color: "#fff", fontSize: "12.5px", padding: "10px", fontFamily: "inherit", marginBottom: "14px", boxSizing: "border-box" }
+                                    }), (0, l.jsx)("button", {
+                                        disabled: 0 === avaliacaoRating || avaliacaoEnviando,
+                                        onClick: async () => {
+                                            setAvaliacaoEnviando(!0);
+                                            try {
+                                                await tfSupabase.rpc("submit_avaliacao", { p_hwid: t, p_license: e, p_rating: avaliacaoRating, p_sugestao: avaliacaoSugestao.trim() || null }), setAvaliacaoEnviada(!0)
+                                            } catch (err) {
+                                                console.error("Erro ao enviar avaliação:", err), alert("Não foi possível enviar sua avaliação agora. Tente novamente mais tarde.")
+                                            } finally {
+                                                setAvaliacaoEnviando(!1)
+                                            }
+                                        },
+                                        style: { width: "100%", padding: "11px 14px", background: 0 === avaliacaoRating ? "rgba(255,255,255,0.08)" : "linear-gradient(135deg, #d97a2c, #ff2d78)", border: "none", borderRadius: 10, color: 0 === avaliacaoRating ? "rgba(255,255,255,0.35)" : "#fff", fontSize: "13px", fontWeight: 700, cursor: 0 === avaliacaoRating ? "not-allowed" : "pointer", fontFamily: "Rajdhani, sans-serif", marginBottom: "8px" },
+                                        children: avaliacaoEnviando ? "Enviando..." : "Enviar avaliação"
+                                    }), (0, l.jsx)("button", {
+                                        onClick: () => setShowAvaliacao(!1),
+                                        className: "btn-ghost",
+                                        style: { width: "100%", justifyContent: "center" },
+                                        children: "Agora não"
+                                    })
+                                ]
                             })
                         }), Xa && (0, l.jsx)("div", {
                             style: {
@@ -82143,6 +82214,49 @@
     load(sources[0].id);
   }
 
+  async function renderAvaliacoes(container) {
+    container.innerHTML = "";
+    const header = card([]);
+    header.appendChild(el("h3", { style: { margin: "0 0 4px", color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif" } }, ["Avaliações"]));
+    header.appendChild(el("p", { style: { margin: 0, color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Avaliações enviadas pelos clientes pelo popup do app (nota de 1 a 5 estrelas + sugestões de melhoria opcionais)."]));
+    container.appendChild(header);
+
+    const rows = await q("select id, hwid, license_key, rating, sugestao, created_at from public.avaliacoes order by created_at desc");
+
+    const statsCard = card([]);
+    const total = rows.length;
+    const media = total ? (rows.reduce((s, r) => s + Number(r.rating), 0) / total) : 0;
+    const comSugestao = rows.filter(r => r.sugestao && r.sugestao.trim()).length;
+    const statsGrid = el("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "10px" } });
+    const statBox = (lbl, val) => el("div", { style: { padding: "10px 12px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", borderRadius: "6px" } }, [
+      el("div", { style: { fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px" } }, [lbl]),
+      el("div", { style: { fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" } }, [val])
+    ]);
+    statsGrid.appendChild(statBox("Total de avaliações", String(total)));
+    statsGrid.appendChild(statBox("Nota média", total ? media.toFixed(1).replace(".", ",") + " ⭐" : "—"));
+    statsGrid.appendChild(statBox("Com sugestão escrita", String(comSugestao)));
+    statsCard.appendChild(statsGrid);
+    container.appendChild(statsCard);
+
+    const listCard = card([]);
+    if (!rows.length) {
+      listCard.appendChild(el("p", { style: { color: "var(--text-secondary)", fontSize: "12.5px" } }, ["Nenhuma avaliação recebida ainda."]));
+    } else {
+      rows.forEach(row => {
+        const line = el("div", { style: { padding: "10px 0", borderBottom: "1px solid var(--border)" } });
+        const topRow = el("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" } });
+        topRow.appendChild(el("div", { style: { fontSize: "14px", color: "#ffb454" } }, ["⭐".repeat(Number(row.rating)) + "☆".repeat(5 - Number(row.rating))]));
+        topRow.appendChild(el("div", { style: { fontSize: "11px", color: "var(--text-secondary)" } }, [fmtDate(row.created_at) + (row.license_key ? " · " + row.license_key : "") + " · " + String(row.hwid || "").slice(0, 12) + "..."]));
+        line.appendChild(topRow);
+        if (row.sugestao && row.sugestao.trim()) {
+          line.appendChild(el("div", { style: { fontSize: "12.5px", color: "var(--text-primary)", marginTop: "6px", whiteSpace: "pre-wrap" } }, [row.sugestao]));
+        }
+        listCard.appendChild(line);
+      });
+    }
+    container.appendChild(listCard);
+  }
+
   // ---------------- shell com abas ----------------
   function renderAdmin(root) {
     if (root.dataset.tfRendered === "1") return;
@@ -82155,7 +82269,8 @@
       { id: "pagamentos", label: "Pagamentos", render: renderPagamentos },
       { id: "recursos", label: "Recursos", render: renderRecursos },
       { id: "planos", label: "Planos", render: renderPlanos },
-      { id: "indicacoes", label: "Indicações", render: renderIndicacoes }
+      { id: "indicacoes", label: "Indicações", render: renderIndicacoes },
+      { id: "avaliacoes", label: "Avaliações", render: renderAvaliacoes }
     ];
     const tabBar = el("div", { style: { display: "flex", gap: "6px", marginBottom: "14px" } });
     const body = el("div");
