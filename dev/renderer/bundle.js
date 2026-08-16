@@ -66998,6 +66998,7 @@
                         [instalados, setInstalados] = c.useState(new Set),
                         [erroInstalacao, setErroInstalacao] = c.useState(null),
                         [escolhaServidor, setEscolhaServidor] = c.useState(null),
+                        [escolhaDlc, setEscolhaDlc] = c.useState(null),
                         [trailerHoverAppid, setTrailerHoverAppid] = c.useState(null),
                         [trailerHoverUrl, setTrailerHoverUrl] = c.useState(null),
                         trailerHoverActiveRef = c.useRef(null),
@@ -67045,11 +67046,19 @@
                             vivo = !1
                         }
                     }, []);
-                    const executarInstalacao = async (e, servidor) => {
+                    const executarInstalacao = async (e, servidor, comDlc) => {
                         instalando.has(e.appid) || instalados.has(e.appid) || (setErroInstalacao(null), setInstalando(t => new Set(t).add(e.appid)), (async () => {
                             try {
                                 const t = await window.electron.downloadManifestorLua(e.appid, e.name, !1, servidor);
-                                t.success ? setInstalados(t => new Set(t).add(e.appid)) : setErroInstalacao({
+                                if (t.success) {
+                                    setInstalados(t => new Set(t).add(e.appid));
+                                    if (comDlc && Array.isArray(e.dlc) && e.dlc.length > 0)
+                                        for (let idx = 0; idx < e.dlc.length; idx++) try {
+                                            await window.electron.downloadDlcManifest(e.dlc[idx].appid, e.appid, idx < e.dlc.length - 1)
+                                        } catch (dlcErr) {
+                                            console.error("❌ Erro ao instalar DLC em lote:", dlcErr)
+                                        }
+                                } else setErroInstalacao({
                                     appid: e.appid,
                                     msg: t.error || "Falha ao instalar"
                                 })
@@ -67066,8 +67075,11 @@
                             }
                         })())
                     };
+                    const prosseguirInstalacao = (e, comDlc) => {
+                        instalando.has(e.appid) || instalados.has(e.appid) || ("both" === e.source ? setEscolhaServidor({ jogo: e, comDlc }) : executarInstalacao(e, "almaz" === e.source ? 2 : 1, comDlc))
+                    };
                     const instalarJogo = e => {
-                        instalando.has(e.appid) || instalados.has(e.appid) || ("both" === e.source ? setEscolhaServidor(e) : executarInstalacao(e, "almaz" === e.source ? 2 : 1))
+                        instalando.has(e.appid) || instalados.has(e.appid) || (Array.isArray(e.dlc) && e.dlc.length > 0 ? setEscolhaDlc(e) : prosseguirInstalacao(e, !1))
                     };
                     const filtrados = c.useMemo(() => {
                         const q = busca.trim().toLowerCase(),
@@ -67245,25 +67257,58 @@
                                 style: { width: "320px", background: "var(--bg-card)", border: "1px solid rgba(217,122,44,0.3)", borderRadius: "8px", padding: "20px" },
                                 children: [
                                     (0, l.jsx)("h3", { style: { fontSize: "14px", fontWeight: 800, color: "#fff", margin: "0 0 4px", fontFamily: "Rajdhani, sans-serif" }, children: "Escolha o servidor" }),
-                                    (0, l.jsxs)("p", { style: { fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 16px" }, children: [escolhaServidor.name, " está disponível em 2 servidores."] }),
+                                    (0, l.jsxs)("p", { style: { fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 16px" }, children: [escolhaServidor.jogo.name, " está disponível em 2 servidores."] }),
                                     (0, l.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" },
                                         children: [
                                             (0, l.jsx)("button", {
                                                 className: "btn-primary",
                                                 style: { width: "100%", justifyContent: "center", padding: "10px" },
-                                                onClick: () => { executarInstalacao(escolhaServidor, 1), setEscolhaServidor(null) },
+                                                onClick: () => { executarInstalacao(escolhaServidor.jogo, 1, escolhaServidor.comDlc), setEscolhaServidor(null) },
                                                 children: "Servidor 1"
                                             }),
                                             (0, l.jsx)("button", {
                                                 className: "btn-primary",
                                                 style: { width: "100%", justifyContent: "center", padding: "10px" },
-                                                onClick: () => { executarInstalacao(escolhaServidor, 2), setEscolhaServidor(null) },
+                                                onClick: () => { executarInstalacao(escolhaServidor.jogo, 2, escolhaServidor.comDlc), setEscolhaServidor(null) },
                                                 children: "Servidor 2"
                                             }),
                                             (0, l.jsx)("button", {
                                                 className: "btn-ghost",
                                                 style: { width: "100%", justifyContent: "center", padding: "8px", fontSize: "12px" },
                                                 onClick: () => setEscolhaServidor(null),
+                                                children: "Cancelar"
+                                            })
+                                        ]
+                                    })
+                                ]
+                            })
+                        }), escolhaDlc && (0, l.jsx)("div", {
+                            style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" },
+                            onClick: () => setEscolhaDlc(null),
+                            children: (0, l.jsxs)("div", {
+                                onClick: e => e.stopPropagation(),
+                                style: { width: "320px", background: "var(--bg-card)", border: "1px solid rgba(217,122,44,0.3)", borderRadius: "8px", padding: "20px" },
+                                children: [
+                                    (0, l.jsx)("h3", { style: { fontSize: "14px", fontWeight: 800, color: "#fff", margin: "0 0 4px", fontFamily: "Rajdhani, sans-serif" }, children: "Instalar DLCs?" }),
+                                    (0, l.jsxs)("p", { style: { fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 16px" }, children: [escolhaDlc.name, " tem ", escolhaDlc.dlc.length, " DLC", 1 !== escolhaDlc.dlc.length ? "s" : "", " dispon", 1 !== escolhaDlc.dlc.length ? "íveis" : "ível", "."] }),
+                                    (0, l.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: "8px" },
+                                        children: [
+                                            (0, l.jsx)("button", {
+                                                className: "btn-primary",
+                                                style: { width: "100%", justifyContent: "center", padding: "10px" },
+                                                onClick: () => { const jogo = escolhaDlc; setEscolhaDlc(null), prosseguirInstalacao(jogo, !0) },
+                                                children: "Instalar jogo + todas as DLCs"
+                                            }),
+                                            (0, l.jsx)("button", {
+                                                className: "btn-ghost",
+                                                style: { width: "100%", justifyContent: "center", padding: "10px" },
+                                                onClick: () => { const jogo = escolhaDlc; setEscolhaDlc(null), prosseguirInstalacao(jogo, !1) },
+                                                children: "Só o jogo base"
+                                            }),
+                                            (0, l.jsx)("button", {
+                                                className: "btn-ghost",
+                                                style: { width: "100%", justifyContent: "center", padding: "8px", fontSize: "12px" },
+                                                onClick: () => setEscolhaDlc(null),
                                                 children: "Cancelar"
                                             })
                                         ]

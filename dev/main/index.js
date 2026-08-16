@@ -14518,6 +14518,33 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     }
                     return console.log(`🔗 [IPC] Merge Servidor 2: ${almaz.size} no catálogo ALMAZ, ${almazOnly} exclusivos (não estavam no Ryuu)`), merged
                 }
+                let dlcUnavailableCache = null;
+                function getDlcUnavailableSet() {
+                    if (dlcUnavailableCache) return dlcUnavailableCache;
+                    try {
+                        const p = l.join(__dirname, "../renderer/data/dlc_unavailable.json");
+                        if (!u.existsSync(p)) return dlcUnavailableCache = new Set, dlcUnavailableCache;
+                        const arr = JSON.parse(u.readFileSync(p, "utf-8"));
+                        dlcUnavailableCache = new Set(arr.map(String));
+                        console.log(`✅ Lista de DLCs sem cobertura carregada: ${dlcUnavailableCache.size} entradas`)
+                    } catch (e) {
+                        console.error("❌ Erro ao carregar lista de DLCs sem cobertura:", e.message), dlcUnavailableCache = new Set
+                    }
+                    return dlcUnavailableCache
+                }
+                function stripUnavailableDlc(games) {
+                    const unavailable = getDlcUnavailableSet();
+                    if (0 === unavailable.size) return games;
+                    let removed = 0;
+                    const result = games.map(g => {
+                        if (!g.dlc || "object" != typeof g.dlc || Array.isArray(g.dlc)) return g;
+                        const filteredEntries = Object.entries(g.dlc).filter(([dlcId]) => !unavailable.has(String(dlcId)));
+                        if (filteredEntries.length === Object.keys(g.dlc).length) return g;
+                        removed += Object.keys(g.dlc).length - filteredEntries.length;
+                        return { ...g, dlc: Object.fromEntries(filteredEntries) }
+                    });
+                    return removed > 0 && console.log(`🧹 [IPC] ${removed} DLCs sem cobertura removidas da listagem`), result
+                }
                 let Z = null;
                 c.ipcMain.handle("fetch-ryuu-games", async () => {
                     console.log("🌐 [IPC] fetch-ryuu-games chamado");
@@ -14540,7 +14567,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         console.log("📥 [IPC] Banco de dados carregado");
                         const n = t.data,
                             rawRyuu = Array.isArray(n) ? n : [],
-                            r = mergeWithAlmazCatalog(rawRyuu);
+                            r = stripUnavailableDlc(mergeWithAlmazCatalog(rawRyuu));
                         return Z = {
                             data: r,
                             fetchedAt: e
