@@ -41,6 +41,7 @@
                 denuvoListGames: () => e.ipcRenderer.invoke("denuvo-list-games"),
                 denuvoCreateOrder: r => e.ipcRenderer.invoke("denuvo-create-order", r),
                 denuvoCheckStatus: r => e.ipcRenderer.invoke("denuvo-check-status", r),
+                denuvoGetDownload: r => e.ipcRenderer.invoke("denuvo-get-download", r),
                 denuvoListMyOrders: r => e.ipcRenderer.invoke("denuvo-list-my-orders", r),
                 pixCreateOrder: r => e.ipcRenderer.invoke("pix-create-order", r),
                 pixCheckStatus: r => e.ipcRenderer.invoke("pix-check-status", r),

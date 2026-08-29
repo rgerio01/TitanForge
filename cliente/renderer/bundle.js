@@ -8160,7 +8160,7 @@
                         const [l, c] = (0, n.useState)(!1), [d, h] = (0, n.useState)(!1), [u, p] = (0, n.useState)(() => {
                             const e = new Date(t.expiresAt).getTime() - Date.now();
                             return Math.max(0, Math.floor(e / 1e3))
-                        });
+                        }), [dz, dzS] = (0, n.useState)("idle"), [dzMsg, dzSetMsg] = (0, n.useState)("");
                         (0, n.useEffect)(() => {
                             if (l) return;
                             let e = !0;
@@ -8261,19 +8261,56 @@
                                             fontFamily: "Rajdhani, sans-serif"
                                         },
                                         children: "Pagamento confirmado!"
-                                    }), (0, r.jsxs)("p", {
+                                    }), (0, r.jsx)("p", {
                                         style: {
                                             fontSize: 12,
-                                            color: "rgba(255,255,255,0.55)",
+                                            color: "error" === dz ? "#ff6b6b" : "done" === dz ? "#4ade80" : "rgba(255,255,255,0.6)",
                                             lineHeight: 1.6,
-                                            margin: "0 0 18px"
+                                            margin: "0 0 14px"
                                         },
-                                        children: ["Recebemos o seu pagamento. Em até ", (0, r.jsx)("strong", {
-                                            style: {
-                                                color: "#c084fc"
-                                            },
-                                            children: "2 dias úteis"
-                                        }), " entraremos em contato com as instruções de instalação."]
+                                        children: dzMsg || "Aplique a remoção do Denuvo direto na pasta do jogo. Ele roda apenas no modo offline."
+                                    }), "done" !== dz && (0, r.jsx)("button", {
+                                        disabled: "working" === dz,
+                                        onClick: async () => {
+                                            dzS("working"), dzSetMsg("Liberando o download...");
+                                            try {
+                                                const o = await window.electron.denuvoGetDownload(t.txid);
+                                                if (!o || !o.ok) return dzS("error"), void dzSetMsg(o && o.error || "Não foi possível liberar o download.");
+                                                dzSetMsg("Localizando a pasta do jogo...");
+                                                let s = null;
+                                                try {
+                                                    const n = await window.electron.detectGameFolder(e.game_id);
+                                                    n && n.found && n.path && (s = n.path)
+                                                } catch (e) {}
+                                                if (!s) {
+                                                    const e = await window.electron.bypassPickFolder();
+                                                    e && e.success && e.folder && (s = e.folder)
+                                                }
+                                                if (!s) return dzS("error"), void dzSetMsg("Selecione a pasta do jogo para continuar.");
+                                                dzSetMsg("Baixando e aplicando a remoção...");
+                                                const c = await window.electron.bypassExtract({
+                                                    url: o.href,
+                                                    destinationFolder: s
+                                                });
+                                                c && c.success ? (dzS("done"), dzSetMsg("Remoção aplicada! Abra o jogo pela Steam em modo offline.")) : (dzS("error"), dzSetMsg(c && c.error || "Falha ao aplicar a remoção."))
+                                            } catch (e) {
+                                                dzS("error"), dzSetMsg(e && e.message || "Erro inesperado.")
+                                            }
+                                        },
+                                        style: {
+                                            width: "100%",
+                                            padding: 12,
+                                            marginBottom: 10,
+                                            background: "working" === dz ? "rgba(217,122,44,0.3)" : "linear-gradient(135deg, #d97a2c, #ff2d78)",
+                                            border: "none",
+                                            borderRadius: 10,
+                                            color: "#fff",
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                            cursor: "working" === dz ? "wait" : "pointer",
+                                            fontFamily: "Rajdhani, sans-serif"
+                                        },
+                                        children: "working" === dz ? "Instalando..." : "error" === dz ? "Tentar de novo" : "Instalar agora"
                                     }), (0, r.jsx)("button", {
                                         onClick: a,
                                         style: {

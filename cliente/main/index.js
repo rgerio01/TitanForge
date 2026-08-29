@@ -14207,6 +14207,14 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             error: "Falha ao consultar pagamento"
                         }
                     }
+                }), c.ipcMain.handle("denuvo-get-download", async (e, t) => {
+                    try {
+                        const { data, error } = await TF.rpc("get_denuvo_download", { p_order_id: String(t || "") });
+                        if (error) return console.error("denuvo-get-download rpc:", error.message), { ok: !1, error: "Falha ao liberar o download." };
+                        return data && "object" == typeof data ? data : { ok: !1, error: "Sem resposta do servidor." }
+                    } catch (e) {
+                        return console.error("denuvo-get-download:", e?.message || e), { ok: !1, error: "Falha ao liberar o download." }
+                    }
                 }), c.ipcMain.handle("denuvo-list-my-orders", async (e, t) => {
                     try {
                         const {
