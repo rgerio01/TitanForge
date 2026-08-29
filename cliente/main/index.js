@@ -15176,9 +15176,10 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         } catch (e) {
                             console.warn("⚠️ Não foi possível limpar resíduo de instalação anterior:", e?.message)
                         }
-                        // Garante o opensteamtool.toml (instalações antigas não têm — sem ele o
-                        // OpenSteamTool pode não ler o .lua e a Steam dá "Caminho de instalação inválido").
-                        try { u.writeFileSync(l.join(e, "opensteamtool.toml"), '[lua]\r\npaths = ["config/stplug-in", "config/lua"]\r\n', "ascii") } catch {}
+                        // NÃO gravar opensteamtool.toml — ele redirecionava o OpenSteamTool pra
+                        // config/stplug-in e fazia ignorar os ~1000 .lua do Pacote Completo em
+                        // config/lua. O OST lê config/lua por padrão. Se sobrou um .toml antigo, apaga.
+                        try { const _t = l.join(e, "opensteamtool.toml"); u.existsSync(_t) && u.unlinkSync(_t) } catch {}
                         // Uma vez só: exclui a Steam + TODAS as pastas de biblioteca do Windows
                         // Defender. O real-time scan em cada arquivo do install derruba a
                         // velocidade. Marca num arquivo próprio pra não repetir o UAC.
@@ -16196,15 +16197,10 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     }), c.mkdirSync(l.join(e, "config", t.LUA_CONFIG_DIRNAME), {
                         recursive: !0
                     });
-                    // opensteamtool.toml na raiz da Steam: sem ele o OpenSteamTool pode não
-                    // ler os .lua e a Steam dá "Caminho de instalação inválido". Aponta pras
-                    // duas pastas que o launcher usa (Servidor 1 grava em config/lua,
-                    // Servidor 2 grava nas duas). Igual ao setup do ALMAZ/OVERISE.
-                    try {
-                        c.writeFileSync(l.join(e, "opensteamtool.toml"), '[lua]\r\npaths = ["config/stplug-in", "config/lua"]\r\n', "ascii"), console.log("[hook] opensteamtool.toml gravado")
-                    } catch (e) {
-                        console.warn("[hook] falha ao gravar opensteamtool.toml:", e?.message)
-                    }
+                    // NÃO gravar opensteamtool.toml — o OST lê config/lua por padrão. Gravar o
+                    // .toml apontando pra config/stplug-in fazia ele ignorar os .lua do Pacote
+                    // Completo. Remove um .toml antigo se existir.
+                    try { const _t = l.join(e, "opensteamtool.toml"); c.existsSync(_t) && c.unlinkSync(_t) } catch {}
                     const h = function(e) {
                         try {
                             const n = l.join(e, "config", "stplug-in");
@@ -19870,10 +19866,15 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     //         trata como update adiado e ESTRANGULA a velocidade do download).
                     try {
                         if (!steamPath || !s.existsSync(steamPath)) return;
+                        // APAGA o opensteamtool.toml. Gravar ele apontando pra config/stplug-in
+                        // fazia o OpenSteamTool ignorar os ~1000 .lua de config/lua (Pacote
+                        // Completo) -> a Steam "perdia" os jogos. Sem o .toml o OST volta ao
+                        // padrão dele, que já lê config/lua.
                         try {
-                            s.writeFileSync(c.join(steamPath, "opensteamtool.toml"), '[lua]\r\npaths = ["config/stplug-in", "config/lua"]\r\n', "ascii")
+                            const toml = c.join(steamPath, "opensteamtool.toml");
+                            s.existsSync(toml) && (s.unlinkSync(toml), console.log("🔧 opensteamtool.toml removido (OST volta a ler config/lua)."))
                         } catch (e) {
-                            console.warn("healSteam: falha ao gravar opensteamtool.toml:", e?.message)
+                            console.warn("healSteam: opensteamtool.toml:", e?.message)
                         }
                         // Tira travas de CDN do config.vdf: "CellIDServerOverride" prende a Steam
                         // num data-center fixo (visto "25" = EUA -> ~3 MB/s numa linha de 600).
