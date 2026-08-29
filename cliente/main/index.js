@@ -15168,6 +15168,9 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         } catch (e) {
                             console.warn("⚠️ Não foi possível limpar resíduo de instalação anterior:", e?.message)
                         }
+                        // Garante o opensteamtool.toml (instalações antigas não têm — sem ele o
+                        // OpenSteamTool pode não ler o .lua e a Steam dá "Caminho de instalação inválido").
+                        try { u.writeFileSync(l.join(e, "opensteamtool.toml"), '[lua]\r\npaths = ["config/stplug-in", "config/lua"]\r\n', "ascii") } catch {}
                         if (2 === servidor) {
                             const lua = getAlmazLua(t);
                             if (lua && !almazLuaIsInstallable(lua)) console.log(`⚠️ Servidor 2 tem .lua incompleto (sem depot/chave) para ${t} — Steam recusaria com "Caminho de instalação inválido". Tentando Servidor 1...`);
@@ -15215,12 +15218,11 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         const c = new y(s).getEntries();
                         console.log(`📦 Extraindo ${c.length} arquivos...`);
                         const p = l.join(e, "config", S.LUA_CONFIG_DIRNAME),
+                            stplug = l.join(e, "config", "stplug-in"),
                             d = l.join(e, "config", "depotcache");
-                        u.existsSync(p) || (u.mkdirSync(p, {
-                            recursive: !0
-                        }), console.log("📁 Diretório stplug-in criado")), u.existsSync(d) || (u.mkdirSync(d, {
-                            recursive: !0
-                        }), console.log("📁 Diretório depotcache criado"));
+                        u.existsSync(p) || u.mkdirSync(p, { recursive: !0 });
+                        u.existsSync(stplug) || u.mkdirSync(stplug, { recursive: !0 });
+                        u.existsSync(d) || (u.mkdirSync(d, { recursive: !0 }), console.log("📁 Diretório depotcache criado"));
                         let h = 0,
                             f = 0,
                             luaOk = !1;
@@ -15232,7 +15234,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             if (".lua" === n) {
                                 const dst = l.join(p, t),
                                     data = e.getData();
-                                u.writeFileSync(dst, data), writtenLuas.push(dst), console.log(`✅ .lua salvo: ${t}`), h++, almazLuaIsInstallable(data.toString("utf8")) && (luaOk = !0)
+                                u.writeFileSync(dst, data), u.writeFileSync(l.join(stplug, t), data), writtenLuas.push(dst, l.join(stplug, t)), console.log(`✅ .lua salvo: ${t}`), h++, almazLuaIsInstallable(data.toString("utf8")) && (luaOk = !0)
                             } else if (".manifest" === n) {
                                 const n = l.join(d, t);
                                 u.writeFileSync(n, e.getData()), console.log(`✅ .manifest salvo: ${t}`), f++
@@ -16163,6 +16165,15 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     }), c.mkdirSync(l.join(e, "config", t.LUA_CONFIG_DIRNAME), {
                         recursive: !0
                     });
+                    // opensteamtool.toml na raiz da Steam: sem ele o OpenSteamTool pode não
+                    // ler os .lua e a Steam dá "Caminho de instalação inválido". Aponta pras
+                    // duas pastas que o launcher usa (Servidor 1 grava em config/lua,
+                    // Servidor 2 grava nas duas). Igual ao setup do ALMAZ/OVERISE.
+                    try {
+                        c.writeFileSync(l.join(e, "opensteamtool.toml"), '[lua]\r\npaths = ["config/stplug-in", "config/lua"]\r\n', "ascii"), console.log("[hook] opensteamtool.toml gravado")
+                    } catch (e) {
+                        console.warn("[hook] falha ao gravar opensteamtool.toml:", e?.message)
+                    }
                     const h = function(e) {
                         try {
                             const n = l.join(e, "config", "stplug-in");
