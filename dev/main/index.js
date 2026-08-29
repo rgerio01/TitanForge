@@ -19728,6 +19728,11 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                                 const p = c.join(appsDir, `appmanifest_${id}.acf`);
                                 if (!s.existsSync(p)) continue;
                                 let content = s.readFileSync(p, "utf-8");
+                                // Só mexe em jogo 100% instalado e parado (StateFlags "4"). Se está
+                                // baixando/atualizando, NÃO toca — marcar AutoUpdateBehavior "1" no meio
+                                // do download faz a Steam tratar como update adiado e ESTRANGULA a velocidade.
+                                const sf = content.match(/"StateFlags"\s*"(\d+)"/);
+                                if (!sf || "4" !== sf[1]) continue;
                                 const next = /"AutoUpdateBehavior"\s*"\d+"/.test(content)
                                     ? content.replace(/"AutoUpdateBehavior"\s*"\d+"/, '"AutoUpdateBehavior"\t\t"1"')
                                     : content.replace(/("AppState"\s*\r?\n\s*\{)/, '$1\r\n\t"AutoUpdateBehavior"\t\t"1"');
