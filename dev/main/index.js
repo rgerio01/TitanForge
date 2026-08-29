@@ -14276,23 +14276,78 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                 function denuvoAutoOfflineEnabled() {
                     try { return !1 !== JSON.parse(u.readFileSync(denuvoOfflineCfg(), "utf8")).enabled } catch { return !0 }
                 }
-                async function syncDenuvoOffline(steamPath, restartIfChanged) {
+                // Compat: chamado no startup e pós-crack. NÃO força mais offline só por ter
+                // um Denuvo instalado — quem faz isso agora é o watcher de processo abaixo,
+                // que só age quando um jogo Denuvo está de fato em execução.
+                async function syncDenuvoOffline(steamPath) {
                     try {
-                        if (!steamPath || !denuvoAutoOfflineEnabled()) return { skipped: !0 };
-                        const ids = await getDenuvoAppIds();
-                        if (!ids || !ids.size) return { skipped: !0 };
-                        const hits = scanInstalledDenuvo(steamPath, ids),
-                            wantOffline = hits.length > 0,
-                            isOffline = m.getSteamWantsOffline(steamPath);
-                        if (wantOffline === isOffline) return { offline: isOffline, games: hits };
-                        const running = await new Promise(r => { try { n(5317).exec('tasklist /FI "IMAGENAME eq steam.exe" /NH', { windowsHide: !0 }, (e, o) => r(!e && /steam\.exe/i.test(o || ""))) } catch { r(!1) } });
-                        if (running) { try { await m.closeSteam() } catch {} await new Promise(r => setTimeout(r, 2500)) }
-                        m.setSteamOfflineMode(steamPath, wantOffline);
-                        console.log(`🔌 Steam -> modo ${wantOffline ? "OFFLINE" : "ONLINE"} (${hits.length} jogo(s) Denuvo instalado(s)).`);
-                        (running || restartIfChanged) && (() => { try { m.openSteam(steamPath) } catch {} })();
-                        D?.webContents.send("denuvo-offline-changed", { offline: wantOffline, games: hits });
-                        return { offline: wantOffline, games: hits, changed: !0 }
+                        if (!steamPath) return { skipped: !0 };
+                        denuvoAutoOfflineEnabled() && startDenuvoWatch();
+                        return { offline: m.getSteamWantsOffline(steamPath), games: [] }
                     } catch (e) { return console.warn("syncDenuvoOffline:", e?.message), { error: !0 } }
+                }
+                // ---- Watcher: força a Steam offline SÓ enquanto um jogo Denuvo roda ----
+                let dnW = { busy: !1, forced: !1, empty: 0, cooldown: 0, timer: null };
+                function readRunningAppId() {
+                    return new Promise(res => {
+                        try {
+                            n(5317).exec('reg query "HKCU\\Software\\Valve\\Steam" /v RunningAppID', { windowsHide: !0 }, (e, o) => {
+                                if (e || !o) return res(0);
+                                const mm = String(o).match(/RunningAppID\s+REG_DWORD\s+0x([0-9a-fA-F]+)/i);
+                                res(mm ? parseInt(mm[1], 16) : 0)
+                            })
+                        } catch { res(0) }
+                    })
+                }
+                async function denuvoRestartSteam(steamPath, offline) {
+                    try { await m.closeSteam() } catch {}
+                    await new Promise(r => setTimeout(r, 2500));
+                    m.setSteamOfflineMode(steamPath, offline);
+                    try { m.openSteam(steamPath) } catch {}
+                    dnW.cooldown = Date.now() + 25e3
+                }
+                async function denuvoWatchTick() {
+                    if (dnW.busy || Date.now() < dnW.cooldown) return;
+                    if (!denuvoAutoOfflineEnabled()) { dnW.forced = !1; return }
+                    let steamPath;
+                    try { steamPath = await (0, m.detectSteamPath)() } catch {}
+                    if (!steamPath) return;
+                    const ids = await getDenuvoAppIds();
+                    if (!ids || !ids.size) return;
+                    const appid = await readRunningAppId(),
+                        runningName = appid ? ids.get(String(appid)) : null,
+                        isOffline = m.getSteamWantsOffline(steamPath);
+                    if (runningName) {
+                        dnW.empty = 0;
+                        if (!isOffline && !dnW.forced) {
+                            dnW.busy = !0;
+                            try {
+                                console.log(`🔌 Denuvo em execução (${runningName}) + Steam ONLINE -> forçando offline.`);
+                                await denuvoRestartSteam(steamPath, !0);
+                                dnW.forced = !0;
+                                try { new c.Notification({ title: "TitanForge — Steam offline", body: `${runningName} usa Denuvo. Coloquei a Steam em modo offline — abra o jogo novamente.` }).show() } catch {}
+                                D?.webContents.send("denuvo-offline-changed", { offline: !0, forced: !0, reopen: !0, games: [{ game_id: String(appid), name: runningName }] })
+                            } catch (e) { console.warn("denuvoWatch force-offline:", e?.message) }
+                            finally { dnW.busy = !1 }
+                        } else if (isOffline) dnW.forced = !0
+                    } else if (dnW.forced && isOffline) {
+                        if (++dnW.empty >= 4) {
+                            dnW.busy = !0;
+                            try {
+                                console.log("🔌 Nenhum Denuvo em execução -> voltando Steam para ONLINE.");
+                                await denuvoRestartSteam(steamPath, !1);
+                                dnW.forced = !1; dnW.empty = 0;
+                                try { new c.Notification({ title: "TitanForge — Steam online", body: "Nenhum jogo Denuvo aberto. Steam voltou ao modo online." }).show() } catch {}
+                                D?.webContents.send("denuvo-offline-changed", { offline: !1, forced: !1, games: [] })
+                            } catch (e) { console.warn("denuvoWatch restore-online:", e?.message) }
+                            finally { dnW.busy = !1 }
+                        }
+                    } else { dnW.empty = 0; isOffline || (dnW.forced = !1) }
+                }
+                function startDenuvoWatch() {
+                    if (dnW.timer) return;
+                    dnW.timer = setInterval(() => { denuvoWatchTick().catch(() => {}) }, 6e3);
+                    denuvoWatchTick().catch(() => {})
                 }
                 c.ipcMain.handle("denuvo-offline-status", async () => {
                     try {
@@ -14300,12 +14355,11 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         if (!e) return { steam: !1 };
                         const ids = await getDenuvoAppIds(),
                             hits = ids ? scanInstalledDenuvo(e, ids) : [];
-                        return { steam: !0, offline: m.getSteamWantsOffline(e), auto: denuvoAutoOfflineEnabled(), games: hits }
+                        return { steam: !0, offline: m.getSteamWantsOffline(e), auto: denuvoAutoOfflineEnabled(), forced: dnW.forced, games: hits }
                     } catch { return { steam: !1 } }
                 }), c.ipcMain.handle("denuvo-offline-set-auto", async (e, t) => {
                     try { u.writeFileSync(denuvoOfflineCfg(), JSON.stringify({ enabled: !!t })) } catch {}
-                    const e2 = await (0, m.detectSteamPath)();
-                    return e2 && await syncDenuvoOffline(e2, !0), { ok: !0, auto: !!t }
+                    return t ? startDenuvoWatch() : dnW.forced = !1, { ok: !0, auto: !!t }
                 }), c.ipcMain.handle("steam-set-offline", async (e, t) => {
                     try {
                         const e2 = await (0, m.detectSteamPath)();
@@ -14314,6 +14368,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         await new Promise(r => setTimeout(r, 2500));
                         m.setSteamOfflineMode(e2, !!t);
                         try { m.openSteam(e2) } catch {}
+                        dnW.forced = !!t, dnW.empty = 0, dnW.cooldown = Date.now() + 25e3;
                         return { ok: !0, offline: !!t }
                     } catch (e) { return { ok: !1, error: e?.message } }
                 }), c.ipcMain.handle("get-public-ip", async () => {
