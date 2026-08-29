@@ -72420,12 +72420,12 @@
                                         border: "1px solid " + ("remove" === Ma.type ? "var(--red-border)" : "rgba(217,122,44,0.22)")
                                     },
                                     children: "remove" === Ma.type ? (0, l.jsxs)(l.Fragment, {
-                                        children: ["O arquivo ", (0, l.jsx)("strong", {
+                                        children: ["O jogo sai da ", (0, l.jsx)("strong", {
                                             style: {
                                                 color: "var(--text-primary)"
                                             },
-                                            children: ".lua"
-                                        }), " será deletado permanentemente. Você pode reinstalar o jogo a qualquer momento pela aba ", (0, l.jsx)("strong", {
+                                            children: "lista da Steam"
+                                        }), " (.lua + appmanifest) e a Steam reinicia. Se estava dando erro de instalação, é só remover e instalar de novo pela aba ", (0, l.jsx)("strong", {
                                             style: {
                                                 color: "var(--text-primary)"
                                             },
@@ -81308,6 +81308,24 @@
     return el("label", { style: { display: "block", fontSize: "10.5px", color: "var(--text-secondary)", letterSpacing: ".05em", textTransform: "uppercase", marginBottom: "4px", marginTop: "10px" } }, [text]);
   }
 
+  function select(options, selectedValue) {
+    const s = el("select", {
+      style: {
+        width: "100%", padding: "8px 10px", borderRadius: "2px",
+        border: "1px solid var(--border)", background: "rgba(255,255,255,0.03)",
+        color: "var(--text-primary)", fontFamily: "Rajdhani, sans-serif", fontSize: "13px",
+        boxSizing: "border-box", colorScheme: "dark", cursor: "pointer"
+      }
+    }, options.map(opt => {
+      const value = Array.isArray(opt) ? opt[0] : opt;
+      const text = Array.isArray(opt) ? opt[1] : opt;
+      const o = el("option", { value: String(value), style: { background: "#1c1c22", color: "#fff" } }, [String(text)]);
+      if (String(value) === String(selectedValue)) o.selected = true;
+      return o;
+    }));
+    return s;
+  }
+
   function toggle(checked, text) {
     const wrap = el("label", { style: { display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--text-primary)", padding: "6px 0", cursor: "pointer" } });
     const cb = el("input", { type: "checkbox" });
@@ -81406,13 +81424,11 @@
     form.appendChild(el("h4", { style: { margin: "0 0 10px", color: "var(--accent)", fontFamily: "Rajdhani, sans-serif" } }, [lic.key]));
 
     label("Status") && form.appendChild(label("Status"));
-    const statusSel = el("select", { style: { width: "100%", padding: "8px", background: "rgba(255,255,255,0.03)", color: "#fff", border: "1px solid var(--border)" } },
-      ["active", "suspended", "inactive"].map(s => { const o = el("option", { value: s }, [s]); if (s === lic.status) o.selected = true; return o; }));
+    const statusSel = select(["active", "suspended", "inactive"], lic.status);
     form.appendChild(statusSel);
 
     form.appendChild(label("Tipo de licença (1=mensal, 2=vitalícia, 3=teste)"));
-    const typeSel = el("select", { style: { width: "100%", padding: "8px", background: "rgba(255,255,255,0.03)", color: "#fff", border: "1px solid var(--border)" } },
-      [1, 2, 3].map(t => { const o = el("option", { value: t }, [String(t)]); if (t === lic.license_type) o.selected = true; return o; }));
+    const typeSel = select([1, 2, 3], lic.license_type);
     form.appendChild(typeSel);
 
     form.appendChild(label("Permissões"));
@@ -81496,8 +81512,7 @@
         box.appendChild(nomeI);
 
         box.appendChild(label("Tipo de licença (1=mensal, 2=vitalícia, 3=teste)"));
-        const typeSel = el("select", { style: { width: "100%", padding: "8px", background: "rgba(255,255,255,0.03)", color: "#fff", border: "1px solid var(--border)" } },
-          [1, 2, 3].map(t => { const o = el("option", { value: t }, [String(t)]); if (t === 2) o.selected = true; return o; }));
+        const typeSel = select([1, 2, 3], 2);
         box.appendChild(typeSel);
 
         box.appendChild(label("Permissões"));
@@ -81578,8 +81593,7 @@
     form.appendChild(linkI);
 
     form.appendChild(label("Categoria"));
-    const catSel = el("select", { style: { width: "100%", padding: "8px", background: "rgba(255,255,255,0.03)", color: "#fff", border: "1px solid var(--border)" } },
-      ["licenca", "produto", "servico"].map(c => { const o = el("option", { value: c }, [c]); if (c === item.categoria) o.selected = true; return o; }));
+    const catSel = select(["licenca", "produto", "servico"], item.categoria);
     form.appendChild(catSel);
 
     const ativoT = toggle(item.ativo !== false, "Ativo (visível na Loja)");
@@ -82129,9 +82143,9 @@
     const testKeyInp = input("ROGERIO3120", "ROGERIO3120");
     testWrap.appendChild(testKeyInp);
     testWrap.appendChild(label("Produto"));
-    const testProdSel = el("select", { style: { width: "100%", padding: "8px", background: "rgba(255,255,255,0.03)", color: "#fff", border: "1px solid var(--border)" } }, [
-      el("option", { value: "retroanvil" }, ["RetroAnvil — R$ 29,90"]),
-      el("option", { value: "nsfw18" }, ["Conteúdo +18 — R$ 39,90"])
+    const testProdSel = select([
+      ["retroanvil", "RetroAnvil — R$ 29,90"],
+      ["nsfw18", "Conteúdo +18 — R$ 39,90"]
     ]);
     testWrap.appendChild(testProdSel);
     const testStatus = msgBox();

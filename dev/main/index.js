@@ -15139,17 +15139,33 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         } catch (e) {
                             console.log("⚠️ Não foi possível buscar nome do jogo na Steam API")
                         }
-                        // Auto-cura: se um install anterior deixou um <appid>.lua "seco"
-                        // (sem depot/chave) nas pastas da Steam, é ele que faz a Steam
-                        // dar "Caminho de instalação inválido". Remove antes de reinstalar,
-                        // pra o caminho novo poder gravar o .lua completo.
+                        // Auto-cura: um install anterior que falhou deixa (a) um <appid>.lua
+                        // "seco" (sem depot/chave) em config/lua|stplug-in e (b) um
+                        // appmanifest_<appid>.acf quebrado em steamapps — e é isso que faz a
+                        // Steam repetir "Caminho de instalação inválido" mesmo com o .lua novo.
+                        // Limpa os dois antes de reinstalar.
                         try {
+                            let hadStub = !1;
                             for (const dir of [l.join(e, "config", S.LUA_CONFIG_DIRNAME), l.join(e, "config", "stplug-in")]) {
                                 const stub = l.join(dir, `${t}.lua`);
-                                if (u.existsSync(stub) && !almazLuaIsInstallable(u.readFileSync(stub, "utf8"))) u.unlinkSync(stub), console.log(`🧹 .lua stub sem depot/chave removido: ${stub}`)
+                                if (u.existsSync(stub) && !almazLuaIsInstallable(u.readFileSync(stub, "utf8"))) u.unlinkSync(stub), hadStub = !0, console.log(`🧹 .lua stub sem depot/chave removido: ${stub}`)
+                            }
+                            if (hadStub) {
+                                const libs = [e];
+                                for (const vdf of [l.join(e, "steamapps", "libraryfolders.vdf"), l.join(e, "config", "libraryfolders.vdf")])
+                                    try {
+                                        if (!u.existsSync(vdf)) continue;
+                                        const txt = u.readFileSync(vdf, "utf8"), re = /"path"\s*"([^"]+)"/gi;
+                                        let mm;
+                                        while (null !== (mm = re.exec(txt))) libs.push(mm[1].replace(/\\\\/g, "\\"))
+                                    } catch {}
+                                for (const lib of new Set(libs)) {
+                                    const acf = l.join(lib, "steamapps", `appmanifest_${t}.acf`);
+                                    try { u.existsSync(acf) && (u.unlinkSync(acf), console.log(`🧹 appmanifest quebrado removido: ${acf}`)) } catch {}
+                                }
                             }
                         } catch (e) {
-                            console.warn("⚠️ Não foi possível checar/remover .lua stub anterior:", e?.message)
+                            console.warn("⚠️ Não foi possível limpar resíduo de instalação anterior:", e?.message)
                         }
                         if (2 === servidor) {
                             const lua = getAlmazLua(t);
@@ -15441,20 +15457,42 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     }
                 }), c.ipcMain.handle("remove-game", async (e, t) => {
                     try {
-                        console.log(`🗑️ Removendo jogo AppID: ${t}`);
+                        console.log(`🗑️ Removendo jogo AppID: ${t} (.lua + lista da Steam)`);
                         const e = await (0, m.detectSteamPath)();
                         if (!e) return {
                             success: !1,
                             error: "Steam não encontrada"
                         };
-                        const n = [l.join(e, "config", S.LUA_CONFIG_DIRNAME, `${t}.lua`), l.join(e, "config", "stplug-in", `${t}.lua`)];
+                        // Fecha a Steam pra poder mexer no appmanifest/appcache sem trava.
+                        try { await (0, m.closeSteam)() } catch {}
+                        await new Promise(e => setTimeout(e, 1500));
                         let r = !1;
-                        for (const e of n) u.existsSync(e) && (u.unlinkSync(e), console.log(`✅ Arquivo removido: ${e}`), r = !0);
+                        // 1) .lua nas duas pastas
+                        for (const p of [l.join(e, "config", S.LUA_CONFIG_DIRNAME, `${t}.lua`), l.join(e, "config", "stplug-in", `${t}.lua`)])
+                            try { u.existsSync(p) && (u.unlinkSync(p), r = !0, console.log(`✅ .lua removido: ${p}`)) } catch (e) { console.warn("falha ao remover .lua:", e?.message) }
+                        // 2) appmanifest_<appid>.acf em todas as bibliotecas -> tira o jogo da lista da Steam
+                        const libs = [e];
+                        for (const vdf of [l.join(e, "steamapps", "libraryfolders.vdf"), l.join(e, "config", "libraryfolders.vdf")])
+                            try {
+                                if (!u.existsSync(vdf)) continue;
+                                const txt = u.readFileSync(vdf, "utf8"), re = /"path"\s*"([^"]+)"/gi;
+                                let mm;
+                                while (null !== (mm = re.exec(txt))) libs.push(mm[1].replace(/\\\\/g, "\\"))
+                            } catch {}
+                        for (const lib of new Set(libs)) {
+                            const acf = l.join(lib, "steamapps", `appmanifest_${t}.acf`);
+                            try { u.existsSync(acf) && (u.unlinkSync(acf), r = !0, console.log(`✅ appmanifest removido: ${acf}`)) } catch (e) { console.warn("falha ao remover .acf:", e?.message) }
+                        }
+                        // 3) limpa appcache/htmlcache pra Steam reconstruir a biblioteca sem o jogo
+                        try { u.rmSync(l.join(e, "appcache"), { recursive: !0, force: !0 }), console.log("✅ appcache limpo") } catch {}
+                        try { process.env.LOCALAPPDATA && u.rmSync(l.join(process.env.LOCALAPPDATA, "Steam", "htmlcache"), { recursive: !0, force: !0 }) } catch {}
+                        // 4) reabre a Steam
+                        try { await (0, m.openSteam)(e) } catch {}
                         return r ? {
                             success: !0
                         } : {
                             success: !1,
-                            error: `Jogo ${t} não encontrado. Verifique se o ID está correto.`
+                            error: `Jogo ${t} não estava na lista (nem .lua nem appmanifest encontrados).`
                         }
                     } catch (e) {
                         return console.error("❌ Erro ao remover jogo:", e), {

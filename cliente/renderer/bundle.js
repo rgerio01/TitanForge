@@ -72379,12 +72379,12 @@
                                         border: "1px solid " + ("remove" === Ma.type ? "var(--red-border)" : "rgba(217,122,44,0.22)")
                                     },
                                     children: "remove" === Ma.type ? (0, l.jsxs)(l.Fragment, {
-                                        children: ["O arquivo ", (0, l.jsx)("strong", {
+                                        children: ["O jogo sai da ", (0, l.jsx)("strong", {
                                             style: {
                                                 color: "var(--text-primary)"
                                             },
-                                            children: ".lua"
-                                        }), " será deletado permanentemente. Você pode reinstalar o jogo a qualquer momento pela aba ", (0, l.jsx)("strong", {
+                                            children: "lista da Steam"
+                                        }), " (.lua + appmanifest) e a Steam reinicia. Se estava dando erro de instalação, é só remover e instalar de novo pela aba ", (0, l.jsx)("strong", {
                                             style: {
                                                 color: "var(--text-primary)"
                                             },
