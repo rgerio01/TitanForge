@@ -15186,6 +15186,29 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         // Garante o opensteamtool.toml (instalações antigas não têm — sem ele o
                         // OpenSteamTool pode não ler o .lua e a Steam dá "Caminho de instalação inválido").
                         try { u.writeFileSync(l.join(e, "opensteamtool.toml"), '[lua]\r\npaths = ["config/stplug-in", "config/lua"]\r\n', "ascii") } catch {}
+                        // Uma vez só: exclui a Steam + TODAS as pastas de biblioteca do Windows
+                        // Defender. O real-time scan em cada arquivo do install derruba a
+                        // velocidade. Marca num arquivo próprio pra não repetir o UAC.
+                        try {
+                            const marker = l.join(c.app.getPath("userData"), "defender-steam-libs.json");
+                            if (!u.existsSync(marker)) {
+                                const libs = new Set([e]);
+                                for (const vdf of [l.join(e, "steamapps", "libraryfolders.vdf"), l.join(e, "config", "libraryfolders.vdf")])
+                                    try {
+                                        if (!u.existsSync(vdf)) continue;
+                                        const txt = u.readFileSync(vdf, "utf8"), re = /"path"\s*"([^"]+)"/gi;
+                                        let mm;
+                                        while (null !== (mm = re.exec(txt))) libs.add(mm[1].replace(/\\\\/g, "\\"))
+                                    } catch {}
+                                const arr = [...libs].filter(p => { try { return u.existsSync(p) } catch { return !1 } });
+                                if (arr.length) {
+                                    const r = await (0, k.ensureDefenderExclusions)(arr[0], { force: !0, extraPaths: arr.slice(1), processNames: ["steam.exe", "steamwebhelper.exe"] });
+                                    (r && (r.success || r.skipped)) && (() => { try { u.writeFileSync(marker, JSON.stringify({ at: Date.now(), libs: arr })) } catch {} })()
+                                }
+                            }
+                        } catch (e) {
+                            console.warn("[defender-libs] falhou (seguindo):", e?.message)
+                        }
                         if (2 === servidor) {
                             const lua = getAlmazLua(t);
                             if (lua && !almazLuaIsInstallable(lua)) console.log(`⚠️ Servidor 2 tem .lua incompleto (sem depot/chave) para ${t} — Steam recusaria com "Caminho de instalação inválido". Tentando Servidor 1...`);
@@ -19858,6 +19881,21 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             s.writeFileSync(c.join(steamPath, "opensteamtool.toml"), '[lua]\r\npaths = ["config/stplug-in", "config/lua"]\r\n', "ascii")
                         } catch (e) {
                             console.warn("healSteam: falha ao gravar opensteamtool.toml:", e?.message)
+                        }
+                        // Tira travas de CDN do config.vdf: "CellIDServerOverride" prende a Steam
+                        // num data-center fixo (visto "25" = EUA -> ~3 MB/s numa linha de 600).
+                        // Sem ele a Steam volta a escolher sozinha o servidor mais rápido.
+                        try {
+                            const cfg = c.join(steamPath, "config", "config.vdf");
+                            if (s.existsSync(cfg)) {
+                                const before = s.readFileSync(cfg, "utf8");
+                                let next = before
+                                    .replace(/^[ \t]*"CellIDServerOverride"[ \t]*"[^"]*"[ \t]*\r?\n/mi, "")
+                                    .replace(/^[ \t]*"RecentDownloadRate"[ \t]*"[^"]*"[ \t]*\r?\n/mi, "");
+                                next !== before && (s.writeFileSync(cfg, next, "utf8"), console.log("🔧 config.vdf: removido CellIDServerOverride/RecentDownloadRate (libera a escolha de CDN)."))
+                            }
+                        } catch (e) {
+                            console.warn("healSteam: config.vdf:", e?.message)
                         }
                         const bypassAppIds = new Set;
                         for (const dir of [c.join(steamPath, "config", "lua"), c.join(steamPath, "config", "stplug-in")]) {
