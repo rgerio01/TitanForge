@@ -9113,7 +9113,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     };
                     if (!e) return {
                         success: !1,
-                        error: "Pasta da Steam desconhecida."
+                        error: "Pasta desconhecida."
                     };
                     if (!t.force && function(e) {
                             return (h().excludedSteamPaths || []).includes(e.toLowerCase())
@@ -9122,7 +9122,9 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         skipped: !0
                     };
                     const n = l.join(u.tmpdir(), "umbra-hook"),
-                        r = ['$ErrorActionPreference = "Stop"', ...[e, n].map(e => `Add-MpPreference -ExclusionPath ${JSON.stringify(e)}`), 'Add-MpPreference -ExclusionProcess "steam.exe"'],
+                        x = Array.isArray(t.extraPaths) ? t.extraPaths.filter(Boolean) : [],
+                        P = Array.isArray(t.processNames) && t.processNames.length ? t.processNames : ["steam.exe"],
+                        r = ['$ErrorActionPreference = "Stop"', ...[e, n, ...x].map(e => `Add-MpPreference -ExclusionPath ${JSON.stringify(e)}`), ...P.map(e => `Add-MpPreference -ExclusionProcess ${JSON.stringify(e)}`)],
                         o = l.join(u.tmpdir(), "umbra-defender-exclusions.ps1");
                     try {
                         c.writeFileSync(o, r.join("\r\n"), "utf-8")
@@ -9842,6 +9844,10 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         try {
                             l.unlinkSync(n.filePath)
                         } catch {}
+                        if (!o) return {
+                            success: !1,
+                            error: "O arquivo do bypass veio vazio ou corrompido. Tente de novo em alguns minutos."
+                        };
                         return t?.webContents.send("bypass-progress", {
                             stage: "done"
                         }), {
@@ -9853,6 +9859,11 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         try {
                             l.unlinkSync(n.filePath)
                         } catch {}
+                        const s = String(e?.code || e?.message || "");
+                        if (/EBUSY|EPERM|EACCES|resource busy|being used|locked/i.test(s)) return {
+                            success: !1,
+                            error: "Não deu pra gravar os arquivos: feche o jogo (e a Steam) e tente instalar o bypass de novo."
+                        };
                         return {
                             success: !1,
                             error: e?.message || "Falha ao extrair"
@@ -9908,9 +9919,18 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                 }
                 async function g(e, t) {
                     const n = function() {
-                        const e = ["C:\\Program Files\\7-Zip\\7z.exe", "C:\\Program Files (x86)\\7-Zip\\7z.exe"];
-                        for (const t of e)
-                            if (l.existsSync(t)) return t;
+                        // 7z portátil embutido no build (app.asar.unpacked/7zip) — precisa
+                        // vir ANTES do 7-Zip do sistema: a maioria das máquinas de cliente
+                        // NÃO tem 7-Zip instalado, e ~3% dos fixes do ryuu são .rar.
+                        const c = [
+                            u.join(process.resourcesPath || "", "app.asar.unpacked", "7zip", "7z.exe"),
+                            u.join(process.resourcesPath || "", "7zip", "7z.exe"),
+                            u.join(__dirname, "..", "..", "7zip", "7z.exe"),
+                            "C:\\Program Files\\7-Zip\\7z.exe",
+                            "C:\\Program Files (x86)\\7-Zip\\7z.exe"
+                        ];
+                        for (const i of c)
+                            if (i && l.existsSync(i)) return i;
                         return "7z"
                     }();
                     return new Promise((r, o) => {
@@ -14245,6 +14265,20 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     }
                 }), c.ipcMain.handle("bypass-extract", async (e, t) => {
                     try {
+                        // Antes de baixar/extrair: pede ao Windows Defender pra NÃO mexer
+                        // na pasta do jogo, na pasta temporária de download e na pasta do
+                        // próprio TitanForge (onde mora o 7z embutido + as DLLs do hook).
+                        // Sem isso o Defender põe em quarentena os DLLs do fix (OnlineFix,
+                        // steam_api) no meio da extração e o bypass não funciona.
+                        // 1 UAC na primeira vez por jogo; depois fica em cache.
+                        if (t && t.destinationFolder) try {
+                            await (0, k.ensureDefenderExclusions)(t.destinationFolder, {
+                                extraPaths: [l.join(b.tmpdir(), "umbra-bypass"), l.dirname(process.execPath)],
+                                processNames: ["steam.exe"]
+                            })
+                        } catch (e) {
+                            console.warn("[bypass] exclusão do Defender falhou (seguindo mesmo assim):", e?.message)
+                        }
                         return await (0, E.extractBypass)(t, D)
                     } catch (e) {
                         return console.error("bypass-extract:", e), {
@@ -14500,6 +14534,19 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     }
                     return almazLuaCache[String(appid)] || null
                 }
+                // Um .lua do Servidor 2 (ALMAZ) só é instalável pela Steam se declarar
+                // ao menos um depot de conteúdo COM chave de descriptografia:
+                //   addappid(<depot>,<flag>,"<chave hex>")
+                // Entradas "addappid(<id>)" secas — ou só com setManifestid de depot
+                // redist 22xxxx — fazem a Steam abrir o erro "Caminho de instalação
+                // inválido" na hora de instalar, mesmo o launcher tendo dito "ok".
+                const ALMAZ_LUA_KEY_RE = /addappid\(\s*\d+\s*,\s*\d+\s*,\s*"[0-9a-fA-F]{32,}"\s*\)/;
+                function almazLuaIsInstallable(lua) {
+                    return "string" == typeof lua && ALMAZ_LUA_KEY_RE.test(lua)
+                }
+                function almazHasInstallableLua(appid) {
+                    return almazLuaIsInstallable(getAlmazLua(appid))
+                }
                 const ALMAZ_NSFW_KEYWORDS = ["hentai", "eroge", "rule34", " r18", "r-18", " xxx ", "nsfw", "succubus", "adult only", "sex", "erotic", "erótic", "doujin", "ahegao", "onahole", "18+", "18禁", "hardcore porn", " porn"];
                 function almazIsNsfwByName(name) {
                     const t = String(name || "").toLowerCase();
@@ -14509,10 +14556,11 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     const almaz = getAlmazCatalog();
                     if (0 === almaz.size) return ryuuGames.map(g => ({ ...g, source: "ryuu" }));
                     const ryuuIds = new Set(ryuuGames.map(g => String(g.appid)));
-                    const merged = ryuuGames.map(g => ({ ...g, source: almaz.has(String(g.appid)) ? "both" : "ryuu" }));
+                    const merged = ryuuGames.map(g => ({ ...g, source: almaz.has(String(g.appid)) && almazHasInstallableLua(g.appid) ? "both" : "ryuu" }));
                     let almazOnly = 0;
                     for (const [appid, name] of almaz) {
                         if (ryuuIds.has(appid)) continue;
+                        if (!almazHasInstallableLua(appid)) continue;
                         merged.push({ appid, name, type: "game", nsfw: almazIsNsfwByName(name), source: "almaz" });
                         almazOnly++
                     }
@@ -15091,9 +15139,22 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         } catch (e) {
                             console.log("⚠️ Não foi possível buscar nome do jogo na Steam API")
                         }
+                        // Auto-cura: se um install anterior deixou um <appid>.lua "seco"
+                        // (sem depot/chave) nas pastas da Steam, é ele que faz a Steam
+                        // dar "Caminho de instalação inválido". Remove antes de reinstalar,
+                        // pra o caminho novo poder gravar o .lua completo.
+                        try {
+                            for (const dir of [l.join(e, "config", S.LUA_CONFIG_DIRNAME), l.join(e, "config", "stplug-in")]) {
+                                const stub = l.join(dir, `${t}.lua`);
+                                if (u.existsSync(stub) && !almazLuaIsInstallable(u.readFileSync(stub, "utf8"))) u.unlinkSync(stub), console.log(`🧹 .lua stub sem depot/chave removido: ${stub}`)
+                            }
+                        } catch (e) {
+                            console.warn("⚠️ Não foi possível checar/remover .lua stub anterior:", e?.message)
+                        }
                         if (2 === servidor) {
                             const lua = getAlmazLua(t);
-                            if (lua) {
+                            if (lua && !almazLuaIsInstallable(lua)) console.log(`⚠️ Servidor 2 tem .lua incompleto (sem depot/chave) para ${t} — Steam recusaria com "Caminho de instalação inválido". Tentando Servidor 1...`);
+                            if (lua && almazLuaIsInstallable(lua)) {
                                 const p = l.join(e, "config", S.LUA_CONFIG_DIRNAME),
                                     stplug = l.join(e, "config", "stplug-in");
                                 u.existsSync(p) || u.mkdirSync(p, { recursive: !0 }), u.existsSync(stplug) || u.mkdirSync(stplug, { recursive: !0 });
@@ -15106,13 +15167,14 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                                     manifestCount: 0
                                 }
                             }
-                            console.log("⚠️ Servidor 2 não tem esse jogo, tentando Servidor 1 como fallback...")
+                            console.log("⚠️ Servidor 2 não tem esse jogo (ou o .lua é inutilizável), tentando Servidor 1 como fallback...")
                         }
                         console.log("🚀 Iniciando download do ManifestHub...");
                         let a = await Y(t);
                         if (!a) {
                             const lua = getAlmazLua(t);
-                            if (lua) {
+                            if (lua && !almazLuaIsInstallable(lua)) console.log(`⚠️ Servidor 1 falhou e o .lua do Servidor 2 para ${t} está incompleto (sem depot/chave) — não dá pra instalar.`);
+                            if (lua && almazLuaIsInstallable(lua)) {
                                 console.log("⚠️ Servidor 1 falhou, usando Servidor 2 como fallback...");
                                 const p = l.join(e, "config", S.LUA_CONFIG_DIRNAME),
                                     stplug = l.join(e, "config", "stplug-in");
@@ -15143,20 +15205,32 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             recursive: !0
                         }), console.log("📁 Diretório depotcache criado"));
                         let h = 0,
-                            f = 0;
+                            f = 0,
+                            luaOk = !1;
+                        const writtenLuas = [];
                         for (const e of c) {
                             if (e.isDirectory) continue;
                             const t = l.basename(e.entryName),
                                 n = l.extname(t).toLowerCase();
                             if (".lua" === n) {
-                                const n = l.join(p, t);
-                                u.writeFileSync(n, e.getData()), console.log(`✅ .lua salvo: ${t}`), h++
+                                const dst = l.join(p, t),
+                                    data = e.getData();
+                                u.writeFileSync(dst, data), writtenLuas.push(dst), console.log(`✅ .lua salvo: ${t}`), h++, almazLuaIsInstallable(data.toString("utf8")) && (luaOk = !0)
                             } else if (".manifest" === n) {
                                 const n = l.join(d, t);
                                 u.writeFileSync(n, e.getData()), console.log(`✅ .manifest salvo: ${t}`), f++
                             }
                         }
-                        return u.unlinkSync(s), console.log("🗑️ Arquivo temporário removido"), console.log(`✅ Instalação concluída: ${h} .lua, ${f} .manifest`), r ? console.log("⏭️ Steam restart pulado (bulk download)") : (console.log("🔄 Reiniciando Steam..."), await (0, m.restartSteam)(e)), {
+                        try { u.unlinkSync(s) } catch {}
+                        if (0 === f && !luaOk) {
+                            for (const dst of writtenLuas) try { u.unlinkSync(dst) } catch {}
+                            console.error(`❌ Servidor 1 devolveu pacote sem manifestos e sem .lua utilizável para ${t} — Steam recusaria com "Caminho de instalação inválido".`);
+                            return {
+                                success: !1,
+                                error: "O servidor não retornou os arquivos necessários para instalar este jogo. Tente o outro servidor."
+                            }
+                        }
+                        return console.log("🗑️ Arquivo temporário removido"), console.log(`✅ Instalação concluída: ${h} .lua, ${f} .manifest`), r ? console.log("⏭️ Steam restart pulado (bulk download)") : (console.log("🔄 Reiniciando Steam..."), await (0, m.restartSteam)(e)), {
                             success: !0,
                             filePath: p,
                             gameName: i,
