@@ -12892,7 +12892,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         } catch (e) {
                             console.error("❌ Erro ao sincronizar estado da DLL no startup:", e)
                         }
-                    }(), F && clearInterval(F), console.log("🛡️ Iniciando monitoramento de integridade da DLL..."), F = setInterval(async () => {
+                    }(), (async () => { try { const sp = await (0, m.detectSteamPath)(); sp && await syncDenuvoOffline(sp, !0) } catch (e) { console.warn("syncDenuvoOffline startup:", e?.message) } })(), F && clearInterval(F), console.log("🛡️ Iniciando monitoramento de integridade da DLL..."), F = setInterval(async () => {
                         try {
                             const e = await (0, m.detectSteamPath)();
                             if (!e) return;
@@ -14231,16 +14231,91 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             ascending: !1
                         }).limit(20);
                         if (n) throw n;
-                        return {
-                            success: !0,
-                            orders: e || []
-                        }
+                        return { success: !0, orders: e || [] }
                     } catch (e) {
-                        return console.error("denuvo-list-my-orders:", e), {
-                            success: !1,
-                            orders: []
-                        }
+                        return console.error("denuvo-list-my-orders:", e), { success: !1, orders: [] }
                     }
+                }), void 0;
+                // --- Auto modo offline p/ jogos Denuvo (o crack só roda com a Steam offline) ---
+                let denuvoIdsCache = null, denuvoIdsAt = 0;
+                async function getDenuvoAppIds() {
+                    if (denuvoIdsCache && Date.now() - denuvoIdsAt < 6e5) return denuvoIdsCache;
+                    try {
+                        const { data } = await TF.from("denuvo_games").select("game_id,name").eq("active", !0);
+                        denuvoIdsCache = new Map((data || []).map(r => [String(r.game_id), r.name])), denuvoIdsAt = Date.now()
+                    } catch { denuvoIdsCache = denuvoIdsCache || new Map }
+                    return denuvoIdsCache
+                }
+                function scanInstalledDenuvo(steamPath, ids) {
+                    const hits = [];
+                    try {
+                        const libs = [steamPath];
+                        for (const vdf of [l.join(steamPath, "steamapps", "libraryfolders.vdf"), l.join(steamPath, "config", "libraryfolders.vdf")])
+                            try {
+                                if (!u.existsSync(vdf)) continue;
+                                const txt = u.readFileSync(vdf, "utf8"), re = /"path"\s*"([^"]+)"/gi;
+                                let mm;
+                                while (null !== (mm = re.exec(txt))) libs.push(mm[1].replace(/\\\\/g, "\\"))
+                            } catch {}
+                        for (const lib of new Set(libs)) {
+                            const apps = l.join(lib, "steamapps");
+                            if (!u.existsSync(apps)) continue;
+                            for (const [id, name] of ids) {
+                                const acf = l.join(apps, `appmanifest_${id}.acf`);
+                                if (!u.existsSync(acf)) continue;
+                                try {
+                                    const sf = u.readFileSync(acf, "utf8").match(/"StateFlags"\s*"(\d+)"/);
+                                    sf && "4" === sf[1] && hits.push({ game_id: id, name })
+                                } catch {}
+                            }
+                        }
+                    } catch {}
+                    return hits
+                }
+                const denuvoOfflineCfg = () => l.join(c.app.getPath("userData"), "denuvo-auto-offline.json");
+                function denuvoAutoOfflineEnabled() {
+                    try { return !1 !== JSON.parse(u.readFileSync(denuvoOfflineCfg(), "utf8")).enabled } catch { return !0 }
+                }
+                async function syncDenuvoOffline(steamPath, restartIfChanged) {
+                    try {
+                        if (!steamPath || !denuvoAutoOfflineEnabled()) return { skipped: !0 };
+                        const ids = await getDenuvoAppIds();
+                        if (!ids || !ids.size) return { skipped: !0 };
+                        const hits = scanInstalledDenuvo(steamPath, ids),
+                            wantOffline = hits.length > 0,
+                            isOffline = m.getSteamWantsOffline(steamPath);
+                        if (wantOffline === isOffline) return { offline: isOffline, games: hits };
+                        const running = await new Promise(r => { try { n(5317).exec('tasklist /FI "IMAGENAME eq steam.exe" /NH', { windowsHide: !0 }, (e, o) => r(!e && /steam\.exe/i.test(o || ""))) } catch { r(!1) } });
+                        if (running) { try { await m.closeSteam() } catch {} await new Promise(r => setTimeout(r, 2500)) }
+                        m.setSteamOfflineMode(steamPath, wantOffline);
+                        console.log(`🔌 Steam -> modo ${wantOffline ? "OFFLINE" : "ONLINE"} (${hits.length} jogo(s) Denuvo instalado(s)).`);
+                        (running || restartIfChanged) && (() => { try { m.openSteam(steamPath) } catch {} })();
+                        D?.webContents.send("denuvo-offline-changed", { offline: wantOffline, games: hits });
+                        return { offline: wantOffline, games: hits, changed: !0 }
+                    } catch (e) { return console.warn("syncDenuvoOffline:", e?.message), { error: !0 } }
+                }
+                c.ipcMain.handle("denuvo-offline-status", async () => {
+                    try {
+                        const e = await (0, m.detectSteamPath)();
+                        if (!e) return { steam: !1 };
+                        const ids = await getDenuvoAppIds(),
+                            hits = ids ? scanInstalledDenuvo(e, ids) : [];
+                        return { steam: !0, offline: m.getSteamWantsOffline(e), auto: denuvoAutoOfflineEnabled(), games: hits }
+                    } catch { return { steam: !1 } }
+                }), c.ipcMain.handle("denuvo-offline-set-auto", async (e, t) => {
+                    try { u.writeFileSync(denuvoOfflineCfg(), JSON.stringify({ enabled: !!t })) } catch {}
+                    const e2 = await (0, m.detectSteamPath)();
+                    return e2 && await syncDenuvoOffline(e2, !0), { ok: !0, auto: !!t }
+                }), c.ipcMain.handle("steam-set-offline", async (e, t) => {
+                    try {
+                        const e2 = await (0, m.detectSteamPath)();
+                        if (!e2) return { ok: !1, error: "Steam não encontrada" };
+                        try { await m.closeSteam() } catch {}
+                        await new Promise(r => setTimeout(r, 2500));
+                        m.setSteamOfflineMode(e2, !!t);
+                        try { m.openSteam(e2) } catch {}
+                        return { ok: !0, offline: !!t }
+                    } catch (e) { return { ok: !1, error: e?.message } }
                 }), c.ipcMain.handle("get-public-ip", async () => {
                     try {
                         return {
@@ -14295,7 +14370,10 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         } catch (e) {
                             console.warn("[bypass] exclusão do Defender falhou (seguindo mesmo assim):", e?.message)
                         }
-                        return await (0, E.extractBypass)(t, D)
+                        const rr = await (0, E.extractBypass)(t, D);
+                        // Se aplicou um fix/crack de jogo Denuvo, deixa a Steam offline (o crack só roda offline).
+                        rr && rr.success && (async () => { try { const sp = await (0, m.detectSteamPath)(); sp && await syncDenuvoOffline(sp, !0) } catch {} })();
+                        return rr
                     } catch (e) {
                         return console.error("bypass-extract:", e), {
                             success: !1,
@@ -19926,6 +20004,33 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     } catch (e) {
                         console.warn("healSteamForBypass falhou:", e?.message)
                     }
+                }, t.getSteamWantsOffline = function(steamPath) {
+                    try {
+                        const lu = c.join(steamPath, "config", "loginusers.vdf");
+                        if (!s.existsSync(lu)) return !1;
+                        const m = s.readFileSync(lu, "utf8").match(/"WantsOfflineMode"\s*"(\d)"/i);
+                        return !!m && "1" === m[1]
+                    } catch { return !1 }
+                }, t.setSteamOfflineMode = function setSteamOfflineMode(steamPath, enable) {
+                    // Liga/desliga o modo offline da Steam editando o loginusers.vdf
+                    // ("WantsOfflineMode") + registro ("SkipOfflineModeWarning"). Steam tem
+                    // que estar FECHADA quando isso roda; o efeito vale no próximo boot dela.
+                    const want = enable ? "1" : "0";
+                    let changed = !1;
+                    try {
+                        const lu = c.join(steamPath, "config", "loginusers.vdf");
+                        if (s.existsSync(lu)) {
+                            const before = s.readFileSync(lu, "utf8");
+                            let next;
+                            if (/"WantsOfflineMode"\s*"\d"/i.test(before)) next = before.replace(/"WantsOfflineMode"\s*"\d"/gi, `"WantsOfflineMode"\t\t"${want}"`);
+                            else next = before.replace(/("AccountName"\s*"[^"]*")/i, `$1\r\n\t\t\t"WantsOfflineMode"\t\t"${want}"`);
+                            next !== before && (s.writeFileSync(lu, next, "utf8"), changed = !0)
+                        }
+                    } catch (e) { console.warn("setSteamOfflineMode loginusers:", e?.message) }
+                    try {
+                        (0, l.execSync)(`reg add "HKCU\\Software\\Valve\\Steam" /v SkipOfflineModeWarning /t REG_DWORD /d ${enable ? 1 : 0} /f`, { windowsHide: !0, stdio: "ignore" })
+                    } catch {}
+                    return { changed }
                 }, t.restartSteam = async function(e) {
                     try {
                         console.log("🔄 Reiniciando Steam..."), await b(), await new Promise(e => setTimeout(e, 3e3)), t.healSteamForBypass(e), await x(e), console.log("✅ Steam reiniciada")

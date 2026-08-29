@@ -8611,6 +8611,13 @@
                         const e = y.trim().toLowerCase();
                         return e ? a.filter(t => t.displayName.toLowerCase().includes(e) || t.game_id.includes(e)) : a
                     }, [a, y]);
+                    const [dnOff, setDnOff] = (0, n.useState)(null);
+                    (0, n.useEffect)(() => {
+                        let ok = !0;
+                        window.electron.denuvoOfflineStatus().then(s => ok && setDnOff(s)).catch(() => {});
+                        window.electron.onDenuvoOfflineChanged(s => setDnOff(o => ({ ...(o || {}), ...s, steam: !0 })));
+                        return () => { ok = !1 }
+                    }, []);
                     return (0, r.jsxs)(i.motion.div, {
                         initial: {
                             opacity: 0,
@@ -8624,7 +8631,10 @@
                             duration: .3
                         },
                         className: "h-full flex flex-col",
-                        children: [(0, r.jsxs)("div", {
+                        children: [dnOff && dnOff.steam && (dnOff.offline || (dnOff.games && dnOff.games.length)) && (0, r.jsxs)("div", {
+                            style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 14px", marginBottom: 10, borderRadius: 8, background: "rgba(74,222,128,0.10)", border: "1px solid rgba(74,222,128,0.35)" },
+                            children: [(0, r.jsx)("span", { style: { fontSize: 12, color: "#4ade80", fontWeight: 700 }, children: dnOff.offline ? "🔌 Steam em modo OFFLINE" : "⚠️ Steam ainda ONLINE" }), (0, r.jsx)("span", { style: { fontSize: 11, color: "var(--text-secondary)", flex: 1, minWidth: 160 }, children: (dnOff.games && dnOff.games.length ? `Jogo(s) Denuvo instalado(s): ${dnOff.games.map(g => g.name).join(", ")}. ` : "") + "O crack só roda com a Steam offline." }), (0, r.jsx)("button", { onClick: async () => { setDnOff(o => ({ ...o, busy: !0 })); const r2 = await window.electron.steamSetOffline(!dnOff.offline); setDnOff(o => ({ ...o, busy: !1, offline: r2 && r2.ok ? r2.offline : o.offline })) }, disabled: dnOff.busy, style: { fontSize: 11, fontWeight: 700, padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: dnOff.offline ? "rgba(255,255,255,0.12)" : "linear-gradient(135deg,#4ade80,#22c55e)", color: dnOff.offline ? "#fff" : "#062b15" }, children: dnOff.busy ? "..." : dnOff.offline ? "Voltar online" : "Ficar offline agora" })]
+                        }), (0, r.jsxs)("div", {
                             style: {
                                 position: "relative",
                                 overflow: "hidden",
