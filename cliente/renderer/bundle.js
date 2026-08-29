@@ -8288,10 +8288,7 @@
                                                 }
                                                 if (!s) return dzS("error"), void dzSetMsg("Selecione a pasta do jogo para continuar.");
                                                 dzSetMsg("Baixando e aplicando a remoção...");
-                                                const c = await window.electron.bypassExtract({
-                                                    url: o.href,
-                                                    destinationFolder: s
-                                                });
+                                                const c = await window.electron.bypassExtract(o.href, s);
                                                 c && c.success ? (dzS("done"), dzSetMsg("Remoção aplicada! Abra o jogo pela Steam em modo offline.")) : (dzS("error"), dzSetMsg(c && c.error || "Falha ao aplicar a remoção."))
                                             } catch (e) {
                                                 dzS("error"), dzSetMsg(e && e.message || "Erro inesperado.")

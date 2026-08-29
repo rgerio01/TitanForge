@@ -8324,10 +8324,7 @@
                                                 }
                                                 if (!s) return dzS("error"), void dzSetMsg("Selecione a pasta do jogo para continuar.");
                                                 dzSetMsg("Baixando e aplicando a remoção...");
-                                                const c = await window.electron.bypassExtract({
-                                                    url: o.href,
-                                                    destinationFolder: s
-                                                });
+                                                const c = await window.electron.bypassExtract(o.href, s);
                                                 c && c.success ? (dzS("done"), dzSetMsg("Remoção aplicada! Abra o jogo pela Steam em modo offline.")) : (dzS("error"), dzSetMsg(c && c.error || "Falha ao aplicar a remoção."))
                                             } catch (e) {
                                                 dzS("error"), dzSetMsg(e && e.message || "Erro inesperado.")
@@ -8568,7 +8565,7 @@
                                             }
                                             if (!n) return c("error"), void d("Selecione a pasta do jogo para continuar.");
                                             d("Baixando e aplicando a remoção...");
-                                            const r = await window.electron.bypassExtract({ url: t, destinationFolder: n });
+                                            const r = await window.electron.bypassExtract(t, n);
                                             r && r.success ? (c("done"), d("Remoção aplicada! Abra o jogo pela Steam em modo offline.")) : (c("error"), d(r && r.error || "Falha ao aplicar a remoção."))
                                         } catch (e) {
                                             c("error"), d(e && e.message || "Erro inesperado.")
