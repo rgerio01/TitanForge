@@ -15484,9 +15484,14 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             const acf = l.join(lib, "steamapps", `appmanifest_${t}.acf`);
                             try { u.existsSync(acf) && (u.unlinkSync(acf), r = !0, console.log(`✅ appmanifest removido: ${acf}`)) } catch (e) { console.warn("falha ao remover .acf:", e?.message) }
                         }
-                        // 3) limpa appcache/htmlcache pra Steam reconstruir a biblioteca sem o jogo
-                        try { u.rmSync(l.join(e, "appcache"), { recursive: !0, force: !0 }), console.log("✅ appcache limpo") } catch {}
-                        try { process.env.LOCALAPPDATA && u.rmSync(l.join(process.env.LOCALAPPDATA, "Steam", "htmlcache"), { recursive: !0, force: !0 }) } catch {}
+                        // 3) só as imagens em cache desse jogo (não apaga o appcache inteiro —
+                        //    isso obrigava a Steam a reconstruir tudo e demorava pra abrir).
+                        try {
+                            const lc = l.join(e, "appcache", "librarycache");
+                            if (u.existsSync(lc))
+                                for (const f of u.readdirSync(lc))
+                                    if (f === String(t) || f.startsWith(`${t}_`) || f.startsWith(`${t}.`)) try { u.rmSync(l.join(lc, f), { recursive: !0, force: !0 }) } catch {}
+                        } catch {}
                         // 4) reabre a Steam
                         try { await (0, m.openSteam)(e) } catch {}
                         return r ? {
