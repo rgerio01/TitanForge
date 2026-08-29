@@ -8524,13 +8524,70 @@
                             })
                         })
                     };
+                const TI = ({
+                    game: e,
+                    href: t,
+                    onClose: a
+                }) => {
+                    const [s, c] = (0, n.useState)("idle"), [l, d] = (0, n.useState)("");
+                    return (0, r.jsx)("div", {
+                        style: { position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 },
+                        onClick: () => { "working" !== s && a() },
+                        children: (0, r.jsxs)("div", {
+                            onClick: e => e.stopPropagation(),
+                            style: { background: "linear-gradient(160deg,#0f0c18,#0d0d14)", border: "1px solid rgba(217,122,44,0.3)", borderRadius: 14, padding: 24, width: 420, maxWidth: "100%", boxShadow: "0 24px 80px rgba(0,0,0,0.9)" },
+                            children: [(0, r.jsx)("h3", {
+                                style: { margin: "0 0 6px", color: "#fff", fontSize: 16, fontWeight: 800, fontFamily: "Rajdhani, sans-serif" },
+                                children: "Instalar remoção Denuvo (teste)"
+                            }), (0, r.jsx)("p", {
+                                style: { margin: "0 0 14px", fontSize: 12, color: "#bbb" },
+                                children: e.displayName
+                            }), (0, r.jsx)("p", {
+                                style: { margin: "0 0 16px", fontSize: 12, lineHeight: 1.6, color: "error" === s ? "#ff6b6b" : "done" === s ? "#4ade80" : "rgba(255,255,255,0.65)" },
+                                children: l || "Aplica o crack direto na pasta do jogo. Roda só em modo offline."
+                            }), (0, r.jsxs)("div", {
+                                style: { display: "flex", gap: 8 },
+                                children: [(0, r.jsx)("button", {
+                                    onClick: a,
+                                    className: "btn-ghost",
+                                    style: { flex: 1, justifyContent: "center", padding: 10 },
+                                    children: "done" === s ? "Fechar" : "Cancelar"
+                                }), "done" !== s && (0, r.jsx)("button", {
+                                    disabled: "working" === s,
+                                    onClick: async () => {
+                                        c("working"), d("Localizando a pasta do jogo...");
+                                        try {
+                                            let n = null;
+                                            try {
+                                                const r = await window.electron.detectGameFolder(e.game_id);
+                                                r && r.found && r.path && (n = r.path)
+                                            } catch (e) {}
+                                            if (!n) {
+                                                const r = await window.electron.bypassPickFolder();
+                                                r && r.success && r.folder && (n = r.folder)
+                                            }
+                                            if (!n) return c("error"), void d("Selecione a pasta do jogo para continuar.");
+                                            d("Baixando e aplicando a remoção...");
+                                            const r = await window.electron.bypassExtract({ url: t, destinationFolder: n });
+                                            r && r.success ? (c("done"), d("Remoção aplicada! Abra o jogo pela Steam em modo offline.")) : (c("error"), d(r && r.error || "Falha ao aplicar a remoção."))
+                                        } catch (e) {
+                                            c("error"), d(e && e.message || "Erro inesperado.")
+                                        }
+                                    },
+                                    style: { flex: 2, padding: 10, background: "working" === s ? "rgba(217,122,44,0.3)" : "linear-gradient(135deg,#d97a2c,#ff2d78)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "working" === s ? "wait" : "pointer", fontFamily: "Rajdhani, sans-serif" },
+                                    children: "working" === s ? "Instalando..." : "error" === s ? "Tentar de novo" : "Instalar agora"
+                                })]
+                            })]
+                        })
+                    })
+                };
                 t.default = ({
                     licenseKey: e,
                     licenseName: t
                 }) => {
                     const [a, l] = (0, n.useState)([]), [c, p] = (0, n.useState)(!0), [y, f] = (0, n.useState)(""), [m, g] = (0, n.useState)({
                         kind: "none"
-                    });
+                    }), [tdl, setTdl] = (0, n.useState)({});
                     (0, n.useEffect)(() => {
                         let e = !0;
                         return p(!0), (0, s.listDenuvoGames)().then(t => {
@@ -8541,6 +8598,18 @@
                             e = !1
                         }
                     }, []);
+                    (0, n.useEffect)(() => {
+                        if (!e) return;
+                        let alive = !0;
+                        window.electron.denuvoTestDownloads(e).then(res => {
+                            if (alive && res && res.ok && Array.isArray(res.games)) {
+                                const map = {};
+                                for (const gg of res.games) map[String(gg.game_id)] = gg.href;
+                                setTdl(map)
+                            }
+                        }).catch(() => {});
+                        return () => { alive = !1 }
+                    }, [e]);
                     const k = (0, n.useMemo)(() => {
                         const e = y.trim().toLowerCase();
                         return e ? a.filter(t => t.displayName.toLowerCase().includes(e) || t.game_id.includes(e)) : a
@@ -8842,6 +8911,10 @@
                                                 e.currentTarget.style.filter = "none"
                                             },
                                             children: "Comprar"
+                                        }), tdl[e.game_id] && (0, r.jsx)("button", {
+                                            onClick: () => g({ kind: "testinstall", game: e, href: tdl[e.game_id] }),
+                                            style: { width: "100%", padding: "7px 10px", marginTop: 4, background: "rgba(74,222,128,0.14)", border: "1px solid rgba(74,222,128,0.4)", borderRadius: 8, color: "#4ade80", fontSize: 10.5, fontWeight: 700, cursor: "pointer", fontFamily: "Rajdhani, sans-serif", letterSpacing: "0.04em", textTransform: "uppercase" },
+                                            children: "Instalar (teste)"
                                         })]
                                     })]
                                 }, e.id))
@@ -8874,6 +8947,10 @@
                                 onClose: () => g({
                                     kind: "none"
                                 })
+                            }), "testinstall" === m.kind && (0, r.jsx)(TI, {
+                                game: m.game,
+                                href: m.href,
+                                onClose: () => g({ kind: "none" })
                             })]
                         })]
                     })

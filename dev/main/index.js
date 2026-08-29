@@ -14214,6 +14214,14 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     } catch (e) {
                         return console.error("denuvo-get-download:", e?.message || e), { ok: !1, error: "Falha ao liberar o download." }
                     }
+                }), c.ipcMain.handle("denuvo-test-downloads", async (e, t) => {
+                    try {
+                        const { data, error } = await TF.rpc("denuvo_test_downloads", { p_license_key: String(t || "") });
+                        if (error) return { ok: !1 };
+                        return data && "object" == typeof data ? data : { ok: !1 }
+                    } catch (e) {
+                        return { ok: !1 }
+                    }
                 }), c.ipcMain.handle("denuvo-list-my-orders", async (e, t) => {
                     try {
                         const {
