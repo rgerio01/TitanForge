@@ -12816,7 +12816,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     const {
                         data: t,
                         error: n
-                    } = await TF.from("denuvo_games").select("*").eq("game_id", e).eq("active", !0).single();
+                    } = await TF.from("denuvo_games").select("id,name,game_id,price,active,created_at,updated_at").eq("game_id", e).eq("active", !0).single();
                     return n || !t ? null : t
                 }
                 async function W() {
@@ -13098,7 +13098,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         const {
                             data: e,
                             error: t
-                        } = await TF.from("denuvo_games").select("*").eq("active", !0).order("name", {
+                        } = await TF.from("denuvo_games").select("id,name,game_id,price,active,created_at,updated_at").eq("active", !0).order("name", {
                             ascending: !0
                         });
                         if (t) throw t;
