@@ -19827,9 +19827,54 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     } catch (e) {
                         console.error("❌ Erro ao habilitar o hook:", e)
                     }
+                }, t.healSteamForBypass = function healSteamForBypass(steamPath) {
+                    // Correções aplicadas TODA vez que o TitanForge reinicia a Steam (com a
+                    // Steam FECHADA, então dá pra mexer nos arquivos com segurança):
+                    //  1. grava o opensteamtool.toml (sem ele o OpenSteamTool pode não ler
+                    //     os .lua e a Steam dá "Caminho de instalação inválido");
+                    //  2. AutoUpdateBehavior por jogo de bypass:
+                    //       - 100% instalado e parado (StateFlags "4") -> "1" (impede a Steam
+                    //         de checar update sozinha em depot sem licença);
+                    //       - baixando / atualizando / estado quebrado -> "0" (senão a Steam
+                    //         trata como update adiado e ESTRANGULA a velocidade do download).
+                    try {
+                        if (!steamPath || !s.existsSync(steamPath)) return;
+                        try {
+                            s.writeFileSync(c.join(steamPath, "opensteamtool.toml"), '[lua]\r\npaths = ["config/stplug-in", "config/lua"]\r\n', "ascii")
+                        } catch (e) {
+                            console.warn("healSteam: falha ao gravar opensteamtool.toml:", e?.message)
+                        }
+                        const bypassAppIds = new Set;
+                        for (const dir of [c.join(steamPath, "config", "lua"), c.join(steamPath, "config", "stplug-in")]) {
+                            if (!s.existsSync(dir)) continue;
+                            for (const f of s.readdirSync(dir)) {
+                                const id = f.replace(/\.lua$/i, "");
+                                /^\d+$/.test(id) && bypassAppIds.add(id)
+                            }
+                        }
+                        if (0 === bypassAppIds.size) return;
+                        const appsDir = c.join(steamPath, "steamapps");
+                        if (!s.existsSync(appsDir)) return;
+                        let up = 0,
+                            down = 0;
+                        for (const id of bypassAppIds) {
+                            try {
+                                const p = c.join(appsDir, `appmanifest_${id}.acf`);
+                                if (!s.existsSync(p)) continue;
+                                const content = s.readFileSync(p, "utf-8"),
+                                    sf = content.match(/"StateFlags"\s*"(\d+)"/),
+                                    want = sf && "4" === sf[1] ? "1" : "0",
+                                    next = /"AutoUpdateBehavior"\s*"\d+"/.test(content) ? content.replace(/"AutoUpdateBehavior"\s*"\d+"/, `"AutoUpdateBehavior"\t\t"${want}"`) : content.replace(/("AppState"\s*\r?\n\s*\{)/, `$1\r\n\t"AutoUpdateBehavior"\t\t"${want}"`);
+                                next !== content && (s.writeFileSync(p, next, "utf-8"), "1" === want ? up++ : down++)
+                            } catch {}
+                        }
+                        (up || down) && console.log(`🔧 Steam ajustada no restart: AutoUpdateBehavior "1" em ${up} instalado(s), "0" em ${down} baixando (libera a velocidade).`)
+                    } catch (e) {
+                        console.warn("healSteamForBypass falhou:", e?.message)
+                    }
                 }, t.restartSteam = async function(e) {
                     try {
-                        console.log("🔄 Reiniciando Steam..."), await b(), await new Promise(e => setTimeout(e, 3e3)), await x(e), console.log("✅ Steam reiniciada")
+                        console.log("🔄 Reiniciando Steam..."), await b(), await new Promise(e => setTimeout(e, 3e3)), t.healSteamForBypass(e), await x(e), console.log("✅ Steam reiniciada")
                     } catch (e) {
                         throw console.error("❌ Erro ao reiniciar Steam:", e), e
                     }
