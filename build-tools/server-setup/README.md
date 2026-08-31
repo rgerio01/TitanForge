@@ -1,142 +1,101 @@
-# Servidor TitanForge (Dell R210 / Debian 12)
+# Servidor TitanForge (Dell R210 / Debian 12) — instalação automática, headless
 
-Servidor local pra hospedar o mirror de fixes, os serviços Node e a
-transferência de arquivos entre máquinas pela rede.
+Guarda **todos os dados do TitanForge e do RetroAnvil, incluindo as ROMs**.
+Gerência 100% remota — o servidor não tem monitor.
 
-## 1. Instalar a Debian 12
+## O que tem aqui
 
-- Baixe o **netinst** de https://www.debian.org/distrib/ (amd64).
-- Grave num USB com Rufus em **modo DD**, ou use o *Virtual Media* do iDRAC6.
-- R210 = BIOS legado; R210 II = BIOS (UEFI opcional). Escolha o modo de boot certo.
-- No particionamento, se quiser redundância entre os 2 discos: **RAID 1 por
-  software (mdadm)** direto no instalador. Senão, disco único + backup do
-  `/opt/titanforge` e do banco de licença.
-- Instale **só** "SSH server" + "standard system utilities" (sem desktop).
-- Depois do 1º boot, entre por SSH e rode o provisionamento.
+| Arquivo | Pra quê |
+|---|---|
+| `preseed.cfg` | respostas do instalador Debian (particiona, cria usuário, pacotes, dispara o provisionamento) |
+| `provision-debian.sh` | instala tudo (Node, Samba, cloudflared, Webmin, Cockpit, firewall) e cria a árvore de pastas |
+| `firstboot.sh` | roda o `provision` 1x no primeiro boot e se desativa |
+| `build-iso.py` | injeta os 3 acima na ISO netinst da Debian → ISO que instala sozinha |
+| `make-iso.sh` | wrapper: pede a senha, gera o hash, chama o `build-iso.py` |
 
-## 2. Provisionar
+## 1. Gerar a ISO automática
+
+Precisa de Python + `pip install pycdlib` (já instalado nesta máquina).
 
 ```bash
-# no servidor, como root
-wget https://raw.githubusercontent.com/rgerio01/TitanForge/novo-umbra-main/build-tools/server-setup/provision-debian.sh
-# ou copie o arquivo via scp
-nano provision-debian.sh      # ajuste LAN_CIDR e SHARE_USER no topo
-sudo bash provision-debian.sh
+cd build-tools/server-setup
+bash make-iso.sh  /caminho/debian-12.15.0-amd64-netinst.iso  debian12-titanforge-auto.iso
+# ele pergunta a senha do usuario 'rogerio' (2x), gera o hash e monta a ISO
 ```
 
-Instala: Node 22, Samba, cloudflared, Webmin (+Cockpit opcional), fail2ban,
-unattended-upgrades. Cria os usuários e a árvore `/srv/titanforge`. Configura
-firewall (tudo restrito à LAN). Cria os serviços systemd.
+Baixe o netinst da Debian 12 em
+<https://cdimage.debian.org/mirror/cdimage/archive/latest-oldstable/amd64/iso-cd/>
+(arquivo `debian-12.15.0-amd64-netinst.iso`).
 
-## 3. Árvore de pastas
+## 2. Bootar no R210 (sem monitor)
+
+**Recomendado — iDRAC6 Virtual Media:**
+1. Acesse o iDRAC pelo navegador (IP do iDRAC).
+2. *Virtual Media → Connect Virtual Media → Map CD/DVD* → aponte pra `debian12-titanforge-auto.iso`.
+3. *Power → Reset*, e na tela de POST mande bootar do *Virtual CD* (F11 boot menu, ou
+   configure a ordem de boot no iDRAC → *Next Boot → Virtual CD/DVD*).
+4. Pode acompanhar pela *Virtual Console* do iDRAC se quiser — mas não precisa tocar em nada.
+
+**Pendrive (alternativa):** grave a ISO com **Rufus** (modo "Imagem DD" ou "ISO") ou
+com **Ventoy** (só copiar a ISO pro pendrive Ventoy). Boot pelo F11.
+
+## 3. Instalação (automática, ~10–20 min)
+
+O instalador roda sozinho: particiona o **1º disco** (swap 1 GB + `/` ext4 no resto),
+instala base + SSH, e no primeiro boot dispara o `firstboot.sh` → `provision-debian.sh`.
+Log em `/var/log/titanforge-firstboot.log`.
+
+Ao terminar, o servidor está com:
+- usuário `rogerio` (sudo), senha a que você digitou no `make-iso.sh`
+- SSH ligado, **DHCP** (IP fixo definido depois)
+- Node 22, Samba, cloudflared, Webmin (`:10000`), Cockpit (`:9090`), ufw (só LAN)
+- árvore `/srv/titanforge/{fixes,denuvo-builds,releases,roms,incoming}` e `/opt/titanforge/*`
+
+## 4. Descobrir o IP e me passar
+
+O servidor pega IP por DHCP. Pra achar:
+- tabela de DHCP do seu roteador, ou
+- `nmap -sn 192.168.0.0/24` de outra máquina, ou
+- iDRAC → *System → Details* mostra o IP da NIC.
+
+Me passa esse IP. Aí eu conecto (`ssh rogerio@<ip>`), fixo o IP na rede
+(ou você faz uma reserva de DHCP no roteador — mais limpo), e sigo com os ajustes,
+cópia dos dados e serviços.
+
+## 5. Depois (feito por SSH)
+
+- **IP fixo:** `set-static-ip.sh <ip> <gw> <dns>` (incluso) ou reserva no roteador.
+- **Segundo disco / storage grande (ROMs):** particionar o 2º disco, `mkfs.ext4`,
+  montar em `/srv/titanforge` (ou `/srv/titanforge/roms`), `/etc/fstab`.
+  Se os 2 discos forem iguais e quiser espelho: `mdadm` RAID1.
+- **Senha do Samba:** `sudo smbpasswd -a rogerio`.
+- **Migrar os dados do PC Windows:**
+  - `\\<ip>\titanforge` mapeado como unidade → `robocopy I:\TitanForge-Fixes Z:\fixes /E /MT:16 /XO`
+  - ROMs (grande): `robocopy <origem-roms> Z:\roms /E /MT:16 /XO` ou `rsync`
+- **Serviços Node:** copiar `fixes-server.js`, `license-server/`, `roms-server/` pra
+  `/opt/titanforge/*`, `npm ci`, `systemctl enable --now tf-*`.
+- **Cloudflare Tunnel:** `cloudflared tunnel login && create titanforge`, editar
+  `/etc/cloudflared/config.yml`, `cloudflared service install`.
+- **SSH por chave:** assim que der, troque senha por chave e desligue `PasswordAuthentication`.
+
+## Árvore de pastas criada
 
 ```
 /srv/titanforge/
-  fixes/
-    denuvo/          <- espelho de I:\TitanForge-Fixes\denuvo
-    ea-origin/
-    online-fix/
-  denuvo-builds/     <- builds antigas p/ downgrade (RE Requiem etc.)
-  releases/          <- instaladores do launcher / update feed
-  roms/              <- catálogo RetroAnvil, se migrar pra cá
-  incoming/          <- área de recebimento antes de organizar
-/opt/titanforge/
-  fixes-server/      <- fixes-server.js  (serviço tf-fixes-server)
-  license-server/    <- server.js + npm ci
-  roms-server/       <- server.js + npm ci
+  fixes/{denuvo,ea-origin,online-fix}   <- espelho de I:\TitanForge-Fixes
+  denuvo-builds/                        <- builds antigas p/ downgrade (RE Requiem)
+  releases/                            <- instaladores / update feed
+  roms/                               <- ROMs do RetroAnvil
+  incoming/                           <- área de recebimento via SMB/rsync
+/opt/titanforge/{fixes-server,license-server,roms-server}
 /var/log/titanforge/
 ```
 
-## 4. Migrar os arquivos do PC Windows (via rede)
+## Observações do R210
 
-### Opção A — Samba + robocopy (mais simples pro Windows)
-
-No Windows, mapeia o compartilhamento (Explorer → "Mapear unidade de rede"):
-
-```
-\\<ip-do-servidor>\titanforge      usuário: rogerio   senha: (a do smbpasswd)
-```
-
-Depois, no `cmd` ou PowerShell:
-
-```bat
-robocopy I:\TitanForge-Fixes            Z:\fixes         /E /MT:16 /R:2 /W:2 /XO /TEE /LOG:%TEMP%\mig-fixes.log
-robocopy "E:\TitanForge\Denuvo"         Z:\denuvo-builds /E /MT:8  /R:2 /W:2 /XO
-robocopy "E:\TitanForge\TitanForge\release" Z:\releases  /E /MT:8  /R:2 /W:2 /XO
-```
-
-`/XO` = só copia o que é mais novo → dá pra re-rodar pra sincronizar depois.
-`/MT:16` = 16 threads (satura rede gigabit).
-
-### Opção B — rsync sobre SSH (melhor pra sincronizações incrementais)
-
-Precisa de `rsync` no Windows (via **WSL**, **cwRsync** ou Git-Bash com rsync).
-
-```bash
-rsync -avh --progress --partial \
-  /mnt/i/TitanForge-Fixes/  rogerio@<ip>:/srv/titanforge/fixes/
-```
-
-rsync só transfere as diferenças — ideal pro dia a dia depois da carga inicial.
-
-### Opção C — no próprio servidor
-
-Se algum arquivo estiver acessível por HTTP (ex: o `/files/` do ryuu que não
-exige auth), dá pra puxar direto no servidor com `wget`/`curl` sem passar pelo
-PC Windows.
-
-## 5. Subir os serviços
-
-```bash
-# copie fixes-server.js pro lugar
-scp build-tools/denuvo-audit/fixes-server.js  rogerio@<ip>:/tmp/
-ssh <ip> 'sudo mv /tmp/fixes-server.js /opt/titanforge/fixes-server/ && sudo chown tfsvc:tfsvc /opt/titanforge/fixes-server/fixes-server.js'
-ssh <ip> 'sudo systemctl enable --now tf-fixes-server && curl -s localhost:8790/healthz'
-```
-
-license-server / roms-server: copie a pasta, `cd` nela, `sudo -u tfsvc npm ci`,
-crie o `.env`, descomente o `EnvironmentFile` no `.service`, e
-`systemctl enable --now tf-license-server` / `tf-roms-server`.
-
-## 6. Cloudflare Tunnel (expor pra fora)
-
-```bash
-sudo cloudflared tunnel login
-sudo cloudflared tunnel create titanforge
-sudo nano /etc/cloudflared/config.yml
-```
-
-```yaml
-tunnel: titanforge
-credentials-file: /root/.cloudflared/<uuid>.json
-ingress:
-  - hostname: fixes.microhelp.net.br
-    service: http://127.0.0.1:8790
-  - hostname: lic.microhelp.net.br
-    service: http://127.0.0.1:3000
-  - service: http_status:404
-```
-
-```bash
-sudo cloudflared service install
-sudo systemctl enable --now cloudflared
-```
-
-Depois, no launcher, aponte o `MIRROR_BASE` / `fix_href` pro `https://fixes.microhelp.net.br/fixes/...`
-em vez do `127.0.0.1:8790` (aí funciona pra clientes remotos também).
-
-## 7. Gerenciamento
-
-- **Webmin** `https://<ip>:10000` — usuários, Samba, cron, systemd, discos,
-  pacotes, terminal web, editor de arquivos. É o "tipo Webmin" que você pediu.
-- **Cockpit** `https://<ip>:9090` — painel moderno: métricas em tempo real,
-  logs (journald), status dos serviços, terminal. Mais leve; complementa o Webmin.
-- **iDRAC6** (IP próprio) — camada de hardware: liga/desliga, console mesmo com
-  o SO travado, sensores/temperatura. Ponha IP fixo nele.
-
-## Manutenção
-
-- `unattended-upgrades` já aplica patches de segurança sozinho.
-- Backup: `/opt/titanforge` (código + .env) e o banco do license-server.
-  O `/srv/titanforge/fixes` é re-baixável — não precisa backup, só espaço.
-- `journalctl -u tf-fixes-server -f` pra acompanhar um serviço.
+- **iDRAC6:** ligue e ponha IP fixo. Enterprise (placinha adicional) dá console+virtual
+  media completos; Express dá ao menos SOL/energia.
+- **2 baias SATA, sem RAID de HW.** Para o volume das ROMs, use discos grandes (o R210 II
+  aceita 2x até ~4–8 TB SATA) ou um gabinete externo. Redundância = `mdadm` RAID1.
+- **Boot:** R210 original = BIOS; R210 II = BIOS (UEFI opcional). A ISO gerada boota nos dois.
+- RAM típica 8–16 GB DDR3 ECC — sobra pro workload (base + Node + Samba usam < 1 GB).

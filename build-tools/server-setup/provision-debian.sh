@@ -33,6 +33,9 @@ apt-get install -y --no-install-recommends \
 dpkg-reconfigure -f noninteractive unattended-upgrades
 
 # ---------------------------------------------------------------------------
+log "1b/9  ssh: garante que sobe no boot"
+systemctl enable --now ssh 2>/dev/null || systemctl enable --now sshd 2>/dev/null || true
+
 log "2/9  Node.js ${NODE_MAJOR}.x (NodeSource)"
 if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" != "$NODE_MAJOR" ]; then
   curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
@@ -72,8 +75,12 @@ if ! grep -q '^\[titanforge\]' /etc/samba/smb.conf; then
 EOF
 fi
 systemctl enable --now smbd nmbd
-echo ">> defina a senha Samba do usuario '$SHARE_USER':"
-smbpasswd -a "$SHARE_USER" || true
+if [ -t 0 ] && [ "${NONINTERACTIVE:-0}" != "1" ]; then
+  echo ">> defina a senha Samba do usuario '$SHARE_USER':"
+  smbpasswd -a "$SHARE_USER" || true
+else
+  echo ">> [nao-interativo] senha Samba de '$SHARE_USER' NAO definida — rode depois:  sudo smbpasswd -a $SHARE_USER"
+fi
 
 # ---------------------------------------------------------------------------
 log "5/9  cloudflared (Cloudflare Tunnel)"
