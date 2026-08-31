@@ -100,6 +100,14 @@ if ! dpkg -s webmin &>/dev/null; then
   sh /tmp/webmin-repos.sh -f
   apt-get install -y --install-recommends webmin
 fi
+# root fica travado -> libera o login do '$SHARE_USER' no Webmin via PAM (senha do sistema)
+if [ -f /etc/webmin/miniserv.users ]; then
+  grep -q "^$SHARE_USER:" /etc/webmin/miniserv.users || echo "$SHARE_USER:x:0" >> /etc/webmin/miniserv.users
+  if [ -f /etc/webmin/webmin.acl ] && ! grep -q "^$SHARE_USER:" /etc/webmin/webmin.acl; then
+    sed -n "s/^root:/$SHARE_USER:/p" /etc/webmin/webmin.acl >> /etc/webmin/webmin.acl
+  fi
+  systemctl restart webmin || true
+fi
 # opcional: Cockpit (console web moderno da Red Hat, mais leve p/ metricas/logs)
 apt-get install -y cockpit || true
 systemctl enable --now cockpit.socket || true
