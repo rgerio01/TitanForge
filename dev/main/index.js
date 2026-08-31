@@ -14222,6 +14222,96 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     } catch (e) {
                         return { ok: !1 }
                     }
+                }), c.ipcMain.handle("re-requiem-install", async (e, t) => {
+                    // Fluxo completo do Resident Evil Requiem (3764200): baixa a Build 22277314
+                    // via DepotDownloaderMod (pacote do ryuu, /files/ não exige auth_code),
+                    // aplica o crack voices38+oldexe do mirror local, e trava o .acf.
+                    const gameFolder = t && t.gameFolder;
+                    const cp = n(5317);
+                    const send = (stage, msg, pct) => { try { D && D.webContents.send("re-requiem-progress", { stage, msg, pct }) } catch {} };
+                    const RE_DL_URL = "https://generator.ryuu.lol/files/Resident_Evil_Requiem_3764200_Build_22277314_Downloader.rar";
+                    const RE_FIX_URL = "http://127.0.0.1:8790/fixes/Resident.Evil.Requiem.fix(voices38%2Boldexe).zip";
+                    const depots = [
+                        { app: 3764200, depot: 3764201, manifest: "9166256367562763038", mf: "3764201_9166256367562763038.manifest" },
+                        { app: 3764200, depot: 3764203, manifest: "651754783565368360", mf: "3764203_651754783565368360.manifest" },
+                        { app: 3990800, depot: 3990800, manifest: "9181787779883827112", mf: "3990800_9181787779883827112.manifest" },
+                        { app: 3990820, depot: 3990820, manifest: "509708311968316285", mf: "3990820_509708311968316285.manifest" }
+                    ];
+                    try {
+                        if (!gameFolder) return { success: !1, error: "Selecione a pasta de destino do jogo." };
+                        try { u.existsSync(gameFolder) || u.mkdirSync(gameFolder, { recursive: !0 }) } catch { return { success: !1, error: "Pasta de destino inválida." } }
+                        const work = l.join(b.tmpdir(), "tf-re-requiem");
+                        u.existsSync(work) || u.mkdirSync(work, { recursive: !0 });
+                        try { await (0, k.ensureDefenderExclusions)(gameFolder, { extraPaths: [work, l.dirname(process.execPath)], processNames: ["steam.exe", "DepotDownloaderMod.exe", "re9.exe"] }) } catch (e) { console.warn("[re9] defender:", e?.message) }
+                        send("steam", "Fechando a Steam...", 2);
+                        try { await m.closeSteam() } catch {}
+                        await new Promise(r => setTimeout(r, 2500));
+                        // 1) baixa o pacote do DepotDownloader (cacheado)
+                        const rarPath = l.join(work, "re_requiem_downloader.rar");
+                        if (!u.existsSync(rarPath) || u.statSync(rarPath).size < 4e6) {
+                            send("dl", "Baixando o pacote de downgrade...", 5);
+                            const resp = await d.default.get(RE_DL_URL, { responseType: "arraybuffer", timeout: 18e4, maxRedirects: 10, headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36", Referer: "https://generator.ryuu.lol/" } });
+                            u.writeFileSync(rarPath, Buffer.from(resp.data));
+                        }
+                        // 2) extrai
+                        send("extract", "Extraindo o DepotDownloader...", 8);
+                        const sevenZip = [l.join(process.resourcesPath || "", "app.asar.unpacked", "7zip", "7z.exe"), l.join(process.resourcesPath || "", "7zip", "7z.exe"), "C:\\Program Files\\7-Zip\\7z.exe", "C:\\Program Files (x86)\\7-Zip\\7z.exe"].find(p => { try { return u.existsSync(p) } catch { return !1 } });
+                        if (!sevenZip) return { success: !1, error: "7-Zip não encontrado no pacote." };
+                        cp.execFileSync(sevenZip, ["x", "-y", "-o" + work, rarPath], { windowsHide: !0, stdio: "ignore" });
+                        const ddExe = l.join(work, "DepotDownloaderMod", "DepotDownloaderMod.exe");
+                        const keysDir = l.join(work, "Resident Evil Requiem Manifests and Keys");
+                        const keyFile = l.join(keysDir, "3764200.key");
+                        if (!u.existsSync(ddExe)) return { success: !1, error: "DepotDownloaderMod.exe não encontrado após extrair." };
+                        // 3) roda os 4 depots
+                        for (let i = 0; i < depots.length; i++) {
+                            const dp = depots[i], baseP = 10 + 20 * i;
+                            send("depot", `Baixando o jogo — depot ${dp.depot} (${i + 1}/4)...`, baseP);
+                            const args = ["-app", String(dp.app), "-depot", String(dp.depot), "-manifest", dp.manifest, "-manifestfile", l.join(keysDir, dp.mf), "-depotkeys", keyFile, "-dir", gameFolder, "-max-downloads", "256", "-verify-all"];
+                            const errTail = await new Promise((res, rej) => {
+                                let child;
+                                try { child = cp.spawn(ddExe, args, { cwd: work, windowsHide: !0 }) } catch (e) { return rej(e) }
+                                let buf = "", errbuf = "";
+                                const onOut = ch => { buf += ch.toString(); const mm = buf.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/g); if (mm && mm.length) { const p = parseFloat(String(mm[mm.length - 1]).replace(",", ".")); if (isFinite(p)) send("depot", `Depot ${dp.depot} — ${p.toFixed(0)}%`, baseP + Math.min(19, .19 * p)) } buf.length > 8e3 && (buf = buf.slice(-4e3)) };
+                                child.stdout && child.stdout.on("data", onOut);
+                                child.stderr && child.stderr.on("data", ch => { errbuf += ch.toString(); onOut(ch); errbuf.length > 6e3 && (errbuf = errbuf.slice(-3e3)) });
+                                child.on("error", rej);
+                                child.on("close", code => 0 === code ? res(errbuf) : rej(Object.assign(new Error(`DepotDownloader falhou (código ${code}) no depot ${dp.depot}`), { tail: errbuf })));
+                            }).catch(err => {
+                                const tl = (err && err.tail || "") + " " + (err && err.message || "");
+                                if (/hostfxr|framework|dotnet|\.NET|Microsoft\.NETCore/i.test(tl)) throw new Error("Precisa do .NET 8 Desktop Runtime instalado (o DepotDownloader é .NET). Instale e tente de novo.");
+                                throw err;
+                            });
+                            void errTail;
+                        }
+                        // 4) aplica o crack pelo mirror local
+                        send("fix", "Aplicando o crack (re9.exe, voices38)...", 92);
+                        const fixRes = await (0, E.extractBypass)({ url: RE_FIX_URL, destinationFolder: gameFolder }, D);
+                        if (!fixRes || !fixRes.success) return { success: !1, error: "Downgrade OK, mas falhou ao aplicar o fix: " + (fixRes && fixRes.error || "verifique o fixes-server (porta 8790).") };
+                        // 5) trava o appmanifest (Steam não re-atualiza)
+                        send("acf", "Bloqueando atualização automática da Steam...", 96);
+                        try {
+                            const sp = await (0, m.detectSteamPath)();
+                            if (sp) {
+                                const libs = [sp];
+                                for (const vdf of [l.join(sp, "steamapps", "libraryfolders.vdf"), l.join(sp, "config", "libraryfolders.vdf")]) try { const txt = u.readFileSync(vdf, "utf8"); let mm; const re = /"path"\s*"([^"]+)"/gi; while (null !== (mm = re.exec(txt))) libs.push(mm[1].replace(/\\\\/g, "\\")) } catch {}
+                                for (const lib of new Set(libs)) { const acf = l.join(lib, "steamapps", "appmanifest_3764200.acf"); if (u.existsSync(acf)) try { cp.execSync(`attrib +R "${acf}"`, { windowsHide: !0 }) } catch {} }
+                            }
+                        } catch {}
+                        // 6) liga o watcher de offline
+                        try { denuvoAutoOfflineEnabled() && startDenuvoWatch() } catch {}
+                        send("done", "Pronto!", 100);
+                        return {
+                            success: !0,
+                            steps: [
+                                "Abra a Steam em modo OFFLINE e rode o jogo pela biblioteca.",
+                                "Se a Steam oferecer atualização, NÃO atualize (o appmanifest foi travado como somente-leitura).",
+                                "Saves ficam em %AppData%\\GSE Saves\\3764200\\remote.",
+                                "Se o jogo não abrir: use a variante HYPERVISOR e desligue Isolamento de Núcleo / Integridade de Memória no Windows (precisa reiniciar)."
+                            ]
+                        }
+                    } catch (err) {
+                        return console.error("re-requiem-install:", err?.message || err), send("error", err?.message || "Erro", 0), { success: !1, error: err?.message || "Falha no procedimento do RE Requiem." }
+                    }
                 }), c.ipcMain.handle("denuvo-list-my-orders", async (e, t) => {
                     try {
                         const {

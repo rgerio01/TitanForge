@@ -47,6 +47,8 @@
                 denuvoOfflineSetAuto: r => e.ipcRenderer.invoke("denuvo-offline-set-auto", r),
                 steamSetOffline: r => e.ipcRenderer.invoke("steam-set-offline", r),
                 onDenuvoOfflineChanged: r => { e.ipcRenderer.on("denuvo-offline-changed", (e, n) => r(n)) },
+                reRequiemInstall: r => e.ipcRenderer.invoke("re-requiem-install", { gameFolder: r }),
+                onReRequiemProgress: r => { const n = (e, t) => r(t); return e.ipcRenderer.on("re-requiem-progress", n), () => e.ipcRenderer.removeListener("re-requiem-progress", n) },
                 denuvoListMyOrders: r => e.ipcRenderer.invoke("denuvo-list-my-orders", r),
                 pixCreateOrder: r => e.ipcRenderer.invoke("pix-create-order", r),
                 pixCheckStatus: r => e.ipcRenderer.invoke("pix-check-status", r),

@@ -8535,13 +8535,13 @@
                             style: { background: "linear-gradient(160deg,#0f0c18,#0d0d14)", border: "1px solid rgba(217,122,44,0.3)", borderRadius: 14, padding: 24, width: 420, maxWidth: "100%", boxShadow: "0 24px 80px rgba(0,0,0,0.9)" },
                             children: [(0, r.jsx)("h3", {
                                 style: { margin: "0 0 6px", color: "#fff", fontSize: 16, fontWeight: 800, fontFamily: "Rajdhani, sans-serif" },
-                                children: "Instalar remoção Denuvo (teste)"
+                                children: "3764200" === String(e.game_id) ? "RE Requiem — instalação completa (teste)" : "Instalar remoção Denuvo (teste)"
                             }), (0, r.jsx)("p", {
                                 style: { margin: "0 0 14px", fontSize: 12, color: "#bbb" },
                                 children: e.displayName
                             }), (0, r.jsx)("p", {
                                 style: { margin: "0 0 16px", fontSize: 12, lineHeight: 1.6, color: "error" === s ? "#ff6b6b" : "done" === s ? "#4ade80" : "rgba(255,255,255,0.65)" },
-                                children: l || "Aplica o crack direto na pasta do jogo. Roda só em modo offline."
+                                children: l || ("3764200" === String(e.game_id) ? "Baixa a Build 22277314 (jogo inteiro, ~50-70 GB) via DepotDownloader, aplica o crack voices38+oldexe e trava a atualização da Steam. Demora. Deixe o fixes-server rodando." : "Aplica o crack direto na pasta do jogo. Roda só em modo offline.")
                             }), (0, r.jsxs)("div", {
                                 style: { display: "flex", gap: 8 },
                                 children: [(0, r.jsx)("button", {
@@ -8564,6 +8564,13 @@
                                                 r && r.success && r.folder && (n = r.folder)
                                             }
                                             if (!n) return c("error"), void d("Selecione a pasta do jogo para continuar.");
+                                            if ("3764200" === String(e.game_id)) {
+                                                d("RE Requiem: baixando a Build 22277314 — pode demorar (jogo inteiro).");
+                                                const off = window.electron.onReRequiemProgress && window.electron.onReRequiemProgress(p => { d((p && p.msg || "Processando...") + (p && "number" == typeof p.pct ? ` (${Math.round(p.pct)}%)` : "")) });
+                                                let rr;
+                                                try { rr = await window.electron.reRequiemInstall(n) } finally { off && off() }
+                                                return void (rr && rr.success ? (c("done"), d("Downgrade + crack aplicados. Passos finais: " + (rr.steps || []).join(" · "))) : (c("error"), d(rr && rr.error || "Falha no procedimento do RE Requiem.")))
+                                            }
                                             d("Baixando e aplicando a remoção...");
                                             const r = await window.electron.bypassExtract(t, n);
                                             r && r.success ? (c("done"), d("Remoção aplicada! Abra o jogo pela Steam em modo offline.")) : (c("error"), d(r && r.error || "Falha ao aplicar a remoção."))
