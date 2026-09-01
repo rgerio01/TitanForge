@@ -14282,37 +14282,37 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         await ensureDotNet8(work);
                         send("steam", "Fechando a Steam...", 6);
                         try { await Promise.race([m.closeSteam(), new Promise(r => setTimeout(r, 15e3))]) } catch {}
-                        const rarPath = l.join(work, "re_requiem_downloader.rar");
-                        const RE_DL_ALT = "https://generator.ryuu.lol/files/Resident_Evil_Requiem_3764200_Build_22277314_Downloader.rar";
-                        async function getRar() {
-                            let last;
-                            for (const url of [RE_DL_URL, RE_DL_ALT]) {
-                                try {
-                                    send("dl", "Baixando o pacote de downgrade (~4 MB)...", 7);
-                                    const resp = await d.default.get(url, { responseType: "arraybuffer", timeout: 12e4, maxRedirects: 12, headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }, onDownloadProgress: e => { if (e && e.total) send("dl", `Baixando o pacote... ${Math.round(100 * e.loaded / e.total)}%`, 7) } });
-                                    const buf = Buffer.from(resp.data);
-                                    if (buf.length < 3e6) throw new Error("pacote incompleto (" + buf.length + " bytes)");
-                                    u.writeFileSync(rarPath, buf);
-                                    return
-                                } catch (e) { last = e; console.warn("[re9] rar de " + url + ":", e?.message) }
-                            }
-                            throw new Error("Não consegui baixar o pacote do DepotDownloader (servidor e ryuu falharam): " + (last?.message || "erro"))
-                        }
-                        if (!u.existsSync(rarPath) || u.statSync(rarPath).size < 4e6) await getRar();
-                        send("extract", "Extraindo o DepotDownloader...", 8);
                         const sevenZip = [l.join(process.resourcesPath || "", "app.asar.unpacked", "7zip", "7z.exe"), l.join(process.resourcesPath || "", "7zip", "7z.exe"), "C:\\Program Files\\7-Zip\\7z.exe", "C:\\Program Files (x86)\\7-Zip\\7z.exe"].find(p => { try { return u.existsSync(p) } catch { return !1 } });
-                        if (!sevenZip) return { success: !1, error: "7-Zip não encontrado no pacote." };
-                        const ddExe = l.join(work, "DepotDownloaderMod", "DepotDownloaderMod.exe");
+                        const ddDir = l.join(work, "DepotDownloaderMod");
+                        const ddExe = l.join(ddDir, "DepotDownloaderMod.exe");
+                        const ddDll = l.join(ddDir, "DepotDownloaderMod.dll");
                         const keysDir = l.join(work, "Resident Evil Requiem Manifests and Keys");
                         const keyFile = l.join(keysDir, "3764200.key");
-                        try { cp.execFileSync(sevenZip, ["x", "-y", "-o" + work, rarPath], { windowsHide: !0, stdio: "ignore" }) } catch (e) { console.warn("[re9] 7z:", e?.message) }
-                        if (!u.existsSync(ddExe)) {
-                            send("extract", "Pacote inválido — rebaixando...", 8);
-                            try { u.unlinkSync(rarPath) } catch {}
-                            await getRar();
-                            try { cp.execFileSync(sevenZip, ["x", "-y", "-o" + work, rarPath], { windowsHide: !0, stdio: "ignore" }) } catch (e) { console.warn("[re9] 7z retry:", e?.message) }
+                        // valida que a extração produziu arquivos DE VERDADE (7z antigo extrai RAR novo como 0 bytes)
+                        const pkgOk = () => { try { return u.statSync(ddExe).size > 5e4 && u.statSync(ddDll).size > 5e4 && u.statSync(l.join(keysDir, "3764201_9166256367562763038.manifest")).size > 1e6 } catch { return !1 } };
+                        const B_URL = "https://fixes.microhelp.net.br/fixes/Resident_Evil_Requiem_3764200_Build_22277314_Downloader";
+                        const sources = [{ url: B_URL + ".zip", ext: ".zip" }, { url: B_URL + ".rar", ext: ".rar" }, { url: "https://generator.ryuu.lol/files/Resident_Evil_Requiem_3764200_Build_22277314_Downloader.rar", ext: ".rar" }];
+                        let extractErr = "";
+                        for (const src of sources) {
+                            if (pkgOk()) break;
+                            const pkgPath = l.join(work, "re_pkg" + src.ext);
+                            try {
+                                send("dl", ".zip" === src.ext ? "Baixando o pacote de downgrade..." : "Baixando o pacote (alternativo)...", 7);
+                                const resp = await d.default.get(src.url, { responseType: "arraybuffer", timeout: 12e4, maxRedirects: 12, headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", Referer: "https://generator.ryuu.lol/" }, onDownloadProgress: e => { if (e && e.total) send("dl", `Baixando o pacote... ${Math.round(100 * e.loaded / e.total)}%`, 7) } });
+                                const buf = Buffer.from(resp.data);
+                                if (buf.length < 3e6) throw new Error("download incompleto (" + buf.length + "b)");
+                                u.writeFileSync(pkgPath, buf)
+                            } catch (e) { extractErr = "download: " + (e?.message || e); continue }
+                            send("extract", "Extraindo o DepotDownloader...", 8);
+                            try { u.rmSync(ddDir, { recursive: !0, force: !0 }) } catch {}
+                            try { u.rmSync(keysDir, { recursive: !0, force: !0 }) } catch {}
+                            if (sevenZip) { try { cp.execFileSync(sevenZip, ["x", "-y", "-o" + work, pkgPath], { windowsHide: !0, stdio: "ignore" }) } catch (e) { extractErr = "7z: " + (e?.message || e) } }
+                            if (!pkgOk() && ".zip" === src.ext) {
+                                try { cp.execFileSync("powershell", ["-NoProfile", "-Command", `Expand-Archive -LiteralPath '${pkgPath.replace(/'/g, "''")}' -DestinationPath '${work.replace(/'/g, "''")}' -Force`], { windowsHide: !0, stdio: "ignore" }) } catch (e) { extractErr = "expand-archive: " + (e?.message || e) }
+                            }
+                            try { u.unlinkSync(pkgPath) } catch {}
                         }
-                        if (!u.existsSync(ddExe)) return { success: !1, error: "DepotDownloaderMod.exe não encontrado após extrair (pacote corrompido)." };
+                        if (!pkgOk()) return { success: !1, error: "Não consegui preparar o DepotDownloader (extração incompleta). " + (extractErr || "O 7-Zip do sistema pode estar muito antigo.") };
                         let netFixed = !1;
                         for (let i = 0; i < depots.length; i++) {
                             const dp = depots[i], baseP = 10 + 20 * i;
