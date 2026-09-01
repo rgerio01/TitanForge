@@ -8157,7 +8157,7 @@
                         order: t,
                         onClose: a
                     }) => {
-                        const [l, c] = (0, n.useState)(!1), [d, h] = (0, n.useState)(!1), [u, p] = (0, n.useState)(() => {
+                        const [l, c] = (0, n.useState)(() => ["paid", "approved", "fulfilled"].includes(String(t && t.status || "").toLowerCase())), [d, h] = (0, n.useState)(!1), [u, p] = (0, n.useState)(() => {
                             const e = new Date(t.expiresAt).getTime() - Date.now();
                             return Math.max(0, Math.floor(e / 1e3))
                         }), [dz, dzS] = (0, n.useState)("idle"), [dzMsg, dzSetMsg] = (0, n.useState)("");
@@ -8520,6 +8520,18 @@
                         window.electron.onDenuvoOfflineChanged(s => setDnOff(o => ({ ...(o || {}), ...s, steam: !0 })));
                         return () => { ok = !1 }
                     }, []);
+                    const [ownedDn, setOwnedDn] = (0, n.useState)({});
+                    (0, n.useEffect)(() => {
+                        if (!e) return;
+                        let ok = !0;
+                        (0, s.listMyOrders)(e).then(r => {
+                            if (!ok || !r || !r.success) return;
+                            const mm = {};
+                            for (const o of (r.orders || [])) if (["paid", "approved", "fulfilled"].includes(String(o.status || "").toLowerCase())) mm[String(o.product_ref)] = o;
+                            setOwnedDn(mm)
+                        }).catch(() => {});
+                        return () => { ok = !1 }
+                    }, [e]);
                     return (0, r.jsxs)(i.motion.div, {
                         initial: {
                             opacity: 0,
@@ -8792,7 +8804,25 @@
                                                 },
                                                 children: e.price.toFixed(2).replace(".", ",")
                                             })]
-                                        }), (0, r.jsx)("button", {
+                                        }), ownedDn[String(e.game_id)] ? (0, r.jsx)("button", {
+                                            onClick: () => g({ kind: "qrcode", game: e, order: ownedDn[String(e.game_id)] }),
+                                            style: {
+                                                width: "100%",
+                                                padding: "8px 10px",
+                                                background: "linear-gradient(135deg, #4ade80, #22c55e)",
+                                                border: "none",
+                                                borderRadius: 8,
+                                                color: "#062b15",
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                cursor: "pointer",
+                                                fontFamily: "Rajdhani, sans-serif",
+                                                letterSpacing: "0.04em",
+                                                textTransform: "uppercase",
+                                                boxShadow: "0 4px 16px rgba(74,222,128,0.30)"
+                                            },
+                                            children: "Instalar"
+                                        }) : (0, r.jsx)("button", {
                                             onClick: () => g({
                                                 kind: "terms",
                                                 game: e

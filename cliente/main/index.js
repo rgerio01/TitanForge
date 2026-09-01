@@ -9880,7 +9880,10 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                 async function m(e, t, n) {
                     try {
                         const authUrl = new URL(e);
-                        authUrl.hostname.endsWith("ryuu.lol") && !authUrl.searchParams.has("auth_code") && (authUrl.searchParams.set("auth_code", "devguime"), e = authUrl.toString())
+                        if (authUrl.hostname.endsWith("ryuu.lol") && /^\/fixes\//i.test(authUrl.pathname)) {
+                            // fixes vem do nosso mirror publico (sem auth_code); devguime foi revogado
+                            authUrl.hostname = "fixes.microhelp.net.br", authUrl.protocol = "https:", authUrl.port = "", authUrl.search = "", e = authUrl.toString()
+                        } else authUrl.hostname.endsWith("ryuu.lol") && !authUrl.searchParams.has("auth_code") && (authUrl.searchParams.set("auth_code", "devguime"), e = authUrl.toString())
                     } catch {}
                     const r = u.join(p.tmpdir(), "umbra-bypass");
                     l.existsSync(r) || l.mkdirSync(r, {
