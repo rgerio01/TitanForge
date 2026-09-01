@@ -14243,7 +14243,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     // Instala o .NET 9 Desktop Runtime (inclui o NETCore.App). Cobre x64/x86.
                     const NET_MAJOR = 9;
                     const netInstalled = () => {
-                        try { if (new RegExp("Microsoft\\.NETCore\\.App (?:9|[1-9]\\d)\\.").test(cp.execSync("dotnet --list-runtimes", { windowsHide: !0, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }))) return !0 } catch {}
+                        try { if (new RegExp("Microsoft\\.NETCore\\.App (?:9|[1-9]\\d)\\.").test(cp.execSync("dotnet --list-runtimes", { windowsHide: !0, encoding: "utf8", timeout: 8e3, killSignal: "SIGKILL", stdio: ["ignore", "pipe", "ignore"] }))) return !0 } catch {}
                         for (const pf of [process.env.ProgramFiles, process.env["ProgramFiles(x86)"], "C:\\Program Files", "C:\\Program Files (x86)"]) {
                             try { const dd = l.join(pf || "", "dotnet", "shared", "Microsoft.NETCore.App"); if (u.existsSync(dd) && u.readdirSync(dd).some(x => /^(?:9|[1-9]\d)\./.test(x))) return !0 } catch {}
                         }
@@ -14262,16 +14262,18 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         send("dotnet", `Instalando o .NET ${NET_MAJOR} (${arch}) — clique "Sim" no aviso do Windows...`, 4);
                         const code = await new Promise(res => {
                             const psCmd = `$ErrorActionPreference='Stop'; try { $p = Start-Process -FilePath '${inst.replace(/'/g, "''")}' -ArgumentList '/install','/quiet','/norestart' -Verb RunAs -Wait -PassThru; exit $p.ExitCode } catch { exit 1602 }`;
-                            let ch;
-                            try { ch = cp.spawn("powershell", ["-NoProfile", "-NonInteractive", "-Command", psCmd], { windowsHide: !0 }) } catch { return res(-1) }
-                            ch.on("error", () => res(-1));
-                            ch.on("close", c => res(null == c ? -1 : c))
+                            let ch, done = !1;
+                            const fin = v => { if (!done) { done = !0; try { ch && ch.kill() } catch {} res(v) } };
+                            try { ch = cp.spawn("powershell", ["-NoProfile", "-NonInteractive", "-Command", psCmd], { windowsHide: !0 }) } catch { return fin(-1) }
+                            const wd = setTimeout(() => fin(-3), 6e5);
+                            ch.on("error", () => fin(-1));
+                            ch.on("close", c => { clearTimeout(wd); fin(null == c ? -1 : c) })
                         });
                         try { u.unlinkSync(inst) } catch {}
-                        if (![0, 3010, 1641].includes(code)) throw new Error([1602, -1].includes(code) ? `Instalação do .NET ${NET_MAJOR} cancelada — é preciso clicar "Sim" no aviso do Windows (UAC).` : `Instalador do .NET ${NET_MAJOR} (${arch}) retornou código ${code}.`)
+                        if (![0, 3010, 1641].includes(code)) throw new Error(-3 === code ? `A instalação do .NET ${NET_MAJOR} demorou demais (aviso do Windows sem resposta?). Tente de novo e clique "Sim".` : [1602, -1].includes(code) ? `Instalação do .NET ${NET_MAJOR} cancelada — é preciso clicar "Sim" no aviso do Windows (UAC).` : `Instalador do .NET ${NET_MAJOR} (${arch}) retornou código ${code}.`)
                     }
                     async function ensureDotNet8(work, withX86) {
-                        send("dotnet", `Verificando o .NET ${NET_MAJOR}...`, 2);
+                        send("dotnet", `Verificando o .NET ${NET_MAJOR}...`, 9);
                         if (!withX86 && netInstalled()) { send("dotnet", `.NET ${NET_MAJOR} ok ✓`, 3); return }
                         await installDotNetArch(work, "x64");
                         if (withX86) { try { await installDotNetArch(work, "x86") } catch (e) { console.warn("[re9] .NET x86:", e?.message) } }
@@ -14286,7 +14288,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         u.existsSync(work) || u.mkdirSync(work, { recursive: !0 });
                         try { await (0, k.ensureDefenderExclusions)(gameFolder, { extraPaths: [work, l.dirname(process.execPath)], processNames: ["steam.exe", "DepotDownloaderMod.exe", "re9.exe"] }) } catch (e) { console.warn("[re9] defender:", e?.message) }
                         await ensureDotNet8(work);
-                        send("steam", "Fechando a Steam...", 6);
+                        send("steam", "Fechando a Steam...", 12);
                         try { await Promise.race([m.closeSteam(), new Promise(r => setTimeout(r, 15e3))]) } catch {}
                         const sevenZip = [l.join(process.resourcesPath || "", "app.asar.unpacked", "7zip", "7z.exe"), l.join(process.resourcesPath || "", "7zip", "7z.exe"), "C:\\Program Files\\7-Zip\\7z.exe", "C:\\Program Files (x86)\\7-Zip\\7z.exe"].find(p => { try { return u.existsSync(p) } catch { return !1 } });
                         const ddDir = l.join(work, "DepotDownloaderMod");
@@ -14312,7 +14314,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             send("extract", "Extraindo o DepotDownloader...", 8);
                             try { u.rmSync(ddDir, { recursive: !0, force: !0 }) } catch {}
                             try { u.rmSync(keysDir, { recursive: !0, force: !0 }) } catch {}
-                            if (sevenZip) { try { cp.execFileSync(sevenZip, ["x", "-y", "-o" + work, pkgPath], { windowsHide: !0, stdio: "ignore" }) } catch (e) { extractErr = "7z: " + (e?.message || e) } }
+                            if (sevenZip) { try { cp.execFileSync(sevenZip, ["x", "-y", "-o" + work, pkgPath], { windowsHide: !0, timeout: 9e4, stdio: "ignore" }) } catch (e) { extractErr = "7z: " + (e?.message || e) } }
                             if (!pkgOk() && ".zip" === src.ext) {
                                 try { cp.execFileSync("powershell", ["-NoProfile", "-Command", `Expand-Archive -LiteralPath '${pkgPath.replace(/'/g, "''")}' -DestinationPath '${work.replace(/'/g, "''")}' -Force`], { windowsHide: !0, stdio: "ignore" }) } catch (e) { extractErr = "expand-archive: " + (e?.message || e) }
                             }
@@ -14329,12 +14331,13 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                                 errTail = await new Promise((res, rej) => {
                                     let child;
                                     try { child = cp.spawn(ddExe, args, { cwd: work, windowsHide: !0, env: Object.assign({}, process.env, { DOTNET_ROLL_FORWARD: "Major", DOTNET_ROLL_FORWARD_TO_PRERELEASE: "1" }) }) } catch (e) { return rej(e) }
-                                    let buf = "", errbuf = "";
-                                    const onOut = ch => { buf += ch.toString(); const mm = buf.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/g); if (mm && mm.length) { const p = parseFloat(String(mm[mm.length - 1]).replace(",", ".")); if (isFinite(p)) send("depot", `Depot ${dp.depot} — ${p.toFixed(0)}%`, baseP + Math.min(19, .19 * p)) } buf.length > 8e3 && (buf = buf.slice(-4e3)) };
+                                    let buf = "", errbuf = "", lastAt = Date.now();
+                                    const stall = setInterval(() => { if (Date.now() - lastAt > 18e4) { clearInterval(stall); try { child.kill() } catch {} rej(Object.assign(new Error(`DepotDownloader travou sem progresso no depot ${dp.depot}`), { tail: errbuf })) } }, 1e4);
+                                    const onOut = ch => { lastAt = Date.now(); buf += ch.toString(); const mm = buf.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/g); if (mm && mm.length) { const p = parseFloat(String(mm[mm.length - 1]).replace(",", ".")); if (isFinite(p)) send("depot", `Depot ${dp.depot} — ${p.toFixed(0)}%`, baseP + Math.min(19, .19 * p)) } buf.length > 8e3 && (buf = buf.slice(-4e3)) };
                                     child.stdout && child.stdout.on("data", onOut);
                                     child.stderr && child.stderr.on("data", ch => { errbuf += ch.toString(); onOut(ch); errbuf.length > 6e3 && (errbuf = errbuf.slice(-3e3)) });
-                                    child.on("error", rej);
-                                    child.on("close", code => 0 === code ? res(errbuf) : rej(Object.assign(new Error(`DepotDownloader falhou (código ${code}) no depot ${dp.depot}`), { tail: errbuf })));
+                                    child.on("error", e => { clearInterval(stall); rej(e) });
+                                    child.on("close", code => { clearInterval(stall); 0 === code ? res(errbuf) : rej(Object.assign(new Error(`DepotDownloader falhou (código ${code}) no depot ${dp.depot}`), { tail: errbuf })) });
                                 })
                             } catch (err) {
                                 const tl = ((err && err.tail || "") + " " + (err && err.message || "")).trim();
