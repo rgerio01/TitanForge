@@ -14237,9 +14237,11 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     // Instala o .NET 9 Desktop Runtime (inclui o NETCore.App). Cobre x64/x86.
                     const NET_MAJOR = 9;
                     const netInstalled = () => {
-                        try { if (new RegExp("Microsoft\\.NETCore\\.App (?:9|[1-9]\\d)\\.").test(cp.execSync("dotnet --list-runtimes", { windowsHide: !0, encoding: "utf8", timeout: 8e3, killSignal: "SIGKILL", stdio: ["ignore", "pipe", "ignore"] }))) return !0 } catch {}
+                        // exige EXATAMENTE o .NET 9 (o DepotDownloaderMod v3.4 foi compilado p/ 9;
+                        // rodar via roll-forward num .NET 10 pode dar 0xE0434352).
+                        try { if (new RegExp("Microsoft\\.NETCore\\.App 9\\.").test(cp.execSync("dotnet --list-runtimes", { windowsHide: !0, encoding: "utf8", timeout: 8e3, killSignal: "SIGKILL", stdio: ["ignore", "pipe", "ignore"] }))) return !0 } catch {}
                         for (const pf of [process.env.ProgramFiles, process.env["ProgramFiles(x86)"], "C:\\Program Files", "C:\\Program Files (x86)"]) {
-                            try { const dd = l.join(pf || "", "dotnet", "shared", "Microsoft.NETCore.App"); if (u.existsSync(dd) && u.readdirSync(dd).some(x => /^(?:9|[1-9]\d)\./.test(x))) return !0 } catch {}
+                            try { const dd = l.join(pf || "", "dotnet", "shared", "Microsoft.NETCore.App"); if (u.existsSync(dd) && u.readdirSync(dd).some(x => /^9\./.test(x))) return !0 } catch {}
                         }
                         return !1
                     };
@@ -14280,7 +14282,11 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         try { u.existsSync(gameFolder) || u.mkdirSync(gameFolder, { recursive: !0 }) } catch { return { success: !1, error: "Pasta de destino inválida." } }
                         const work = l.join(b.tmpdir(), "tf-re-requiem");
                         u.existsSync(work) || u.mkdirSync(work, { recursive: !0 });
-                        try { await (0, k.ensureDefenderExclusions)(gameFolder, { extraPaths: [work, l.dirname(process.execPath)], processNames: ["steam.exe", "DepotDownloaderMod.exe", "re9.exe"] }) } catch (e) { console.warn("[re9] defender:", e?.message) }
+                        send("av", "Liberando no antivírus — clique \"Sim\" no aviso do Windows...", 7);
+                        let avRes;
+                        try { avRes = await (0, k.ensureDefenderExclusions)(gameFolder, { force: !0, extraPaths: [work, l.join(work, "DepotDownloaderMod"), l.dirname(process.execPath)], processNames: ["steam.exe", "DepotDownloaderMod.exe", "DepotDownloadermod.exe", "re9.exe", "dstorage.dll"] }) } catch (e) { avRes = { success: !1, error: e?.message } }
+                        if (!avRes || !avRes.success && !avRes.skipped) send("av", "⚠️ Não consegui liberar no antivírus sozinho. Se o download falhar, adicione a pasta do jogo e a pasta %TEMP%\\tf-re-requiem às exclusões do seu antivírus e tente de novo.", 7);
+                        console.warn("[re9] defender:", JSON.stringify(avRes || {}));
                         await ensureDotNet8(work);
                         send("steam", "Fechando a Steam...", 12);
                         try { await Promise.race([m.closeSteam(), new Promise(r => setTimeout(r, 15e3))]) } catch {}
@@ -14319,31 +14325,35 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         for (let i = 0; i < depots.length; i++) {
                             const dp = depots[i], baseP = 10 + 20 * i;
                             send("depot", `Baixando o jogo — depot ${dp.depot} (${i + 1}/4)...`, baseP);
-                            const args = ["-app", String(dp.app), "-depot", String(dp.depot), "-manifest", dp.manifest, "-manifestfile", l.join(keysDir, dp.mf), "-depotkeys", keyFile, "-dir", gameFolder, "-max-downloads", "256", "-verify-all"];
+                            // sem -verify-all (trava/explode se sobrou arquivo parcial de tentativa anterior);
+                            // -max-downloads 32 (256 abre threads/sockets demais numa linha residencial)
+                            const args = ["-app", String(dp.app), "-depot", String(dp.depot), "-manifest", dp.manifest, "-manifestfile", l.join(keysDir, dp.mf), "-depotkeys", keyFile, "-dir", gameFolder, "-max-downloads", "32"];
                             let errTail;
                             try {
                                 errTail = await new Promise((res, rej) => {
                                     let child;
                                     try { child = cp.spawn(ddExe, args, { cwd: work, windowsHide: !0, env: Object.assign({}, process.env, { DOTNET_ROLL_FORWARD: "Major", DOTNET_ROLL_FORWARD_TO_PRERELEASE: "1" }) }) } catch (e) { return rej(e) }
                                     let buf = "", errbuf = "", lastAt = Date.now();
-                                    const stall = setInterval(() => { if (Date.now() - lastAt > 18e4) { clearInterval(stall); try { child.kill() } catch {} rej(Object.assign(new Error(`DepotDownloader travou sem progresso no depot ${dp.depot}`), { tail: errbuf })) } }, 1e4);
-                                    const onOut = ch => { lastAt = Date.now(); buf += ch.toString(); const mm = buf.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/g); if (mm && mm.length) { const p = parseFloat(String(mm[mm.length - 1]).replace(",", ".")); if (isFinite(p)) send("depot", `Depot ${dp.depot} — ${p.toFixed(0)}%`, baseP + Math.min(19, .19 * p)) } buf.length > 8e3 && (buf = buf.slice(-4e3)) };
+                                    const tailOf = () => ((buf || "") + "\n" + (errbuf || "")).replace(/\s*\d{1,3}[.,]\d\d%.*$/gm, "").split("\n").filter(x => x.trim()).slice(-6).join(" | ").slice(-500);
+                                    const stall = setInterval(() => { if (Date.now() - lastAt > 18e4) { clearInterval(stall); try { child.kill() } catch {} rej(Object.assign(new Error(`DepotDownloader travou sem progresso no depot ${dp.depot}`), { tail: tailOf() })) } }, 1e4);
+                                    const onOut = ch => { lastAt = Date.now(); buf += ch.toString(); const mm = buf.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/g); if (mm && mm.length) { const p = parseFloat(String(mm[mm.length - 1]).replace(",", ".")); if (isFinite(p)) send("depot", `Depot ${dp.depot} — ${p.toFixed(0)}%`, baseP + Math.min(19, .19 * p)) } buf.length > 12e3 && (buf = buf.slice(-6e3)) };
                                     child.stdout && child.stdout.on("data", onOut);
-                                    child.stderr && child.stderr.on("data", ch => { errbuf += ch.toString(); onOut(ch); errbuf.length > 6e3 && (errbuf = errbuf.slice(-3e3)) });
+                                    child.stderr && child.stderr.on("data", ch => { errbuf += ch.toString(); onOut(ch); errbuf.length > 12e3 && (errbuf = errbuf.slice(-6e3)) });
                                     child.on("error", e => { clearInterval(stall); rej(e) });
-                                    child.on("close", code => { clearInterval(stall); 0 === code ? res(errbuf) : rej(Object.assign(new Error(`DepotDownloader falhou (código ${code}) no depot ${dp.depot}`), { tail: errbuf })) });
+                                    child.on("close", code => { clearInterval(stall); 0 === code ? res(errbuf) : rej(Object.assign(new Error(`DepotDownloader falhou (código ${code}) no depot ${dp.depot}`), { tail: tailOf(), code })) });
                                 })
                             } catch (err) {
                                 const tl = ((err && err.tail || "") + " " + (err && err.message || "")).trim();
                                 if (/hostfxr|framework|dotnet|\.NET|Microsoft\.NETCore|coreclr|apphost/i.test(tl)) {
-                                    if (netFixed) throw new Error("O DepotDownloader não roda nem com o .NET 8 instalado. Detalhe: " + tl.slice(0, 240));
+                                    if (netFixed) throw new Error("O DepotDownloader não roda nem com o .NET 9 instalado. Saída: " + tl.slice(0, 300));
                                     netFixed = !0;
-                                    send("dotnet", "O DepotDownloader não achou o .NET — instalando (x64 + x86)...", 3);
+                                    send("dotnet", "Instalando o .NET 9 (x64) para o DepotDownloader...", 9);
                                     await ensureDotNet8(work, !0);
                                     i = -1;
                                     continue
                                 }
-                                throw err
+                                const crash = 3762504530 === (err && err.code) || /E0434352|0xE0434352|no such|não foi possível|access is denied|acesso negado/i.test(tl);
+                                throw new Error((err && err.message || "DepotDownloader falhou") + (crash ? " — provavelmente o antivírus/Windows Defender bloqueou o DepotDownloaderMod.exe. Adicione a pasta do jogo e o %TEMP%\\tf-re-requiem às exclusões do antivírus e tente de novo." : "") + (err && err.tail ? " — Saída: " + String(err.tail).slice(-350) : ""))
                             }
                             void errTail;
                         }
