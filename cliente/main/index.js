@@ -14233,28 +14233,43 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         { app: 3990800, depot: 3990800, manifest: "9181787779883827112", mf: "3990800_9181787779883827112.manifest" },
                         { app: 3990820, depot: 3990820, manifest: "509708311968316285", mf: "3990820_509708311968316285.manifest" }
                     ];
-                    const hasDotNet8 = () => {
-                        try { if (/Microsoft\.WindowsDesktop\.App 8\./.test(cp.execSync("dotnet --list-runtimes", { windowsHide: !0, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }))) return !0 } catch {}
-                        try { const dd = l.join(process.env.ProgramFiles || "C:\\Program Files", "dotnet", "shared", "Microsoft.WindowsDesktop.App"); if (u.existsSync(dd) && u.readdirSync(dd).some(x => /^8\./.test(x))) return !0 } catch {}
+                    // DepotDownloaderMod é .NET (console) -> precisa do Microsoft.NETCore.App 8+.
+                    // O Desktop Runtime instala isso junto. Cobre x64 e x86.
+                    const netInstalled = () => {
+                        try { if (/Microsoft\.NETCore\.App (?:8|9|1\d)\./.test(cp.execSync("dotnet --list-runtimes", { windowsHide: !0, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }))) return !0 } catch {}
+                        for (const pf of [process.env.ProgramFiles, process.env["ProgramFiles(x86)"], "C:\\Program Files", "C:\\Program Files (x86)"]) {
+                            try { const dd = l.join(pf || "", "dotnet", "shared", "Microsoft.NETCore.App"); if (u.existsSync(dd) && u.readdirSync(dd).some(x => /^(?:8|9|1\d)\./.test(x))) return !0 } catch {}
+                        }
                         return !1
                     };
-                    async function ensureDotNet8(work) {
-                        if (hasDotNet8()) return;
-                        send("dotnet", "Instalando o .NET 8 Desktop Runtime (necessário pro DepotDownloader)...", 3);
-                        const inst = l.join(work, "windowsdesktop-runtime-8-x64.exe");
+                    async function installDotNetArch(work, arch) {
+                        const inst = l.join(work, `dotnet8-${arch}.exe`);
+                        send("dotnet", `Baixando o .NET 8 Desktop Runtime (${arch})...`, 3);
                         try {
-                            const rr = await d.default.get("https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.exe", { responseType: "arraybuffer", timeout: 3e5, maxRedirects: 15, headers: { "User-Agent": "Mozilla/5.0" } });
+                            const rr = await d.default.get(`https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-${arch}.exe`, {
+                                responseType: "arraybuffer", timeout: 6e5, maxRedirects: 20, headers: { "User-Agent": "Mozilla/5.0" },
+                                onDownloadProgress: e => { if (e && e.total) send("dotnet", `Baixando .NET 8 (${arch})... ${Math.round(100 * e.loaded / e.total)}%`, 3) }
+                            });
                             u.writeFileSync(inst, Buffer.from(rr.data))
-                        } catch (e) { throw new Error("Não consegui baixar o .NET 8 Desktop Runtime: " + (e?.message || e)) }
-                        send("dotnet", "Instalando o .NET 8 (confirme o aviso do Windows, se aparecer)...", 4);
-                        await new Promise((res, rej) => {
+                        } catch (e) { throw new Error(`Falha ao baixar o .NET 8 (${arch}): ` + (e?.message || e)) }
+                        send("dotnet", `Instalando o .NET 8 (${arch}) — clique "Sim" no aviso do Windows...`, 4);
+                        const code = await new Promise(res => {
+                            const psCmd = `$ErrorActionPreference='Stop'; try { $p = Start-Process -FilePath '${inst.replace(/'/g, "''")}' -ArgumentList '/install','/quiet','/norestart' -Verb RunAs -Wait -PassThru; exit $p.ExitCode } catch { exit 1602 }`;
                             let ch;
-                            try { ch = cp.spawn(inst, ["/install", "/quiet", "/norestart"], { windowsHide: !0 }) } catch (e) { return rej(e) }
-                            ch.on("error", rej);
-                            ch.on("close", code => 0 === code || 3010 === code || 1641 === code ? res() : rej(new Error(1602 === code ? "Instalação do .NET 8 cancelada — precisa aceitar o aviso do Windows." : "Instalador do .NET 8 retornou código " + code)))
+                            try { ch = cp.spawn("powershell", ["-NoProfile", "-NonInteractive", "-Command", psCmd], { windowsHide: !0 }) } catch { return res(-1) }
+                            ch.on("error", () => res(-1));
+                            ch.on("close", c => res(null == c ? -1 : c))
                         });
                         try { u.unlinkSync(inst) } catch {}
-                        if (!hasDotNet8()) throw new Error("Instalei o .NET 8 mas ele ainda não aparece. Reinicie o launcher e tente de novo.")
+                        if (![0, 3010, 1641].includes(code)) throw new Error([1602, -1].includes(code) ? "Instalação do .NET 8 cancelada — é preciso clicar \"Sim\" no aviso do Windows (UAC)." : `Instalador do .NET 8 (${arch}) retornou código ${code}.`)
+                    }
+                    async function ensureDotNet8(work, withX86) {
+                        if (!withX86 && netInstalled()) return;
+                        await installDotNetArch(work, "x64");
+                        if (withX86) { try { await installDotNetArch(work, "x86") } catch (e) { console.warn("[re9] .NET x86:", e?.message) } }
+                        for (let t = 0; t < 12 && !netInstalled(); t++) await new Promise(r => setTimeout(r, 1500));
+                        if (!netInstalled()) throw new Error("O .NET 8 foi instalado mas ainda não foi detectado. Feche e reabra o launcher e tente de novo.");
+                        send("dotnet", ".NET 8 pronto ✓", 5)
                     }
                     try {
                         if (!gameFolder) return { success: !1, error: "Selecione a pasta de destino do jogo." };
@@ -14280,24 +14295,35 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         const keysDir = l.join(work, "Resident Evil Requiem Manifests and Keys");
                         const keyFile = l.join(keysDir, "3764200.key");
                         if (!u.existsSync(ddExe)) return { success: !1, error: "DepotDownloaderMod.exe não encontrado após extrair." };
+                        let netFixed = !1;
                         for (let i = 0; i < depots.length; i++) {
                             const dp = depots[i], baseP = 10 + 20 * i;
                             send("depot", `Baixando o jogo — depot ${dp.depot} (${i + 1}/4)...`, baseP);
                             const args = ["-app", String(dp.app), "-depot", String(dp.depot), "-manifest", dp.manifest, "-manifestfile", l.join(keysDir, dp.mf), "-depotkeys", keyFile, "-dir", gameFolder, "-max-downloads", "256", "-verify-all"];
-                            const errTail = await new Promise((res, rej) => {
-                                let child;
-                                try { child = cp.spawn(ddExe, args, { cwd: work, windowsHide: !0 }) } catch (e) { return rej(e) }
-                                let buf = "", errbuf = "";
-                                const onOut = ch => { buf += ch.toString(); const mm = buf.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/g); if (mm && mm.length) { const p = parseFloat(String(mm[mm.length - 1]).replace(",", ".")); if (isFinite(p)) send("depot", `Depot ${dp.depot} — ${p.toFixed(0)}%`, baseP + Math.min(19, .19 * p)) } buf.length > 8e3 && (buf = buf.slice(-4e3)) };
-                                child.stdout && child.stdout.on("data", onOut);
-                                child.stderr && child.stderr.on("data", ch => { errbuf += ch.toString(); onOut(ch); errbuf.length > 6e3 && (errbuf = errbuf.slice(-3e3)) });
-                                child.on("error", rej);
-                                child.on("close", code => 0 === code ? res(errbuf) : rej(Object.assign(new Error(`DepotDownloader falhou (código ${code}) no depot ${dp.depot}`), { tail: errbuf })));
-                            }).catch(err => {
-                                const tl = (err && err.tail || "") + " " + (err && err.message || "");
-                                if (/hostfxr|framework|dotnet|\.NET|Microsoft\.NETCore/i.test(tl)) throw new Error("Precisa do .NET 8 Desktop Runtime instalado (o DepotDownloader é .NET). Instale e tente de novo.");
-                                throw err;
-                            });
+                            let errTail;
+                            try {
+                                errTail = await new Promise((res, rej) => {
+                                    let child;
+                                    try { child = cp.spawn(ddExe, args, { cwd: work, windowsHide: !0 }) } catch (e) { return rej(e) }
+                                    let buf = "", errbuf = "";
+                                    const onOut = ch => { buf += ch.toString(); const mm = buf.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/g); if (mm && mm.length) { const p = parseFloat(String(mm[mm.length - 1]).replace(",", ".")); if (isFinite(p)) send("depot", `Depot ${dp.depot} — ${p.toFixed(0)}%`, baseP + Math.min(19, .19 * p)) } buf.length > 8e3 && (buf = buf.slice(-4e3)) };
+                                    child.stdout && child.stdout.on("data", onOut);
+                                    child.stderr && child.stderr.on("data", ch => { errbuf += ch.toString(); onOut(ch); errbuf.length > 6e3 && (errbuf = errbuf.slice(-3e3)) });
+                                    child.on("error", rej);
+                                    child.on("close", code => 0 === code ? res(errbuf) : rej(Object.assign(new Error(`DepotDownloader falhou (código ${code}) no depot ${dp.depot}`), { tail: errbuf })));
+                                })
+                            } catch (err) {
+                                const tl = ((err && err.tail || "") + " " + (err && err.message || "")).trim();
+                                if (/hostfxr|framework|dotnet|\.NET|Microsoft\.NETCore|coreclr|apphost/i.test(tl)) {
+                                    if (netFixed) throw new Error("O DepotDownloader não roda nem com o .NET 8 instalado. Detalhe: " + tl.slice(0, 240));
+                                    netFixed = !0;
+                                    send("dotnet", "O DepotDownloader não achou o .NET — instalando (x64 + x86)...", 3);
+                                    await ensureDotNet8(work, !0);
+                                    i = -1;
+                                    continue
+                                }
+                                throw err
+                            }
                             void errTail;
                         }
                         send("fix", "Aplicando o crack (re9.exe, voices38)...", 92);
