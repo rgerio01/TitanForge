@@ -14239,12 +14239,36 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         { app: 3990800, depot: 3990800, manifest: "9181787779883827112", mf: "3990800_9181787779883827112.manifest" },
                         { app: 3990820, depot: 3990820, manifest: "509708311968316285", mf: "3990820_509708311968316285.manifest" }
                     ];
+                    const hasDotNet8 = () => {
+                        try { if (/Microsoft\.WindowsDesktop\.App 8\./.test(cp.execSync("dotnet --list-runtimes", { windowsHide: !0, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }))) return !0 } catch {}
+                        try { const dd = l.join(process.env.ProgramFiles || "C:\Program Files", "dotnet", "shared", "Microsoft.WindowsDesktop.App"); if (u.existsSync(dd) && u.readdirSync(dd).some(x => /^8\./.test(x))) return !0 } catch {}
+                        return !1
+                    };
+                    async function ensureDotNet8(work) {
+                        if (hasDotNet8()) return;
+                        send("dotnet", "Instalando o .NET 8 Desktop Runtime (necessário pro DepotDownloader)...", 3);
+                        const inst = l.join(work, "windowsdesktop-runtime-8-x64.exe");
+                        try {
+                            const rr = await d.default.get("https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.exe", { responseType: "arraybuffer", timeout: 3e5, maxRedirects: 15, headers: { "User-Agent": "Mozilla/5.0" } });
+                            u.writeFileSync(inst, Buffer.from(rr.data))
+                        } catch (e) { throw new Error("Não consegui baixar o .NET 8 Desktop Runtime: " + (e?.message || e)) }
+                        send("dotnet", "Instalando o .NET 8 (confirme o aviso do Windows, se aparecer)...", 4);
+                        await new Promise((res, rej) => {
+                            let ch;
+                            try { ch = cp.spawn(inst, ["/install", "/quiet", "/norestart"], { windowsHide: !0 }) } catch (e) { return rej(e) }
+                            ch.on("error", rej);
+                            ch.on("close", code => 0 === code || 3010 === code || 1641 === code ? res() : rej(new Error(1602 === code ? "Instalação do .NET 8 cancelada — precisa aceitar o aviso do Windows." : "Instalador do .NET 8 retornou código " + code)))
+                        });
+                        try { u.unlinkSync(inst) } catch {}
+                        if (!hasDotNet8()) throw new Error("Instalei o .NET 8 mas ele ainda não aparece. Reinicie o launcher e tente de novo.")
+                    }
                     try {
                         if (!gameFolder) return { success: !1, error: "Selecione a pasta de destino do jogo." };
                         try { u.existsSync(gameFolder) || u.mkdirSync(gameFolder, { recursive: !0 }) } catch { return { success: !1, error: "Pasta de destino inválida." } }
                         const work = l.join(b.tmpdir(), "tf-re-requiem");
                         u.existsSync(work) || u.mkdirSync(work, { recursive: !0 });
                         try { await (0, k.ensureDefenderExclusions)(gameFolder, { extraPaths: [work, l.dirname(process.execPath)], processNames: ["steam.exe", "DepotDownloaderMod.exe", "re9.exe"] }) } catch (e) { console.warn("[re9] defender:", e?.message) }
+                        await ensureDotNet8(work);
                         send("steam", "Fechando a Steam...", 2);
                         try { await m.closeSteam() } catch {}
                         await new Promise(r => setTimeout(r, 2500));
