@@ -8268,7 +8268,7 @@
                                             lineHeight: 1.6,
                                             margin: "0 0 14px"
                                         },
-                                        children: dzMsg || "Aplique a remoção do Denuvo direto na pasta do jogo. Ele roda apenas no modo offline."
+                                        children: dzMsg || ("3764200" === String(e.game_id) ? "RE Requiem: baixa a Build 22277314 (jogo inteiro, ~50-70 GB) via DepotDownloader, aplica o crack voices38+oldexe e trava a atualização da Steam. Demora bastante. Precisa do .NET 8 Desktop Runtime." : "Aplique a remoção do Denuvo direto na pasta do jogo. Ele roda apenas no modo offline.")
                                     }), "done" !== dz && (0, r.jsx)("button", {
                                         disabled: "working" === dz,
                                         onClick: async () => {
@@ -8287,6 +8287,13 @@
                                                     e && e.success && e.folder && (s = e.folder)
                                                 }
                                                 if (!s) return dzS("error"), void dzSetMsg("Selecione a pasta do jogo para continuar.");
+                                                if ("3764200" === String(e.game_id)) {
+                                                    dzSetMsg("RE Requiem: baixando a Build 22277314 — pode demorar (jogo inteiro).");
+                                                    const off = window.electron.onReRequiemProgress && window.electron.onReRequiemProgress(p => { dzSetMsg((p && p.msg || "Processando...") + (p && "number" == typeof p.pct ? ` (${Math.round(p.pct)}%)` : "")) });
+                                                    let rr;
+                                                    try { rr = await window.electron.reRequiemInstall(s) } finally { off && off() }
+                                                    return void (rr && rr.success ? (dzS("done"), dzSetMsg("Downgrade + crack aplicados. Passos finais: " + (rr.steps || []).join(" · "))) : (dzS("error"), dzSetMsg(rr && rr.error || "Falha no procedimento do RE Requiem.")))
+                                                }
                                                 dzSetMsg("Baixando e aplicando a remoção...");
                                                 const c = await window.electron.bypassExtract(o.href, s);
                                                 c && c.success ? (dzS("done"), dzSetMsg("Remoção aplicada! Abra o jogo pela Steam em modo offline.")) : (dzS("error"), dzSetMsg(c && c.error || "Falha ao aplicar a remoção."))
@@ -8506,6 +8513,13 @@
                         const e = y.trim().toLowerCase();
                         return e ? a.filter(t => t.displayName.toLowerCase().includes(e) || t.game_id.includes(e)) : a
                     }, [a, y]);
+                    const [dnOff, setDnOff] = (0, n.useState)(null);
+                    (0, n.useEffect)(() => {
+                        let ok = !0;
+                        window.electron.denuvoOfflineStatus().then(s => ok && setDnOff(s)).catch(() => {});
+                        window.electron.onDenuvoOfflineChanged(s => setDnOff(o => ({ ...(o || {}), ...s, steam: !0 })));
+                        return () => { ok = !1 }
+                    }, []);
                     return (0, r.jsxs)(i.motion.div, {
                         initial: {
                             opacity: 0,
@@ -8519,7 +8533,10 @@
                             duration: .3
                         },
                         className: "h-full flex flex-col",
-                        children: [(0, r.jsxs)("div", {
+                        children: [dnOff && dnOff.steam && (dnOff.offline || dnOff.forced || (dnOff.games && dnOff.games.length)) && (0, r.jsxs)("div", {
+                            style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 14px", marginBottom: 10, borderRadius: 8, background: "rgba(74,222,128,0.10)", border: "1px solid rgba(74,222,128,0.35)" },
+                            children: [(0, r.jsx)("span", { style: { fontSize: 12, color: "#4ade80", fontWeight: 700 }, children: dnOff.forced ? "🔌 Steam offline — sessão Denuvo" : dnOff.offline ? "🔌 Steam em modo OFFLINE" : "🎮 Automação Denuvo ativa" }), (0, r.jsx)("span", { style: { fontSize: 11, color: "var(--text-secondary)", flex: 1, minWidth: 160 }, children: dnOff.forced ? "Coloquei a Steam offline porque um jogo Denuvo está aberto. Ao fechar o jogo, ela volta pro online sozinha." : "Quando você abrir um jogo Denuvo, a Steam vai pra offline automaticamente (feche e reabra o jogo). Ao fechá-lo, volta pro online." + (dnOff.games && dnOff.games.length ? ` Instalados: ${dnOff.games.map(g => g.name).join(", ")}.` : "") }), (0, r.jsx)("button", { onClick: async () => { setDnOff(o => ({ ...o, busy: !0 })); const r2 = await window.electron.steamSetOffline(!dnOff.offline); setDnOff(o => ({ ...o, busy: !1, offline: r2 && r2.ok ? r2.offline : o.offline, forced: r2 && r2.ok ? r2.offline : o.forced })) }, disabled: dnOff.busy, style: { fontSize: 11, fontWeight: 700, padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", background: dnOff.offline ? "rgba(255,255,255,0.12)" : "linear-gradient(135deg,#4ade80,#22c55e)", color: dnOff.offline ? "#fff" : "#062b15" }, children: dnOff.busy ? "..." : dnOff.offline ? "Voltar online agora" : "Forçar offline agora" })]
+                        }), (0, r.jsxs)("div", {
                             style: {
                                 position: "relative",
                                 overflow: "hidden",

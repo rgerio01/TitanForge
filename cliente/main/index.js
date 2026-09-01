@@ -12893,7 +12893,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         } catch (e) {
                             console.error("❌ Erro ao sincronizar estado da DLL no startup:", e)
                         }
-                    }(), F && clearInterval(F), console.log("🛡️ Iniciando monitoramento de integridade da DLL..."), F = setInterval(async () => {
+                    }(), (async () => { try { const sp = await (0, m.detectSteamPath)(); sp && await syncDenuvoOffline(sp) } catch (e) { console.warn("syncDenuvoOffline startup:", e?.message) } })(), F && clearInterval(F), console.log("🛡️ Iniciando monitoramento de integridade da DLL..."), F = setInterval(async () => {
                         try {
                             const e = await (0, m.detectSteamPath)();
                             if (!e) return;
@@ -14215,6 +14215,90 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     } catch (e) {
                         return console.error("denuvo-get-download:", e?.message || e), { ok: !1, error: "Falha ao liberar o download." }
                     }
+                }), c.ipcMain.handle("re-requiem-install", async (e, t) => {
+                    // Fluxo completo do Resident Evil Requiem (3764200): baixa a Build 22277314
+                    // via DepotDownloaderMod (pacote do ryuu, /files/ não exige auth_code),
+                    // aplica o crack voices38+oldexe do mirror, e trava o .acf.
+                    const gameFolder = t && t.gameFolder;
+                    const cp = n(5317);
+                    const send = (stage, msg, pct) => { try { D && D.webContents.send("re-requiem-progress", { stage, msg, pct }) } catch {} };
+                    const RE_DL_URL = "https://generator.ryuu.lol/files/Resident_Evil_Requiem_3764200_Build_22277314_Downloader.rar";
+                    const RE_FIX_URL = "https://fixes.microhelp.net.br/fixes/Resident.Evil.Requiem.fix(voices38%2Boldexe).zip";
+                    const depots = [
+                        { app: 3764200, depot: 3764201, manifest: "9166256367562763038", mf: "3764201_9166256367562763038.manifest" },
+                        { app: 3764200, depot: 3764203, manifest: "651754783565368360", mf: "3764203_651754783565368360.manifest" },
+                        { app: 3990800, depot: 3990800, manifest: "9181787779883827112", mf: "3990800_9181787779883827112.manifest" },
+                        { app: 3990820, depot: 3990820, manifest: "509708311968316285", mf: "3990820_509708311968316285.manifest" }
+                    ];
+                    try {
+                        if (!gameFolder) return { success: !1, error: "Selecione a pasta de destino do jogo." };
+                        try { u.existsSync(gameFolder) || u.mkdirSync(gameFolder, { recursive: !0 }) } catch { return { success: !1, error: "Pasta de destino inválida." } }
+                        const work = l.join(b.tmpdir(), "tf-re-requiem");
+                        u.existsSync(work) || u.mkdirSync(work, { recursive: !0 });
+                        try { await (0, k.ensureDefenderExclusions)(gameFolder, { extraPaths: [work, l.dirname(process.execPath)], processNames: ["steam.exe", "DepotDownloaderMod.exe", "re9.exe"] }) } catch (e) { console.warn("[re9] defender:", e?.message) }
+                        send("steam", "Fechando a Steam...", 2);
+                        try { await m.closeSteam() } catch {}
+                        await new Promise(r => setTimeout(r, 2500));
+                        const rarPath = l.join(work, "re_requiem_downloader.rar");
+                        if (!u.existsSync(rarPath) || u.statSync(rarPath).size < 4e6) {
+                            send("dl", "Baixando o pacote de downgrade...", 5);
+                            const resp = await d.default.get(RE_DL_URL, { responseType: "arraybuffer", timeout: 18e4, maxRedirects: 10, headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36", Referer: "https://generator.ryuu.lol/" } });
+                            u.writeFileSync(rarPath, Buffer.from(resp.data));
+                        }
+                        send("extract", "Extraindo o DepotDownloader...", 8);
+                        const sevenZip = [l.join(process.resourcesPath || "", "app.asar.unpacked", "7zip", "7z.exe"), l.join(process.resourcesPath || "", "7zip", "7z.exe"), "C:\\Program Files\\7-Zip\\7z.exe", "C:\\Program Files (x86)\\7-Zip\\7z.exe"].find(p => { try { return u.existsSync(p) } catch { return !1 } });
+                        if (!sevenZip) return { success: !1, error: "7-Zip não encontrado no pacote." };
+                        cp.execFileSync(sevenZip, ["x", "-y", "-o" + work, rarPath], { windowsHide: !0, stdio: "ignore" });
+                        const ddExe = l.join(work, "DepotDownloaderMod", "DepotDownloaderMod.exe");
+                        const keysDir = l.join(work, "Resident Evil Requiem Manifests and Keys");
+                        const keyFile = l.join(keysDir, "3764200.key");
+                        if (!u.existsSync(ddExe)) return { success: !1, error: "DepotDownloaderMod.exe não encontrado após extrair." };
+                        for (let i = 0; i < depots.length; i++) {
+                            const dp = depots[i], baseP = 10 + 20 * i;
+                            send("depot", `Baixando o jogo — depot ${dp.depot} (${i + 1}/4)...`, baseP);
+                            const args = ["-app", String(dp.app), "-depot", String(dp.depot), "-manifest", dp.manifest, "-manifestfile", l.join(keysDir, dp.mf), "-depotkeys", keyFile, "-dir", gameFolder, "-max-downloads", "256", "-verify-all"];
+                            const errTail = await new Promise((res, rej) => {
+                                let child;
+                                try { child = cp.spawn(ddExe, args, { cwd: work, windowsHide: !0 }) } catch (e) { return rej(e) }
+                                let buf = "", errbuf = "";
+                                const onOut = ch => { buf += ch.toString(); const mm = buf.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/g); if (mm && mm.length) { const p = parseFloat(String(mm[mm.length - 1]).replace(",", ".")); if (isFinite(p)) send("depot", `Depot ${dp.depot} — ${p.toFixed(0)}%`, baseP + Math.min(19, .19 * p)) } buf.length > 8e3 && (buf = buf.slice(-4e3)) };
+                                child.stdout && child.stdout.on("data", onOut);
+                                child.stderr && child.stderr.on("data", ch => { errbuf += ch.toString(); onOut(ch); errbuf.length > 6e3 && (errbuf = errbuf.slice(-3e3)) });
+                                child.on("error", rej);
+                                child.on("close", code => 0 === code ? res(errbuf) : rej(Object.assign(new Error(`DepotDownloader falhou (código ${code}) no depot ${dp.depot}`), { tail: errbuf })));
+                            }).catch(err => {
+                                const tl = (err && err.tail || "") + " " + (err && err.message || "");
+                                if (/hostfxr|framework|dotnet|\.NET|Microsoft\.NETCore/i.test(tl)) throw new Error("Precisa do .NET 8 Desktop Runtime instalado (o DepotDownloader é .NET). Instale e tente de novo.");
+                                throw err;
+                            });
+                            void errTail;
+                        }
+                        send("fix", "Aplicando o crack (re9.exe, voices38)...", 92);
+                        const fixRes = await (0, E.extractBypass)({ url: RE_FIX_URL, destinationFolder: gameFolder }, D);
+                        if (!fixRes || !fixRes.success) return { success: !1, error: "Downgrade OK, mas falhou ao aplicar o fix: " + (fixRes && fixRes.error || "verifique o fixes.microhelp.net.br.") };
+                        send("acf", "Bloqueando atualização automática da Steam...", 96);
+                        try {
+                            const sp = await (0, m.detectSteamPath)();
+                            if (sp) {
+                                const libs = [sp];
+                                for (const vdf of [l.join(sp, "steamapps", "libraryfolders.vdf"), l.join(sp, "config", "libraryfolders.vdf")]) try { const txt = u.readFileSync(vdf, "utf8"); let mm; const re = /"path"\s*"([^"]+)"/gi; while (null !== (mm = re.exec(txt))) libs.push(mm[1].replace(/\\\\/g, "\\")) } catch {}
+                                for (const lib of new Set(libs)) { const acf = l.join(lib, "steamapps", "appmanifest_3764200.acf"); if (u.existsSync(acf)) try { cp.execSync(`attrib +R "${acf}"`, { windowsHide: !0 }) } catch {} }
+                            }
+                        } catch {}
+                        try { denuvoAutoOfflineEnabled() && startDenuvoWatch() } catch {}
+                        send("done", "Pronto!", 100);
+                        return {
+                            success: !0,
+                            steps: [
+                                "Abra a Steam em modo OFFLINE e rode o jogo pela biblioteca.",
+                                "Se a Steam oferecer atualização, NÃO atualize (o appmanifest foi travado como somente-leitura).",
+                                "Saves ficam em %AppData%\\GSE Saves\\3764200\\remote.",
+                                "Se o jogo não abrir: use a variante HYPERVISOR e desligue Isolamento de Núcleo / Integridade de Memória no Windows (precisa reiniciar)."
+                            ]
+                        }
+                    } catch (err) {
+                        return console.error("re-requiem-install:", err?.message || err), send("error", err?.message || "Erro", 0), { success: !1, error: err?.message || "Falha no procedimento do RE Requiem." }
+                    }
                 }), c.ipcMain.handle("denuvo-list-my-orders", async (e, t) => {
                     try {
                         const {
@@ -14234,6 +14318,142 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             orders: []
                         }
                     }
+                }), void 0;
+                // --- Auto modo offline p/ jogos Denuvo (o crack só roda com a Steam offline) ---
+                let denuvoIdsCache = null, denuvoIdsAt = 0;
+                async function getDenuvoAppIds() {
+                    if (denuvoIdsCache && Date.now() - denuvoIdsAt < 6e5) return denuvoIdsCache;
+                    try {
+                        const { data } = await TF.from("denuvo_games").select("game_id,name").eq("active", !0);
+                        denuvoIdsCache = new Map((data || []).map(r => [String(r.game_id), r.name])), denuvoIdsAt = Date.now()
+                    } catch { denuvoIdsCache = denuvoIdsCache || new Map }
+                    return denuvoIdsCache
+                }
+                function scanInstalledDenuvo(steamPath, ids) {
+                    const hits = [];
+                    try {
+                        const libs = [steamPath];
+                        for (const vdf of [l.join(steamPath, "steamapps", "libraryfolders.vdf"), l.join(steamPath, "config", "libraryfolders.vdf")])
+                            try {
+                                if (!u.existsSync(vdf)) continue;
+                                const txt = u.readFileSync(vdf, "utf8"), re = /"path"\s*"([^"]+)"/gi;
+                                let mm;
+                                while (null !== (mm = re.exec(txt))) libs.push(mm[1].replace(/\\\\/g, "\\"))
+                            } catch {}
+                        for (const lib of new Set(libs)) {
+                            const apps = l.join(lib, "steamapps");
+                            if (!u.existsSync(apps)) continue;
+                            for (const [id, name] of ids) {
+                                const acf = l.join(apps, `appmanifest_${id}.acf`);
+                                if (!u.existsSync(acf)) continue;
+                                try {
+                                    const sf = u.readFileSync(acf, "utf8").match(/"StateFlags"\s*"(\d+)"/);
+                                    sf && "4" === sf[1] && hits.push({ game_id: id, name })
+                                } catch {}
+                            }
+                        }
+                    } catch {}
+                    return hits
+                }
+                const denuvoOfflineCfg = () => l.join(c.app.getPath("userData"), "denuvo-auto-offline.json");
+                function denuvoAutoOfflineEnabled() {
+                    try { return !1 !== JSON.parse(u.readFileSync(denuvoOfflineCfg(), "utf8")).enabled } catch { return !0 }
+                }
+                // Compat: chamado no startup e pós-crack. NÃO força mais offline só por ter
+                // um Denuvo instalado — quem faz isso agora é o watcher de processo abaixo,
+                // que só age quando um jogo Denuvo está de fato em execução.
+                async function syncDenuvoOffline(steamPath) {
+                    try {
+                        if (!steamPath) return { skipped: !0 };
+                        denuvoAutoOfflineEnabled() && startDenuvoWatch();
+                        return { offline: m.getSteamWantsOffline(steamPath), games: [] }
+                    } catch (e) { return console.warn("syncDenuvoOffline:", e?.message), { error: !0 } }
+                }
+                // ---- Watcher: força a Steam offline SÓ enquanto um jogo Denuvo roda ----
+                let dnW = { busy: !1, forced: !1, empty: 0, cooldown: 0, timer: null };
+                function readRunningAppId() {
+                    return new Promise(res => {
+                        try {
+                            n(5317).exec('reg query "HKCU\\Software\\Valve\\Steam" /v RunningAppID', { windowsHide: !0 }, (e, o) => {
+                                if (e || !o) return res(0);
+                                const mm = String(o).match(/RunningAppID\s+REG_DWORD\s+0x([0-9a-fA-F]+)/i);
+                                res(mm ? parseInt(mm[1], 16) : 0)
+                            })
+                        } catch { res(0) }
+                    })
+                }
+                async function denuvoRestartSteam(steamPath, offline) {
+                    try { await m.closeSteam() } catch {}
+                    await new Promise(r => setTimeout(r, 2500));
+                    m.setSteamOfflineMode(steamPath, offline);
+                    try { m.openSteam(steamPath) } catch {}
+                    dnW.cooldown = Date.now() + 25e3
+                }
+                async function denuvoWatchTick() {
+                    if (dnW.busy || Date.now() < dnW.cooldown) return;
+                    if (!denuvoAutoOfflineEnabled()) { dnW.forced = !1; return }
+                    let steamPath;
+                    try { steamPath = await (0, m.detectSteamPath)() } catch {}
+                    if (!steamPath) return;
+                    const ids = await getDenuvoAppIds();
+                    if (!ids || !ids.size) return;
+                    const appid = await readRunningAppId(),
+                        runningName = appid ? ids.get(String(appid)) : null,
+                        isOffline = m.getSteamWantsOffline(steamPath);
+                    if (runningName) {
+                        dnW.empty = 0;
+                        if (!isOffline && !dnW.forced) {
+                            dnW.busy = !0;
+                            try {
+                                console.log(`🔌 Denuvo em execução (${runningName}) + Steam ONLINE -> forçando offline.`);
+                                await denuvoRestartSteam(steamPath, !0);
+                                dnW.forced = !0;
+                                try { new c.Notification({ title: "TitanForge — Steam offline", body: `${runningName} usa Denuvo. Coloquei a Steam em modo offline — abra o jogo novamente.` }).show() } catch {}
+                                D?.webContents.send("denuvo-offline-changed", { offline: !0, forced: !0, reopen: !0, games: [{ game_id: String(appid), name: runningName }] })
+                            } catch (e) { console.warn("denuvoWatch force-offline:", e?.message) }
+                            finally { dnW.busy = !1 }
+                        } else if (isOffline) dnW.forced = !0
+                    } else if (dnW.forced && isOffline) {
+                        if (++dnW.empty >= 4) {
+                            dnW.busy = !0;
+                            try {
+                                console.log("🔌 Nenhum Denuvo em execução -> voltando Steam para ONLINE.");
+                                await denuvoRestartSteam(steamPath, !1);
+                                dnW.forced = !1; dnW.empty = 0;
+                                try { new c.Notification({ title: "TitanForge — Steam online", body: "Nenhum jogo Denuvo aberto. Steam voltou ao modo online." }).show() } catch {}
+                                D?.webContents.send("denuvo-offline-changed", { offline: !1, forced: !1, games: [] })
+                            } catch (e) { console.warn("denuvoWatch restore-online:", e?.message) }
+                            finally { dnW.busy = !1 }
+                        }
+                    } else { dnW.empty = 0; isOffline || (dnW.forced = !1) }
+                }
+                function startDenuvoWatch() {
+                    if (dnW.timer) return;
+                    dnW.timer = setInterval(() => { denuvoWatchTick().catch(() => {}) }, 6e3);
+                    denuvoWatchTick().catch(() => {})
+                }
+                c.ipcMain.handle("denuvo-offline-status", async () => {
+                    try {
+                        const e = await (0, m.detectSteamPath)();
+                        if (!e) return { steam: !1 };
+                        const ids = await getDenuvoAppIds(),
+                            hits = ids ? scanInstalledDenuvo(e, ids) : [];
+                        return { steam: !0, offline: m.getSteamWantsOffline(e), auto: denuvoAutoOfflineEnabled(), forced: dnW.forced, games: hits }
+                    } catch { return { steam: !1 } }
+                }), c.ipcMain.handle("denuvo-offline-set-auto", async (e, t) => {
+                    try { u.writeFileSync(denuvoOfflineCfg(), JSON.stringify({ enabled: !!t })) } catch {}
+                    return t ? startDenuvoWatch() : dnW.forced = !1, { ok: !0, auto: !!t }
+                }), c.ipcMain.handle("steam-set-offline", async (e, t) => {
+                    try {
+                        const e2 = await (0, m.detectSteamPath)();
+                        if (!e2) return { ok: !1, error: "Steam não encontrada" };
+                        try { await m.closeSteam() } catch {}
+                        await new Promise(r => setTimeout(r, 2500));
+                        m.setSteamOfflineMode(e2, !!t);
+                        try { m.openSteam(e2) } catch {}
+                        dnW.forced = !!t, dnW.empty = 0, dnW.cooldown = Date.now() + 25e3;
+                        return { ok: !0, offline: !!t }
+                    } catch (e) { return { ok: !1, error: e?.message } }
                 }), c.ipcMain.handle("get-public-ip", async () => {
                     try {
                         return {
@@ -14288,7 +14508,9 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         } catch (e) {
                             console.warn("[bypass] exclusão do Defender falhou (seguindo mesmo assim):", e?.message)
                         }
-                        return await (0, E.extractBypass)(t, D)
+                        const rr = await (0, E.extractBypass)(t, D);
+                        rr && rr.success && (async () => { try { const sp = await (0, m.detectSteamPath)(); sp && await syncDenuvoOffline(sp) } catch {} })();
+                        return rr
                     } catch (e) {
                         return console.error("bypass-extract:", e), {
                             success: !1,
@@ -19919,6 +20141,33 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                     } catch (e) {
                         console.warn("healSteamForBypass falhou:", e?.message)
                     }
+                }, t.getSteamWantsOffline = function(steamPath) {
+                    try {
+                        const lu = c.join(steamPath, "config", "loginusers.vdf");
+                        if (!s.existsSync(lu)) return !1;
+                        const m = s.readFileSync(lu, "utf8").match(/"WantsOfflineMode"\s*"(\d)"/i);
+                        return !!m && "1" === m[1]
+                    } catch { return !1 }
+                }, t.setSteamOfflineMode = function setSteamOfflineMode(steamPath, enable) {
+                    // Liga/desliga o modo offline da Steam editando o loginusers.vdf
+                    // ("WantsOfflineMode") + registro ("SkipOfflineModeWarning"). Steam tem
+                    // que estar FECHADA quando isso roda; o efeito vale no próximo boot dela.
+                    const want = enable ? "1" : "0";
+                    let changed = !1;
+                    try {
+                        const lu = c.join(steamPath, "config", "loginusers.vdf");
+                        if (s.existsSync(lu)) {
+                            const before = s.readFileSync(lu, "utf8");
+                            let next;
+                            if (/"WantsOfflineMode"\s*"\d"/i.test(before)) next = before.replace(/"WantsOfflineMode"\s*"\d"/gi, `"WantsOfflineMode"\t\t"${want}"`);
+                            else next = before.replace(/("AccountName"\s*"[^"]*")/i, `$1\r\n\t\t\t"WantsOfflineMode"\t\t"${want}"`);
+                            next !== before && (s.writeFileSync(lu, next, "utf8"), changed = !0)
+                        }
+                    } catch (e) { console.warn("setSteamOfflineMode loginusers:", e?.message) }
+                    try {
+                        (0, l.execSync)(`reg add "HKCU\\Software\\Valve\\Steam" /v SkipOfflineModeWarning /t REG_DWORD /d ${enable ? 1 : 0} /f`, { windowsHide: !0, stdio: "ignore" })
+                    } catch {}
+                    return { changed }
                 }, t.restartSteam = async function(e) {
                     try {
                         console.log("🔄 Reiniciando Steam..."), await b(), await new Promise(e => setTimeout(e, 3e3)), t.healSteamForBypass(e), await x(e), console.log("✅ Steam reiniciada")
