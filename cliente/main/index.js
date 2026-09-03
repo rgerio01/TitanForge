@@ -14972,34 +14972,10 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                 });
                 let X = null;
                 async function Y(e) {
-                    const t = `https://generator.ryuu.lol/secure_download?appid=${e}&auth_code=devguime`;
-                    try {
-                        console.log("🌐 Baixando do Ryuu Generator"), console.log(`📥 URL: ${t}`);
-                        const e = await fetch(t, {
-                            method: "GET",
-                            headers: {
-                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-                                Accept: "*/*",
-                                Referer: "https://generator.ryuu.lol/",
-                                Origin: "https://generator.ryuu.lol"
-                            },
-                            redirect: "follow"
-                        });
-                        if (console.log(`📊 Status: ${e.status} ${e.statusText}`), !e.ok) {
-                            const t = await e.text().catch(() => "não foi possível ler");
-                            return console.error(`❌ Ryuu Generator retornou status ${e.status}`), console.error("📄 Resposta:", t.substring(0, 500)), null
-                        }
-                        const n = await e.arrayBuffer(),
-                            r = Buffer.from(n);
-                        if (console.log(`📦 Arquivo recebido: ${r.length} bytes`), r.length >= 4 && 80 === r[0] && 75 === r[1] && 3 === r[2] && 4 === r[3]) return console.log(`✅ ZIP válido baixado do Ryuu Generator (${r.length} bytes)`), r;
-                        {
-                            console.log("⚠️ Arquivo não é um ZIP válido"), console.log("🔍 Primeiros bytes (hex):", r.slice(0, 4).toString("hex"));
-                            const e = r.toString("utf8").substring(0, 300);
-                            return console.log("📄 Corpo da resposta:", e), null
-                        }
-                    } catch (e) {
-                        return console.error(`❌ Erro ao baixar do Ryuu Generator: ${e.message}`), null
-                    }
+                    // Servidor 1 (Ryuu Generator) foi BANIDO permanentemente ("API banned (permanently).
+                    // Reason: botting fixes"). A instalação de jogos agora é só pelo Servidor 2
+                    // (base .lua ALMAZ local). Stub mantido pra não quebrar chamadas antigas.
+                    return null
                 }
                 c.ipcMain.handle("fetch-bypass-catalog", async (e, t) => {
                     try {
@@ -15573,7 +15549,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                             }
                             return {
                                 success: !1,
-                                error: "Não foi possível baixar o jogo em nenhum dos servidores. O ID pode estar incorreto ou o jogo ainda não está disponível."
+                                error: "Este jogo ainda não está disponível para instalação."
                             }
                         }
                         const s = l.join(b.tmpdir(), `game_${t}.zip`);

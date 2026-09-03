@@ -67205,7 +67205,7 @@
                         })())
                     };
                     const prosseguirInstalacao = (e, comDlc) => {
-                        instalando.has(e.appid) || instalados.has(e.appid) || ("both" === e.source ? setEscolhaServidor({ jogo: e, comDlc }) : executarInstalacao(e, "almaz" === e.source ? 2 : 1, comDlc))
+                        instalando.has(e.appid) || instalados.has(e.appid) || ("almaz" === e.source || "both" === e.source ? executarInstalacao(e, 2, comDlc) : setErroInstalacao({ appid: e.appid, msg: "Este jogo ainda não está disponível para instalação." }))
                     };
                     const instalarJogo = e => {
                         instalando.has(e.appid) || instalados.has(e.appid) || (Array.isArray(e.dlc) && e.dlc.length > 0 ? setEscolhaDlc(e) : prosseguirInstalacao(e, !1))
@@ -67301,9 +67301,6 @@
                                             loop: !0,
                                             playsInline: !0,
                                             style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 1, background: "#000" }
-                                        }), "both" === e.source && (0, l.jsx)("div", {
-                                            style: { position: "absolute", top: "6px", right: "6px", zIndex: 2, background: "rgba(0,0,0,0.7)", border: "1px solid rgba(217,122,44,0.5)", borderRadius: "10px", padding: "2px 7px", fontSize: "9px", fontWeight: 700, color: "#ffb454" },
-                                            children: "2 servidores"
                                         })]
                                     }), (0, l.jsxs)("div", {
                                         className: "game-info",
@@ -67326,15 +67323,23 @@
                                         className: "game-actions",
                                         children: (0, l.jsx)("button", {
                                             className: "btn-update",
-                                            disabled: instalando.has(e.appid) || instalados.has(e.appid),
+                                            disabled: instalando.has(e.appid) || instalados.has(e.appid) || ("almaz" !== e.source && "both" !== e.source),
                                             style: instalados.has(e.appid) ? {
                                                 opacity: .7,
                                                 cursor: "default",
                                                 background: "rgba(74,222,128,0.12)",
                                                 borderColor: "rgba(74,222,128,0.30)",
                                                 color: "#4ade80"
+                                            } : "almaz" !== e.source && "both" !== e.source ? {
+                                                opacity: .5,
+                                                cursor: "not-allowed",
+                                                background: "rgba(255,255,255,0.05)",
+                                                borderColor: "rgba(255,255,255,0.12)",
+                                                color: "var(--text-muted)"
                                             } : {},
-                                            onClick: () => setDetailsGame(e),
+                                            onClick: () => {
+                                                ("almaz" === e.source || "both" === e.source) && setDetailsGame(e)
+                                            },
                                             children: instalando.has(e.appid) ? (0, l.jsxs)(l.Fragment, {
                                                 children: [(0, l.jsx)(h.Loader2, {
                                                     className: "animate-spin",
@@ -67347,6 +67352,8 @@
                                                 children: [(0, l.jsx)(u.IconCheck, {
                                                     size: 10
                                                 }), " Instalado"]
+                                            }) : "almaz" !== e.source && "both" !== e.source ? (0, l.jsx)(l.Fragment, {
+                                                children: "Não disponível"
                                             }) : (0, l.jsxs)(l.Fragment, {
                                                 children: [(0, l.jsx)(u.IconDownload, {
                                                     size: 10
