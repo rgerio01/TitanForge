@@ -67467,7 +67467,7 @@
                         current: 0,
                         total: 0,
                         currentGame: ""
-                    }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [tfInstallingAllDlc, tfSetInstallingAllDlc] = (0, c.useState)(!1), [tfAllPlans, tfSetAllPlans] = (0, c.useState)([]), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), [showRetroAnvilPromo, setShowRetroAnvilPromo] = (0, c.useState)(!1), [showAvaliacao, setShowAvaliacao] = (0, c.useState)(!1), [avaliacaoRating, setAvaliacaoRating] = (0, c.useState)(0), [avaliacaoSugestao, setAvaliacaoSugestao] = (0, c.useState)(""), [avaliacaoEnviando, setAvaliacaoEnviando] = (0, c.useState)(!1), [avaliacaoEnviada, setAvaliacaoEnviada] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), Ga = (e, t, a) => {
+                    }), [ta] = (0, c.useState)([]), [aa] = (0, c.useState)(!1), [ra, na] = (0, c.useState)(20), [ia, oa] = (0, c.useState)(!1), [sa, la] = (0, c.useState)(null), [ca, da] = (0, c.useState)(null), [ha, ua] = (0, c.useState)(!1), [pa, ya] = (0, c.useState)([]), [fa, ma] = (0, c.useState)(!1), [ga, ka] = (0, c.useState)(""), [xa, va] = (0, c.useState)(""), [ba, wa] = (0, c.useState)(30), [Ma, Sa] = (0, c.useState)(null), [Ca, ja] = (0, c.useState)(!1), [La, Ia] = (0, c.useState)(null), [Aa, za] = (0, c.useState)(new Set), [Pa, Ta] = (0, c.useState)(new Set), [tfInstallingAllDlc, tfSetInstallingAllDlc] = (0, c.useState)(!1), [tfAllPlans, tfSetAllPlans] = (0, c.useState)([]), [Ea, _a] = (0, c.useState)(""), [qa, Ra] = (0, c.useState)(() => "false" !== localStorage.getItem("umbra_home_effects")), [showReferralPromo, setShowReferralPromo] = (0, c.useState)(!1), [showRetroAnvilPromo, setShowRetroAnvilPromo] = (0, c.useState)(!1), [showAvaliacao, setShowAvaliacao] = (0, c.useState)(!1), [avaliacaoRating, setAvaliacaoRating] = (0, c.useState)(0), [avaliacaoSugestao, setAvaliacaoSugestao] = (0, c.useState)(""), [avaliacaoEnviando, setAvaliacaoEnviando] = (0, c.useState)(!1), [avaliacaoEnviada, setAvaliacaoEnviada] = (0, c.useState)(!1), Ba = (0, c.useRef)(null), Da = (0, c.useRef)(null), Oa = (0, c.useRef)(null), Va = (0, c.useRef)(null), [Ha, Fa] = (0, c.useState)(!1), [Na, Ua] = (0, c.useState)({}), [Wa, $a] = (0, c.useState)(null), [tfAnnPop, tfSetAnnPop] = (0, c.useState)(null), Ga = (e, t, a) => {
                         const r = q[a];
                         r && window.__tfBuy && window.__tfBuy({ id: a, nome: r.name, preco: r.price })
                     }, tfBuyUpgrade = planKey => {
@@ -67583,7 +67583,8 @@
                             }).catch(() => {})
                         })(), (0, k.getPremiumAccounts)().then(ze).catch(console.error), (0, v.getStoreItems)().then(Ye).catch(console.error), (0, x.createInitialUpdate)().then(() => {
                             (0, x.getUpdates)().then(e => {
-                                Re(e), De((0, x.hasUnreadUpdates)(e))
+                                Re(e), De((0, x.hasUnreadUpdates)(e));
+                                try { const _p = e && e[0], _s = localStorage.getItem("tf_ann_pop_seen"); if (_p && (!_s || new Date(_p.created_at) > new Date(_s))) tfSetAnnPop(_p) } catch (er) {}
                             }).catch(console.error)
                         }), localStorage.getItem("umbra_bypass_warning_dismissed"), () => {
                             window.removeEventListener("steam-data-loaded", t)
@@ -68180,6 +68181,18 @@
                             enabled: qa
                         }), "home" === r && (0, l.jsx)(j.default, {
                             enabled: qa
+                        }), tfAnnPop && (0, l.jsx)("div", {
+                            style: { position: "fixed", inset: 0, zIndex: 999999, background: "rgba(8,8,9,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
+                            onClick: () => { try { localStorage.setItem("tf_ann_pop_seen", (new Date).toISOString()) } catch (e) {} tfSetAnnPop(null) },
+                            children: (0, l.jsxs)("div", {
+                                onClick: e => e.stopPropagation(),
+                                style: { width: "480px", maxWidth: "100%", maxHeight: "80vh", overflowY: "auto", background: "var(--bg-card, #1b1b1f)", border: "1px solid rgba(217,122,44,0.35)", borderRadius: "10px", padding: "24px" },
+                                children: [
+                                    (0, l.jsx)("h3", { style: { margin: "0 0 12px", fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "Rajdhani, sans-serif" }, children: tfAnnPop.nome }),
+                                    (0, l.jsx)("div", { style: { fontSize: "13px", lineHeight: 1.6, color: "var(--text-secondary, #c7c7cc)", whiteSpace: "pre-line", marginBottom: "20px" }, children: tfAnnPop.content }),
+                                    (0, l.jsx)("button", { className: "btn-primary", style: { width: "100%", justifyContent: "center", padding: "10px" }, onClick: () => { try { localStorage.setItem("tf_ann_pop_seen", (new Date).toISOString()) } catch (e) {} tfSetAnnPop(null) }, children: "Entendi" })
+                                ]
+                            })
                         }), showReferralPromo && (0, l.jsx)("div", {
                             style: {
                                 position: "fixed",
