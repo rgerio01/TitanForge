@@ -68190,7 +68190,10 @@
                                 children: [
                                     (0, l.jsx)("h3", { style: { margin: "0 0 12px", fontSize: "16px", fontWeight: 800, color: "#fff", fontFamily: "Rajdhani, sans-serif" }, children: tfAnnPop.nome }),
                                     (0, l.jsx)("div", { style: { fontSize: "13px", lineHeight: 1.6, color: "var(--text-secondary, #c7c7cc)", whiteSpace: "pre-line", marginBottom: "20px" }, children: tfAnnPop.content }),
-                                    (0, l.jsx)("button", { className: "btn-primary", style: { width: "100%", justifyContent: "center", padding: "10px" }, onClick: () => { try { localStorage.setItem("tf_ann_pop_seen", (new Date).toISOString()) } catch (e) {} tfSetAnnPop(null) }, children: "Entendi" })
+                                    (0, l.jsxs)("div", { style: { display: "flex", gap: "8px" }, children: [
+                                        (0, l.jsx)("button", { className: "btn-ghost", style: { flex: 1, justifyContent: "center", padding: "10px" }, onClick: () => { try { localStorage.setItem("tf_ann_pop_seen", (new Date).toISOString()) } catch (e) {} tfSetAnnPop(null) }, children: "Fechar" }),
+                                        (0, l.jsx)("button", { className: "btn-primary", style: { flex: 1, justifyContent: "center", padding: "10px" }, onClick: () => { try { localStorage.setItem("tf_ann_pop_seen", (new Date).toISOString()) } catch (e) {} tfSetAnnPop(null), setShowAvaliacao(!0) }, children: "Dar feedback" })
+                                    ] })
                                 ]
                             })
                         }), showReferralPromo && (0, l.jsx)("div", {
