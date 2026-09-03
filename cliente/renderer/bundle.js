@@ -70604,6 +70604,21 @@
                                                             children: (0, l.jsx)(u.IconCheck, {
                                                                 size: 9
                                                             })
+                                                        }), !1 === e.available && (0, l.jsx)("div", {
+                                                            style: {
+                                                                position: "absolute",
+                                                                top: "6px",
+                                                                right: "6px",
+                                                                zIndex: 2,
+                                                                background: "rgba(0,0,0,0.75)",
+                                                                border: "1px solid rgba(255,255,255,0.18)",
+                                                                borderRadius: "3px",
+                                                                padding: "2px 6px",
+                                                                fontSize: "9px",
+                                                                fontWeight: 700,
+                                                                color: "var(--text-muted)"
+                                                            },
+                                                            children: "INDISPONÍVEL"
                                                         }), (0, l.jsxs)("div", {
                                                             style: {
                                                                 width: "100%",
@@ -70696,7 +70711,8 @@
                                                                 },
                                                                 children: (0, l.jsx)("button", {
                                                                     onClick: t => {
-                                                                        t.stopPropagation(), je({
+                                                                        if (t.stopPropagation(), !1 === e.available) return;
+                                                                        je({
                                                                             id: e.id,
                                                                             name: e.name,
                                                                             link: e.link,
@@ -70706,11 +70722,19 @@
                                                                         })
                                                                     },
                                                                     className: "btn-primary",
-                                                                    style: {
+                                                                    disabled: !1 === e.available,
+                                                                    style: !1 === e.available ? {
+                                                                        padding: "6px 14px",
+                                                                        fontSize: "11px",
+                                                                        opacity: .55,
+                                                                        cursor: "not-allowed",
+                                                                        background: "rgba(255,255,255,0.08)",
+                                                                        color: "var(--text-muted)"
+                                                                    } : {
                                                                         padding: "6px 14px",
                                                                         fontSize: "11px"
                                                                     },
-                                                                    children: "Instalar"
+                                                                    children: !1 === e.available ? "Não disponível" : "Instalar"
                                                                 })
                                                             })]
                                                         }), (0, l.jsx)("div", {
@@ -75355,6 +75379,7 @@
                                 badges: e.badges,
                                 extra_steps: e.extra_steps,
                                 filename: e.filename,
+                                available: !1 !== e.available,
                                 isLoadingThumbnail: !1
                             }
                         })) : (e.error && console.error("Erro ao buscar catálogo de bypass:", e.error), [])

@@ -15027,6 +15027,19 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                                 })
                             }
                         }
+                        // marca available: o fix esta no nosso mirror (fixes.microhelp.net.br) ?
+                        try {
+                            const mf = await d.default.get("https://fixes.microhelp.net.br/fixes/_manifest.json", { timeout: 15e3, responseType: "json", validateStatus: e => e >= 200 && e < 300 }),
+                                arr = Array.isArray(mf.data) ? mf.data : [],
+                                okFiles = new Set(arr.filter(m => m && !1 !== m.ok).map(m => String(m.filename || "").toLowerCase())),
+                                okAppids = new Set(arr.filter(m => m && !1 !== m.ok).map(m => String(m.appid)));
+                            for (const it of l) {
+                                const fn = String(it.filename || (it.href || "").split("/").pop() || "").toLowerCase();
+                                it.available = okFiles.has(fn) || okAppids.has(String(it.appid))
+                            }
+                        } catch (e) {
+                            for (const it of l) it.available = !0
+                        }
                         return {
                             success: !0,
                             items: l
