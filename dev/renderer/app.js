@@ -132,8 +132,14 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 .tb .wc:hover{color:var(--text);background:rgba(255,255,255,.06)}\
 .tb .wc.x:hover{color:#fff;background:var(--crit)}\
 \
-.screen{position:absolute;inset:40px 0 0 0;overflow:auto}\
-.mid{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}\
+.screen{position:absolute;inset:40px 0 0 0;overflow-y:auto;overflow-x:hidden}\
+.mid{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:safe center;padding:40px 20px;gap:0}\
+*::-webkit-scrollbar{width:11px;height:11px}\
+*::-webkit-scrollbar-track{background:var(--panel-2)}\
+*::-webkit-scrollbar-thumb{background:var(--line);border:2px solid var(--panel-2);border-radius:6px}\
+*::-webkit-scrollbar-thumb:hover{background:var(--heat-dim)}\
+*::-webkit-scrollbar-corner{background:var(--panel-2)}\
+.content,.dbody,.modal .box,.rail,.adm pre,.consoles,.drawer .shots{scrollbar-width:thin;scrollbar-color:var(--line) var(--panel-2)}\
 \
 .lg{width:100%;max-width:390px;display:flex;flex-direction:column;align-items:center;animation:fade .4s ease}\
 .lg .logo{width:66px;height:66px;filter:drop-shadow(0 0 22px rgba(255,157,31,.45))}\
@@ -423,6 +429,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       E.onChargebackDetected && E.onChargebackDetected(function () { logout("Cobranca contestada — licenca suspensa. Fale com o suporte."); });
     } catch (e) {}
     startHb();
+    S.isAdmin = isAdmin(); // chave ja e suficiente (ROGERIO3120); info refina depois
     svc.info(S.licenseKey).then(function (i) {
       i = i || {};
       S.licenseInfo = i;
@@ -658,7 +665,12 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
         ]),
         h("div", { class: "efoot" }, [
           h("span", { style: "cursor:default" }, ["Gamaxy · build Dev"]),
-          h("span", { onclick: function () { openUrl("https://wa.me/5543988322483"); } }, ["Suporte"])
+          h("span", { style: "display:flex;gap:22px" }, [
+            h("span", { onclick: function () { S.mode = "steam"; S.page = "config"; go("app"); } }, ["⚙ Configuracoes"]),
+            (S.isAdmin ? h("span", { onclick: function () { S.mode = "steam"; S.page = "admin"; go("app"); } }, ["Painel Admin"]) : null),
+            h("span", { onclick: function () { openUrl("https://wa.me/5543988322483"); } }, ["Suporte"]),
+            h("span", { onclick: function () { confirmLogout(); } }, ["Sair"])
+          ])
         ])
       ])
     ])]);
