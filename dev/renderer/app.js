@@ -1438,40 +1438,41 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
   /* ------------------------------------------------------- RETRO: controles */
   var PAD_LINE = "#2a2c33";
   var PAD_SVG = "\
-<svg viewBox='0 0 480 300' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto;overflow:visible'>\
-<path d='M240,22 C270,22 296,24 306,34 C316,44 320,54 330,64 C368,68 406,84 428,116 C450,148 460,192 452,232 C446,264 420,286 388,282 C362,278 344,258 332,230 C324,210 310,196 288,188 C266,182 214,182 192,188 C170,196 156,210 148,230 C136,258 118,278 92,282 C60,286 34,264 28,232 C20,192 30,148 52,116 C74,84 112,68 150,64 C160,54 164,44 174,34 C184,24 210,22 240,22 Z' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
-<rect data-btn='6' class='pbtn' x='132' y='2' width='96' height='16' rx='7' fill='#ffffff' stroke='" + PAD_LINE + "'/><text x='180' y='13' class='plbl'>L2</text>\
-<rect data-btn='4' class='pbtn' x='132' y='22' width='96' height='18' rx='7' fill='#ffffff' stroke='" + PAD_LINE + "'/><text x='180' y='35' class='plbl'>L1</text>\
-<rect data-btn='7' class='pbtn' x='252' y='2' width='96' height='16' rx='7' fill='#ffffff' stroke='" + PAD_LINE + "'/><text x='300' y='13' class='plbl'>R2</text>\
-<rect data-btn='5' class='pbtn' x='252' y='22' width='96' height='18' rx='7' fill='#ffffff' stroke='" + PAD_LINE + "'/><text x='300' y='35' class='plbl'>R1</text>\
-<circle cx='140' cy='118' r='76' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
-<circle cx='340' cy='118' r='76' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
-<rect x='126' y='104' width='28' height='28' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
-<rect data-btn='12' class='pbtn' x='126' y='76' width='28' height='30' rx='5' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
-<rect data-btn='13' class='pbtn' x='126' y='118' width='28' height='30' rx='5' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
-<rect data-btn='14' class='pbtn' x='98' y='104' width='30' height='28' rx='5' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
-<rect data-btn='15' class='pbtn' x='154' y='104' width='30' height='28' rx='5' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
-<path class='padglyph' d='M140,86 l4,7 h-8 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.6' stroke-linejoin='round'/>\
-<path class='padglyph' d='M140,135 l4,-7 h-8 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.6' stroke-linejoin='round'/>\
-<path class='padglyph' d='M109,118 l7,4 v-8 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.6' stroke-linejoin='round'/>\
-<path class='padglyph' d='M173,118 l-7,4 v-8 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.6' stroke-linejoin='round'/>\
-<circle data-btn='3' class='pbtn' cx='340' cy='76' r='18' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
-<path class='padglyph' d='M340,66 l9,16 h-18 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='2' stroke-linejoin='round'/>\
-<circle data-btn='1' class='pbtn' cx='382' cy='118' r='18' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
-<circle class='padglyph' cx='382' cy='118' r='9' fill='none' stroke='" + PAD_LINE + "' stroke-width='2'/>\
-<circle data-btn='0' class='pbtn' cx='340' cy='160' r='18' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
-<path class='padglyph' d='M332,152 l16,16 M348,152 l-16,16' fill='none' stroke='" + PAD_LINE + "' stroke-width='2' stroke-linecap='round'/>\
-<circle data-btn='2' class='pbtn' cx='298' cy='118' r='18' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
-<rect class='padglyph' x='289' y='109' width='18' height='18' fill='none' stroke='" + PAD_LINE + "' stroke-width='2'/>\
-<rect data-btn='8' class='pbtn' x='209' y='100' width='22' height='12' rx='5' fill='#ffffff' stroke='" + PAD_LINE + "'/><text x='220' y='126' class='plbl'>SELECT</text>\
-<rect class='padglyph' x='215' y='134' width='8' height='8' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.4'/>\
-<rect data-btn='9' class='pbtn' x='249' y='100' width='22' height='12' rx='5' fill='#ffffff' stroke='" + PAD_LINE + "'/><text x='260' y='126' class='plbl'>START</text>\
-<path class='padglyph' d='M255,134 l9,4 l-9,4 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.4' stroke-linejoin='round'/>\
-<circle data-btn='16' class='pbtn' cx='240' cy='118' r='9' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
-<g transform='translate(170,206)'><circle r='34' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/><circle r='26' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.4'/><circle data-stick='l' data-btn='10' class='pbtn stickball' r='19' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='1.6'/></g>\
-<g transform='translate(310,206)'><circle r='34' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/><circle r='26' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.4'/><circle data-stick='r' data-btn='11' class='pbtn stickball' r='19' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='1.6'/></g>\
-<rect x='163' y='250' width='14' height='3' fill='var(--switchc)'/><text x='170' y='266' class='plbl'>L3</text>\
-<rect x='303' y='250' width='14' height='3' fill='var(--xbox)'/><text x='310' y='266' class='plbl'>R3</text>\
+<svg viewBox='0 0 480 270' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto;overflow:visible'>\
+<ellipse cx='85' cy='195' rx='88' ry='68' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
+<ellipse cx='395' cy='195' rx='88' ry='68' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
+<circle cx='145' cy='110' r='80' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
+<circle cx='335' cy='110' r='80' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
+<rect data-btn='6' class='pbtn' x='100' y='6' width='90' height='15' rx='7' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
+<rect data-btn='4' class='pbtn' x='100' y='23' width='90' height='17' rx='7' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
+<rect data-btn='7' class='pbtn' x='290' y='6' width='90' height='15' rx='7' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
+<rect data-btn='5' class='pbtn' x='290' y='23' width='90' height='17' rx='7' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
+<rect x='131' y='96' width='28' height='28' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
+<rect data-btn='12' class='pbtn' x='131' y='66' width='28' height='30' rx='5' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
+<rect data-btn='13' class='pbtn' x='131' y='124' width='28' height='30' rx='5' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
+<rect data-btn='14' class='pbtn' x='101' y='96' width='30' height='28' rx='5' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
+<rect data-btn='15' class='pbtn' x='159' y='96' width='30' height='28' rx='5' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
+<path class='padglyph' d='M145,73 l4,7 h-8 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.6' stroke-linejoin='round'/>\
+<path class='padglyph' d='M145,147 l4,-7 h-8 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.6' stroke-linejoin='round'/>\
+<path class='padglyph' d='M108,110 l7,4 v-8 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.6' stroke-linejoin='round'/>\
+<path class='padglyph' d='M182,110 l-7,4 v-8 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.6' stroke-linejoin='round'/>\
+<circle data-btn='3' class='pbtn' cx='335' cy='68' r='18' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
+<path class='padglyph' d='M335,58 l9,16 h-18 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='2' stroke-linejoin='round'/>\
+<circle data-btn='1' class='pbtn' cx='377' cy='110' r='18' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
+<circle class='padglyph' cx='377' cy='110' r='9' fill='none' stroke='" + PAD_LINE + "' stroke-width='2'/>\
+<circle data-btn='0' class='pbtn' cx='335' cy='152' r='18' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
+<path class='padglyph' d='M327,144 l16,16 M343,144 l-16,16' fill='none' stroke='" + PAD_LINE + "' stroke-width='2' stroke-linecap='round'/>\
+<circle data-btn='2' class='pbtn' cx='293' cy='110' r='18' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/>\
+<rect class='padglyph' x='284' y='101' width='18' height='18' fill='none' stroke='" + PAD_LINE + "' stroke-width='2'/>\
+<rect data-btn='8' class='pbtn' x='213' y='90' width='17' height='10' rx='4' fill='#ffffff' stroke='" + PAD_LINE + "'/><text x='221' y='114' class='plbl'>SELECT</text>\
+<rect class='padglyph' x='217' y='118' width='7' height='7' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.3'/>\
+<rect data-btn='9' class='pbtn' x='250' y='90' width='17' height='10' rx='4' fill='#ffffff' stroke='" + PAD_LINE + "'/><text x='258' y='114' class='plbl'>START</text>\
+<path class='padglyph' d='M251,118 l7,4 l-7,4 z' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.3' stroke-linejoin='round'/>\
+<circle data-btn='16' class='pbtn' cx='240' cy='118' r='6' fill='#ffffff' stroke='" + PAD_LINE + "'/>\
+<g transform='translate(170,196)'><circle r='34' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/><circle r='26' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.4'/><circle data-stick='l' data-btn='10' class='pbtn stickball' r='19' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='1.6'/></g>\
+<g transform='translate(310,196)'><circle r='34' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='2'/><circle r='26' fill='none' stroke='" + PAD_LINE + "' stroke-width='1.4'/><circle data-stick='r' data-btn='11' class='pbtn stickball' r='19' fill='#ffffff' stroke='" + PAD_LINE + "' stroke-width='1.6'/></g>\
+<rect x='163' y='236' width='14' height='3' fill='var(--switchc)'/><text x='170' y='250' class='plbl'>L3</text>\
+<rect x='303' y='236' width='14' height='3' fill='var(--xbox)'/><text x='310' y='250' class='plbl'>R3</text>\
 </svg>";
   var _padPoll = null;
   function controlesPage(c) {
