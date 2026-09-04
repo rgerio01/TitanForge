@@ -178,6 +178,7 @@
                 bootCheckUpdates: () => e.ipcRenderer.invoke("boot-check-updates"),
                 bootUpdateFinished: () => e.ipcRenderer.invoke("boot-update-finished"),
                 getAppVersion: () => e.ipcRenderer.invoke("get-app-version"),
+                getUpdates: () => e.ipcRenderer.invoke("get-updates"),
                 checkForUpdatesManually: () => e.ipcRenderer.invoke("check-for-updates-manually"),
                 onUpdateChecking: r => {
                     e.ipcRenderer.on("update-checking", () => r())
@@ -198,10 +199,7 @@
                     e.ipcRenderer.on("update-error", (e, n) => r(n))
                 },
                 arenaCheckInstalled: () => e.ipcRenderer.invoke("arena-check-installed"),
-                arenaDownloadAndInstall: (r, n) => e.ipcRenderer.invoke("arena-download-and-install", {
-                    urls: r,
-                    version: n
-                }),
+                arenaDownloadAndInstall: () => e.ipcRenderer.invoke("arena-download-and-install"),
                 arenaRomsListConsoles: () => e.ipcRenderer.invoke("arena-roms-list-consoles"),
                 arenaRomsListGames: consoleId => e.ipcRenderer.invoke("arena-roms-list-games", consoleId),
                 arenaRomsDownloadGame: (consoleId, file) => e.ipcRenderer.invoke("arena-roms-download-game", { console: consoleId, file }),
@@ -212,6 +210,11 @@
                 arenaUninstall: () => e.ipcRenderer.invoke("arena-uninstall"),
                 onArenaDownloadProgress: r => {
                     e.ipcRenderer.on("arena-download-progress", (e, n) => r(n))
+                },
+                onArenaEmuProgress: r => {
+                    const n = (e, t) => r(t);
+                    e.ipcRenderer.on("arena-emu-progress", n);
+                    return () => e.ipcRenderer.removeListener("arena-emu-progress", n)
                 },
                 arenaRequestGame: r => e.ipcRenderer.invoke("arena-request-game", r),
                 supportRequest: r => e.ipcRenderer.invoke("support-request", r),

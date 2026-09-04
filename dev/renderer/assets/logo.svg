@@ -1,0 +1,92 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="70%">
+      <stop offset="0%" stop-color="#1a1305"/>
+      <stop offset="45%" stop-color="#0f0c08"/>
+      <stop offset="100%" stop-color="#08070a"/>
+    </radialGradient>
+    <linearGradient id="pad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2b2620"/>
+      <stop offset="100%" stop-color="#141109"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffbe5c"/>
+      <stop offset="55%" stop-color="#ff9d1f"/>
+      <stop offset="100%" stop-color="#37e0d6"/>
+    </linearGradient>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff4dc"/>
+      <stop offset="35%" stop-color="#ffbe5c"/>
+      <stop offset="70%" stop-color="#ff9d1f"/>
+      <stop offset="100%" stop-color="#a35f0c" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <!-- ground -->
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+
+  <!-- faint star field -->
+  <g fill="#ffd89a" opacity="0.55">
+    <circle cx="190" cy="250" r="4"/><circle cx="300" cy="170" r="2.6"/>
+    <circle cx="820" cy="240" r="3.4"/><circle cx="880" cy="360" r="2.4"/>
+    <circle cx="170" cy="720" r="3"/><circle cx="250" cy="840" r="2.4"/>
+    <circle cx="800" cy="800" r="3.6"/><circle cx="700" cy="880" r="2.2"/>
+    <circle cx="512" cy="120" r="2.6"/><circle cx="930" cy="600" r="2.6"/>
+    <circle cx="95" cy="470" r="2.6"/>
+  </g>
+
+  <!-- orbit ring (galaxy sweep) -->
+  <g transform="rotate(-24 512 512)">
+    <ellipse cx="512" cy="512" rx="452" ry="452" fill="none" stroke="url(#rim)" stroke-width="10" opacity="0.30"/>
+    <path d="M512 60 a452 452 0 0 1 392 226" fill="none" stroke="#37e0d6" stroke-width="16" stroke-linecap="round" opacity="0.9" filter="url(#soft)"/>
+    <path d="M512 964 a452 452 0 0 1 -392 -226" fill="none" stroke="#ff9d1f" stroke-width="16" stroke-linecap="round" opacity="0.9" filter="url(#soft)"/>
+  </g>
+
+  <!-- galactic core glowing through the controller -->
+  <circle cx="512" cy="512" r="250" fill="url(#core)" opacity="0.9"/>
+
+  <!-- controller body -->
+  <g>
+    <path fill="url(#pad)" stroke="url(#rim)" stroke-width="14" stroke-linejoin="round"
+      d="M330 356
+         h364
+         c58 0 104 40 118 96
+         l60 232
+         c16 62 -30 118 -92 118
+         c-44 0 -84 -26 -102 -66
+         l-24 -54
+         c-12 -26 -38 -44 -68 -44
+         h-208
+         c-30 0 -56 18 -68 44
+         l-24 54
+         c-18 40 -58 66 -102 66
+         c-62 0 -108 -56 -92 -118
+         l60 -232
+         c14 -56 60 -96 118 -96
+         z"/>
+
+    <!-- d-pad -->
+    <g fill="#0c0a07" stroke="#ff9d1f" stroke-width="9">
+      <rect x="360" y="470" width="120" height="42" rx="10"/>
+      <rect x="399" y="431" width="42" height="120" rx="10"/>
+    </g>
+
+    <!-- action buttons -->
+    <g>
+      <circle cx="626" cy="452" r="24" fill="#37e0d6"/>
+      <circle cx="686" cy="500" r="24" fill="#ffbe5c"/>
+      <circle cx="566" cy="500" r="24" fill="#ffbe5c"/>
+      <circle cx="626" cy="548" r="24" fill="#37e0d6"/>
+    </g>
+
+    <!-- center core dot -->
+    <circle cx="512" cy="500" r="30" fill="#fff4dc"/>
+    <circle cx="512" cy="500" r="30" fill="none" stroke="#ff9d1f" stroke-width="8"/>
+  </g>
+
+  <!-- outer glow accents -->
+  <circle cx="512" cy="512" r="470" fill="none" stroke="#ff9d1f" stroke-width="3" opacity="0.15"/>
+</svg>

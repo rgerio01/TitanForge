@@ -80508,10 +80508,7 @@
 ;(function(){
   // Pacote de emuladores (RetroBat, sem ROMs), publicado como release no GitHub,
   // dividido em partes de 2GB (limite do GitHub Release).
-  const ARENA_RELEASE_BASE = "https://github.com/rgerio01/TitanForge/releases/download/v3.0.0/";
-  const ARENA_PACKAGE_PARTS = ["001", "002", "003", "004", "005", "006", "007"];
-  const ARENA_PACKAGE_URLS = ARENA_PACKAGE_PARTS.map(n => ARENA_RELEASE_BASE + "RetroAnvil-emuladores.7z." + n);
-  const ARENA_VERSION = "1.0.0";
+  // Distribuicao v2: base + emuladores por demanda via manifest (o main resolve as URLs).
 
   function getLicenseKey(){
     return localStorage.getItem("umbra_license_key") || localStorage.getItem("vortex_license_key") || "";
@@ -80815,7 +80812,12 @@
           id: gp.id, index: gp.index, buttonCount: gp.buttons.length, axisCount: gp.axes.length
         }));
         status.textContent = (gamepads.length ? "Abrindo " + g.title + "..." : "Nenhum controle conectado — abrindo " + g.title + " (teclado)...");
+        const unsub = window.electron.onArenaEmuProgress ? window.electron.onArenaEmuProgress(d => {
+          if (d.phase === "emu") status.textContent = "Baixando emulador de " + g.system + "... " + (d.percent || 0) + "%";
+          else if (d.phase === "emu-done") status.textContent = "Emulador pronto, abrindo " + g.title + "...";
+        }) : null;
         const r = await window.electron.arenaLaunchGame({ system: g.system, file: g.file, gamepads });
+        if (unsub) try { unsub(); } catch {}
         if (!r.success) status.textContent = "Erro: " + r.error;
       };
       const doRemove = async () => {
@@ -81385,11 +81387,13 @@
 
     window.electron.onArenaDownloadProgress(data => {
       progWrap.style.display = "block";
-      if (data.phase === "download") {
-        progText.textContent = "Baixando emuladores... parte " + (data.part || 1) + "/" + (data.totalParts || ARENA_PACKAGE_URLS.length) + " — " + data.percent + "%";
+      if (data.phase === "manifest") {
+        progText.textContent = "Preparando...";
+      } else if (data.phase === "download") {
+        progText.textContent = "Baixando base dos emuladores... parte " + (data.part || 1) + "/" + (data.totalParts || 1) + " — " + data.percent + "%";
         progFill.style.width = data.percent + "%";
       } else if (data.phase === "extract") {
-        progText.textContent = "Instalando emuladores...";
+        progText.textContent = "Instalando...";
         progFill.style.width = "100%";
       } else if (data.phase === "done") {
         progText.textContent = "Concluído!";
@@ -81397,13 +81401,8 @@
     });
 
     dlBtn.onclick = async () => {
-      if (!ARENA_PACKAGE_URLS.length) {
-        progWrap.style.display = "block";
-        progText.textContent = "Pacote ainda não configurado. Fale com o suporte.";
-        return;
-      }
       dlBtn.disabled = true;
-      const r = await window.electron.arenaDownloadAndInstall(ARENA_PACKAGE_URLS, ARENA_VERSION);
+      const r = await window.electron.arenaDownloadAndInstall();
       dlBtn.disabled = false;
       if (r.success) renderInstalled(root);
       else { progWrap.style.display = "block"; progText.textContent = "Erro: " + r.error; }

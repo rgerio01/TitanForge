@@ -20579,6 +20579,60 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
   const ARENA_EXE_NAME = "RetroBat.exe";
   const ARENA_EXE = path.join(ARENA_DIR, ARENA_EXE_NAME);
   const ARENA_ROMS_DIR_DEFAULT = path.join(ARENA_DIR, "roms");
+
+  // Distribuicao v2: base (ES + system + TODAS as bios + retroarch) + 1 asset por emulador
+  // pesado, nomes OPACOS (ra-<ref>.7z), baixados sob demanda. manifest.json mapeia
+  // sistema -> ref -> pasta/parts/sha256. Volumes de 1.8 GB (limite GitHub 2 GiB).
+  const ARENA_MF_TAG = "emulators-v2";
+  const ARENA_DL_BASE = `https://github.com/rgerio01/TitanForge/releases/download/${ARENA_MF_TAG}/`;
+  const ARENA_MF_URL = ARENA_DL_BASE + "manifest.json";
+  const ARENA_MF_LOCAL = path.join(ARENA_DIR, "manifest.json");
+  const readArenaManifest = () => { try { return JSON.parse(fs.readFileSync(ARENA_MF_LOCAL, "utf-8")); } catch { return null; } };
+  const fetchArenaManifest = async () => (await axios.get(ARENA_MF_URL, { responseType: "json", timeout: 3e4, validateStatus: s => s >= 200 && s < 300 })).data;
+
+  // Baixa uma lista de partes -> tmp, valida SHA256 (quando houver) -> extrai do .001 pra ARENA_DIR.
+  async function arenaFetchParts(parts, sha256, onProg) {
+    if (!fs.existsSync(SEVEN_ZIP_EXE)) throw new Error("7-Zip não encontrado no instalador");
+    const tmp = path.join(os.tmpdir(), `raemu-${Date.now()}`);
+    fs.mkdirSync(tmp, { recursive: !0 });
+    try {
+      let first = null;
+      for (let i = 0; i < parts.length; i++) {
+        const dst = path.join(tmp, parts[i]);
+        if (0 === i) first = dst;
+        const res = await axios({ method: "GET", url: ARENA_DL_BASE + parts[i], responseType: "stream", timeout: 0,
+          onDownloadProgress: e => { e.total && onProg && onProg(Math.round((i + e.loaded / e.total) / parts.length * 100), i + 1, parts.length); } });
+        await new Promise((ok, no) => { const w = fs.createWriteStream(dst); res.data.pipe(w); w.on("finish", ok); w.on("error", no); });
+        if (sha256 && sha256[i]) {
+          const got = require("crypto").createHash("sha256").update(fs.readFileSync(dst)).digest("hex").toLowerCase();
+          if (got !== String(sha256[i]).toLowerCase()) throw new Error(`SHA256 não confere em ${parts[i]}`);
+        }
+      }
+      await new Promise((ok, no) => {
+        const p = spawn(SEVEN_ZIP_EXE, ["x", first, "-o" + ARENA_DIR, "-y", "-aoa"], { windowsHide: !0 });
+        p.on("close", c => 0 === c ? ok() : no(new Error("7-Zip saiu com código " + c)));
+        p.on("error", no);
+      });
+    } finally { try { fs.rmSync(tmp, { recursive: !0, force: !0 }); } catch {} }
+  }
+
+  // Garante o emulador do sistema instalado localmente; baixa sob demanda a partir do manifest.
+  async function ensureEmulatorForSystem(system, send) {
+    const mf = readArenaManifest();
+    if (!mf || !mf.systems) return { ok: !0 };
+    const ref = mf.systems[system];
+    if (!ref || "base" === ref) return { ok: !0 };
+    const info = mf.emulators && mf.emulators[ref];
+    if (!info || !Array.isArray(info.parts)) return { ok: !1, error: `o emulador do sistema "${system}" não está no manifesto` };
+    const dir = path.join(ARENA_DIR, String(info.dir || "").replace(/\//g, path.sep));
+    try { if (fs.existsSync(dir) && fs.readdirSync(dir).length) return { ok: !0 }; } catch {}
+    try {
+      send && send({ phase: "emu", percent: 0 });
+      await arenaFetchParts(info.parts, info.sha256, (pct, part, total) => send && send({ phase: "emu", percent: pct, part, total }));
+      send && send({ phase: "emu-done", percent: 100 });
+      return { ok: !0 };
+    } catch (e) { return { ok: !1, error: String((e && e.message) || e) }; }
+  }
   const ARENA_ROMS_CONFIG_PATH = path.join(app.getPath("userData"), "retroanvil-roms-path.json");
   function getArenaRomsDir() {
     try {
@@ -20688,58 +20742,22 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
   // Pacote de emuladores vem dividido em partes .7z.001, .7z.002, ... (limite de
   // 2GB por arquivo do GitHub Release). Baixa cada parte na ordem e extrai com o
   // 7-Zip embutido — ele junta as partes sozinho a partir da primeira (.001).
-  ipcMain.handle("arena-download-and-install", async (event, payload) => {
-    const urls = (payload && Array.isArray(payload.urls) ? payload.urls : (payload && payload.url ? [payload.url] : []));
-    const version = (payload && payload.version) || "1.0.0";
-    const tmpDir = path.join(os.tmpdir(), `retroanvil-dl-${Date.now()}`);
+  ipcMain.handle("arena-download-and-install", async event => {
+    const send = d => { try { event.sender.send("arena-download-progress", d); } catch {} };
     try {
-      if (!urls.length) return { success: false, error: "URL do pacote não configurada" };
       if (!fs.existsSync(SEVEN_ZIP_EXE)) return { success: false, error: "7-Zip não encontrado no instalador" };
       fs.mkdirSync(ARENA_DIR, { recursive: true });
-      fs.mkdirSync(tmpDir, { recursive: true });
-
-      let firstPartPath = null;
-      for (let i = 0; i < urls.length; i++) {
-        const partUrl = urls[i];
-        const partName = partUrl.split("/").pop().split("?")[0];
-        const partPath = path.join(tmpDir, partName);
-        if (i === 0) firstPartPath = partPath;
-
-        const res = await axios({
-          method: "GET",
-          url: partUrl,
-          responseType: "stream",
-          timeout: 0,
-          onDownloadProgress: e => {
-            if (e.total) {
-              const partPercent = Math.round((100 * e.loaded) / e.total);
-              const overall = Math.round(((i + partPercent / 100) / urls.length) * 100);
-              event.sender.send("arena-download-progress", { phase: "download", percent: overall, part: i + 1, totalParts: urls.length });
-            }
-          }
-        });
-        await new Promise((resolve, reject) => {
-          const w = fs.createWriteStream(partPath);
-          res.data.pipe(w);
-          w.on("finish", resolve);
-          w.on("error", reject);
-        });
-      }
-
-      event.sender.send("arena-download-progress", { phase: "extract", percent: 0 });
-      await new Promise((resolve, reject) => {
-        const p = spawn(SEVEN_ZIP_EXE, ["x", firstPartPath, "-o" + ARENA_DIR, "-y"], { windowsHide: true });
-        p.on("close", code => code === 0 ? resolve() : reject(new Error("7-Zip saiu com código " + code)));
-        p.on("error", reject);
-      });
-
-      fs.rmSync(tmpDir, { recursive: true, force: true });
+      send({ phase: "manifest", percent: 0 });
+      const mf = await fetchArenaManifest();
+      if (!mf || !mf.base || !Array.isArray(mf.base.parts) || !mf.base.parts.length) return { success: false, error: "manifesto de emuladores inválido" };
+      send({ phase: "download", percent: 0, part: 1, totalParts: mf.base.parts.length });
+      await arenaFetchParts(mf.base.parts, mf.base.sha256, (pct, part, total) => send({ phase: "download", percent: pct, part, totalParts: total }));
+      fs.writeFileSync(ARENA_MF_LOCAL, JSON.stringify(mf));
       fs.mkdirSync(getArenaRomsDir(), { recursive: true });
-      fs.writeFileSync(ARENA_MARKER, version);
-      event.sender.send("arena-download-progress", { phase: "done", percent: 100 });
+      fs.writeFileSync(ARENA_MARKER, mf.version || "2.0.0");
+      send({ phase: "done", percent: 100 });
       return { success: true };
     } catch (e) {
-      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
       return { success: false, error: String((e && e.message) || e) };
     }
   });
@@ -20953,6 +20971,10 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
       if (path.dirname(romPath) !== sysDir || !fs.existsSync(romPath)) {
         return { success: false, error: "Jogo não encontrado" };
       }
+
+      // Emulador desse sistema pode não estar baixado ainda (distribuicao v2, sob demanda).
+      const emu = await ensureEmulatorForSystem(system, d => { try { event.sender.send("arena-emu-progress", d); } catch {} });
+      if (!emu.ok) return { success: false, error: "Falha ao preparar o emulador: " + (emu.error || "desconhecido") };
 
       const controllerArgs = buildControllerArgs(gamepads);
 
@@ -21341,6 +21363,30 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
     } catch (err) {
       const timedOut = err && (err.code === "ECONNABORTED" || /timeout/i.test(err.message || ""));
       return { success: false, error: timedOut ? "Tempo de conexão esgotado." : String((err && err.message) || err) };
+    }
+  });
+})();
+
+;(function () {
+  // GAMAXY: feed de novidades pro renderer novo (tabela public.atualizacoes)
+  const { ipcMain } = require("electron");
+  const axios = require("axios");
+  const SB_URL = "https://kgdcvterplxmbslznnfp.supabase.co";
+  const SB_KEY = "sb_publishable_z06J05iYrjmGg57TjBXQkQ_quKLggJB";
+  let _cache = { at: 0, data: [] };
+  ipcMain.handle("get-updates", async () => {
+    try {
+      if (Date.now() - _cache.at < 60000 && _cache.data.length) return _cache.data;
+      const res = await axios.get(`${SB_URL}/rest/v1/atualizacoes`, {
+        params: { select: "*", order: "created_at.desc", limit: "20" },
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+        timeout: 12000, validateStatus: () => true
+      });
+      const arr = Array.isArray(res.data) ? res.data : [];
+      _cache = { at: Date.now(), data: arr };
+      return arr;
+    } catch (e) {
+      return _cache.data || [];
     }
   });
 })();

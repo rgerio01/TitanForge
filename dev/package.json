@@ -1,6 +1,6 @@
 {
   "name": "titanforge-launcher",
-  "version": "2.6.0",
+  "version": "4.2.0-dev",
   "description": "TitanForge Launcher - Sistema de gerenciamento de jogos Steam",
   "main": "dist/main/index.js",
   "author": "TitanForge Team",
