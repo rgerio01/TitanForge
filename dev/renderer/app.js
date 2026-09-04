@@ -366,6 +366,8 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 .pbtn{transition:fill .05s,stroke .05s}.pbtn.on{fill:var(--heat) !important;stroke:var(--heat-2) !important}\
 .stickball.on{fill:var(--steel) !important;stroke:var(--steel-2) !important}\
 .plbl{font-family:'IBM Plex Mono';font-size:8px;fill:var(--text-faint);text-anchor:middle;letter-spacing:.06em}\
+.padbody{fill:var(--panel-2);stroke:var(--line);stroke-width:2}\
+.padglyph{pointer-events:none}\
 .adm textarea{width:100%;min-height:90px;background:var(--ground);border:1px solid var(--line);color:var(--text);font-family:'IBM Plex Mono';font-size:12px;padding:10px;outline:none}\
 .adm pre{background:var(--ground);border:1px solid var(--line);padding:10px;overflow:auto;max-height:280px;font-family:'IBM Plex Mono';font-size:11px;color:var(--text-dim)}\
 ";
@@ -1437,27 +1439,34 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
   /* ------------------------------------------------------- RETRO: controles */
   var PAD_SVG = "\
 <svg viewBox='0 0 480 300' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto;overflow:visible'>\
-<circle cx='90' cy='225' r='62' fill='var(--panel-2)' stroke='var(--line)' stroke-width='2'/>\
-<circle cx='390' cy='225' r='62' fill='var(--panel-2)' stroke='var(--line)' stroke-width='2'/>\
-<rect x='50' y='58' width='380' height='150' rx='36' fill='var(--panel-2)' stroke='var(--line)' stroke-width='2'/>\
-<rect data-btn='6' class='pbtn' x='66' y='30' width='96' height='20' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='114' y='44' class='plbl'>L2</text>\
-<rect data-btn='4' class='pbtn' x='66' y='52' width='96' height='22' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='114' y='67' class='plbl'>L1</text>\
-<rect data-btn='7' class='pbtn' x='318' y='30' width='96' height='20' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='366' y='44' class='plbl'>R2</text>\
-<rect data-btn='5' class='pbtn' x='318' y='52' width='96' height='22' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='366' y='67' class='plbl'>R1</text>\
-<rect data-btn='12' class='pbtn' x='136' y='120' width='28' height='28' rx='6' fill='var(--card)' stroke='var(--line)'/>\
-<rect data-btn='13' class='pbtn' x='136' y='172' width='28' height='28' rx='6' fill='var(--card)' stroke='var(--line)'/>\
-<rect data-btn='14' class='pbtn' x='110' y='146' width='28' height='28' rx='6' fill='var(--card)' stroke='var(--line)'/>\
-<rect data-btn='15' class='pbtn' x='162' y='146' width='28' height='28' rx='6' fill='var(--card)' stroke='var(--line)'/>\
-<circle data-btn='3' class='pbtn' cx='335' cy='118' r='16' fill='var(--card)' stroke='var(--steel)' stroke-width='2'/>\
-<circle data-btn='0' class='pbtn' cx='335' cy='182' r='16' fill='var(--card)' stroke='var(--good)' stroke-width='2'/>\
-<circle data-btn='2' class='pbtn' cx='303' cy='150' r='16' fill='var(--card)' stroke='var(--heat)' stroke-width='2'/>\
-<circle data-btn='1' class='pbtn' cx='367' cy='150' r='16' fill='var(--card)' stroke='var(--crit)' stroke-width='2'/>\
-<rect data-btn='8' class='pbtn' x='206' y='96' width='28' height='13' rx='4' fill='var(--card)' stroke='var(--line)'/><text x='220' y='124' class='plbl'>SELECT</text>\
-<rect data-btn='9' class='pbtn' x='246' y='96' width='28' height='13' rx='4' fill='var(--card)' stroke='var(--line)'/><text x='260' y='124' class='plbl'>START</text>\
-<circle data-btn='16' class='pbtn' cx='240' cy='150' r='9' fill='var(--card)' stroke='var(--line)'/>\
-<g transform='translate(150,232)'><circle r='27' fill='var(--ground)' stroke='var(--line)' stroke-width='2'/><circle data-stick='l' data-btn='10' class='pbtn stickball' r='16' fill='var(--card)' stroke='var(--line)'/></g>\
-<g transform='translate(300,232)'><circle r='27' fill='var(--ground)' stroke='var(--line)' stroke-width='2'/><circle data-stick='r' data-btn='11' class='pbtn stickball' r='16' fill='var(--card)' stroke='var(--line)'/></g>\
-<text x='114' y='288' class='plbl'>L3</text><text x='366' y='288' class='plbl'>R3</text>\
+<path class='padbody' d='M240,22 C270,22 296,24 306,34 C316,44 320,54 330,64 C368,68 406,84 428,116 C450,148 460,192 452,232 C446,264 420,286 388,282 C362,278 344,258 332,230 C324,210 310,196 288,188 C266,182 214,182 192,188 C170,196 156,210 148,230 C136,258 118,278 92,282 C60,286 34,264 28,232 C20,192 30,148 52,116 C74,84 112,68 150,64 C160,54 164,44 174,34 C184,24 210,22 240,22 Z'/>\
+<rect data-btn='6' class='pbtn' x='132' y='2' width='96' height='16' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='180' y='13' class='plbl'>L2</text>\
+<rect data-btn='4' class='pbtn' x='132' y='22' width='96' height='18' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='180' y='35' class='plbl'>L1</text>\
+<rect data-btn='7' class='pbtn' x='252' y='2' width='96' height='16' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='300' y='13' class='plbl'>R2</text>\
+<rect data-btn='5' class='pbtn' x='252' y='22' width='96' height='18' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='300' y='35' class='plbl'>R1</text>\
+<rect x='121' y='166' width='28' height='28' fill='var(--card)' stroke='var(--line)'/>\
+<rect data-btn='12' class='pbtn' x='121' y='138' width='28' height='30' rx='5' fill='var(--card)' stroke='var(--line)'/>\
+<rect data-btn='13' class='pbtn' x='121' y='180' width='28' height='30' rx='5' fill='var(--card)' stroke='var(--line)'/>\
+<rect data-btn='14' class='pbtn' x='93' y='166' width='30' height='28' rx='5' fill='var(--card)' stroke='var(--line)'/>\
+<rect data-btn='15' class='pbtn' x='149' y='166' width='30' height='28' rx='5' fill='var(--card)' stroke='var(--line)'/>\
+<path class='padglyph' d='M135,148 l4,7 h-8 z' fill='none' stroke='var(--text-dim)' stroke-width='1.6' stroke-linejoin='round'/>\
+<path class='padglyph' d='M135,197 l4,-7 h-8 z' fill='none' stroke='var(--text-dim)' stroke-width='1.6' stroke-linejoin='round'/>\
+<path class='padglyph' d='M104,180 l7,4 v-8 z' fill='none' stroke='var(--text-dim)' stroke-width='1.6' stroke-linejoin='round'/>\
+<path class='padglyph' d='M168,180 l-7,4 v-8 z' fill='none' stroke='var(--text-dim)' stroke-width='1.6' stroke-linejoin='round'/>\
+<circle data-btn='3' class='pbtn' cx='345' cy='143' r='17' fill='var(--card)' stroke='var(--line)' stroke-width='2'/>\
+<path class='padglyph' d='M345,134 l8,14 h-16 z' fill='none' stroke='var(--good)' stroke-width='2' stroke-linejoin='round'/>\
+<circle data-btn='1' class='pbtn' cx='377' cy='175' r='17' fill='var(--card)' stroke='var(--line)' stroke-width='2'/>\
+<circle class='padglyph' cx='377' cy='175' r='8' fill='none' stroke='var(--crit)' stroke-width='2'/>\
+<circle data-btn='0' class='pbtn' cx='345' cy='207' r='17' fill='var(--card)' stroke='var(--line)' stroke-width='2'/>\
+<path class='padglyph' d='M338,200 l14,14 M352,200 l-14,14' fill='none' stroke='var(--ps)' stroke-width='2' stroke-linecap='round'/>\
+<circle data-btn='2' class='pbtn' cx='313' cy='175' r='17' fill='var(--card)' stroke='var(--line)' stroke-width='2'/>\
+<rect class='padglyph' x='305' y='167' width='16' height='16' fill='none' stroke='var(--neon)' stroke-width='2'/>\
+<rect data-btn='8' class='pbtn' x='192' y='104' width='30' height='14' rx='5' fill='var(--card)' stroke='var(--line)'/><text x='207' y='131' class='plbl'>SELECT</text>\
+<rect data-btn='9' class='pbtn' x='258' y='104' width='30' height='14' rx='5' fill='var(--card)' stroke='var(--line)'/><text x='273' y='131' class='plbl'>START</text>\
+<circle data-btn='16' class='pbtn' cx='240' cy='111' r='9' fill='var(--card)' stroke='var(--line)'/>\
+<g transform='translate(172,228)'><circle r='29' fill='var(--ground)' stroke='var(--line)' stroke-width='2'/><circle data-stick='l' data-btn='10' class='pbtn stickball' r='17' fill='var(--card)' stroke='var(--line)'/></g>\
+<g transform='translate(308,228)'><circle r='29' fill='var(--ground)' stroke='var(--line)' stroke-width='2'/><circle data-stick='r' data-btn='11' class='pbtn stickball' r='17' fill='var(--card)' stroke='var(--line)'/></g>\
+<text x='172' y='274' class='plbl'>L3</text><text x='308' y='274' class='plbl'>R3</text>\
 </svg>";
   var _padPoll = null;
   function controlesPage(c) {
