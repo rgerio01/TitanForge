@@ -134,6 +134,17 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 .lg .go[disabled]{background:var(--panel-2);color:var(--text-faint);cursor:not-allowed}\
 .lg .alt{margin-top:16px;font-size:12px;color:var(--text-dim)}.lg .alt b{color:var(--heat);cursor:pointer}\
 .foot{position:absolute;bottom:12px;width:100%;text-align:center;font-size:10px;letter-spacing:.08em;color:var(--text-faint)}\
+.screen.auth{background:radial-gradient(ellipse 70% 60% at 50% 40%,color-mix(in srgb,var(--heat) 8%,transparent),transparent 70%),var(--ground)}\
+.screen.auth::before{content:'';position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(color-mix(in srgb,var(--line) 30%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--line) 30%,transparent) 1px,transparent 1px);background-size:44px 44px;-webkit-mask-image:radial-gradient(ellipse 62% 62% at 50% 42%,#000 25%,transparent 78%);mask-image:radial-gradient(ellipse 62% 62% at 50% 42%,#000 25%,transparent 78%)}\
+.sfield{position:absolute;inset:0;pointer-events:none;overflow:hidden}\
+.sfield span{position:absolute;width:2px;height:2px;border-radius:50%;background:var(--heat-2);box-shadow:0 0 6px 1px color-mix(in srgb,var(--heat) 50%,transparent);opacity:.5;animation:tw 4s ease-in-out infinite}\
+.sfield span:nth-child(1){left:16%;top:24%}.sfield span:nth-child(2){left:72%;top:18%;animation-delay:.6s}\
+.sfield span:nth-child(3){left:42%;top:62%;width:1.5px;height:1.5px;animation-delay:1.2s}\
+.sfield span:nth-child(4){left:86%;top:66%;animation-delay:.3s}.sfield span:nth-child(5){left:9%;top:74%;width:1.5px;height:1.5px;animation-delay:1.8s}\
+.sfield span:nth-child(6){left:60%;top:82%;animation-delay:.9s}.sfield span:nth-child(7){left:28%;top:12%;width:1.5px;height:1.5px;animation-delay:2.4s}\
+.sfield span:nth-child(8){left:91%;top:34%;animation-delay:1.5s}\
+@keyframes tw{0%,100%{opacity:.25}50%{opacity:.8}}\
+.lg .panel{position:relative;z-index:1;box-shadow:0 30px 80px rgba(0,0,0,.5)}\
 \
 .frame{width:min(1100px,100%);border:1px solid var(--line);background:var(--panel);animation:fade .4s ease}\
 .hudbar{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--ground) 60%,transparent)}\
@@ -451,6 +462,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
   function go(phase, opt) {
     S.phase = phase;
     if (phase === "login") { setTitle("Gamaxy — Login"); mount(loginView(opt || {})); }
+    else if (phase === "signup") { setTitle("Gamaxy — Criar cadastro"); mount(signupView()); }
     else if (phase === "entry") { setTitle("Gamaxy — Entrada"); mount(entryView()); }
     else if (phase === "app") { setTitle("Gamaxy — " + (S.mode === "steam" ? "Steam" : "Retro")); mount(appView()); }
   }
@@ -513,17 +525,64 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     btn = h("button", { class: "go", onclick: submit }, ["Entrar"]);
     msgBox = h("div", {});
     if (opt.msg) setTimeout(function () { setMsg("err", opt.msg); }, 0);
-    return h("div", { class: "screen" }, [
+    return h("div", { class: "screen auth" }, [
+      starfield(),
       h("div", { class: "mid" }, [h("div", { class: "lg" }, [
         h("div", { class: "logo", html: LOGO }),
-        h("div", { class: "kick" }, ["Gamaxy"]),
+        h("div", { class: "kick" }, ["Gamaxy 1.0"]),
         h("h1", {}, ["Bem-vindo de volta"]),
         h("div", { class: "sub" }, ["Insira sua chave de licenca para acessar"]),
         h("div", { class: "panel cut" }, [h("label", { class: "lb", style: "margin-top:0" }, ["Chave de Licenca"]), input, msgBox, btn]),
-        h("div", { class: "alt" }, ["Nao tem uma chave? ", h("b", { onclick: function () { go("app"); S.mode = "steam"; S.page = "cadastro"; go("app"); } }, ["Criar cadastro →"])])
+        h("div", { class: "alt" }, ["Nao tem uma chave? ", h("b", { onclick: function () { go("signup"); } }, ["Criar cadastro →"])]),
+        h("div", { class: "alt", style: "margin-top:8px" }, [h("b", { style: "color:var(--text-dim)", onclick: function () { openUrl("https://wa.me/5543988322483?text=" + encodeURIComponent("Preciso de ajuda com meu login no Gamaxy.")); } }, ["Problema no login? Falar com o suporte"])])
       ])]),
-      h("div", { class: "foot" }, ["© 2026 TitanForge"])
+      h("div", { class: "foot mono" }, ["Gamaxy 1.0 · canal Dev · HWID " + ((S.hwid || "").slice(0, 12) || "—")])
     ]);
+  }
+
+  function signupView() {
+    var nome = h("input", { class: "field" }), email = h("input", { class: "field" }), tel = h("input", { class: "field", placeholder: "com DDD" }), ref = h("input", { class: "field", placeholder: "opcional" });
+    var planSel = h("select", { class: "field" }, [h("option", { value: "" }, ["Vitalicio (padrao)"])]);
+    var msg = h("div", {});
+    call("listSignupPlans", undefined, undefined, { plans: [] }).then(function (r) {
+      ((r && r.plans) || []).forEach(function (p) { planSel.appendChild(h("option", { value: p.key }, [(p.name || p.key) + " — " + money(p.price)])); });
+    });
+    var go1 = h("button", { class: "go", onclick: function () {
+      var body = { nome: nome.value.trim(), email: email.value.trim(), numero: tel.value.trim(), planKey: planSel.value || null, referredBy: ref.value.trim() || null };
+      if (!body.nome || !body.email || !body.numero) { msg.innerHTML = ""; msg.appendChild(h("div", { class: "msg-e" }, ["Preencha nome, e-mail e telefone"])); return; }
+      go1.disabled = true; go1.textContent = "Gerando PIX...";
+      call("signupCreatePix", body, undefined, { success: false }).then(function (r) {
+        go1.disabled = false; go1.textContent = "Gerar PIX do cadastro";
+        if (r && r.success && r.order) pixModal(r.order, "signupCheckStatus", function (res) {
+          if (res && res.licenseKey) { svc.save(res.licenseKey); showModal("Licenca criada!", "Sua chave: " + res.licenseKey + "\n\nJa deixei salva. Toque em Entrar.", [{ t: "Ir para o login", pri: true, act: function () { hideModal(); go("login", { msg: "" }); } }]); }
+        });
+        else { msg.innerHTML = ""; msg.appendChild(h("div", { class: "msg-e" }, [(r && r.error) || "Falha ao gerar PIX"])); }
+      });
+    } }, ["Gerar PIX do cadastro"]);
+    return h("div", { class: "screen auth" }, [
+      starfield(),
+      h("div", { class: "mid" }, [h("div", { class: "lg" }, [
+        h("div", { class: "logo", html: LOGO }),
+        h("div", { class: "kick" }, ["Gamaxy 1.0"]),
+        h("h1", {}, ["Criar cadastro"]),
+        h("div", { class: "sub" }, ["Crie a licenca por PIX. A chave aparece assim que o pagamento confirmar."]),
+        h("div", { class: "panel cut", style: "text-align:left" }, [
+          h("label", { class: "lb", style: "margin-top:0" }, ["Nome"]), nome,
+          h("label", { class: "lb" }, ["E-mail"]), email,
+          h("label", { class: "lb" }, ["Telefone (WhatsApp)"]), tel,
+          h("label", { class: "lb" }, ["Plano"]), planSel,
+          h("label", { class: "lb" }, ["Codigo de indicacao"]), ref,
+          msg, h("div", { style: "height:6px" }), go1
+        ]),
+        h("div", { class: "alt" }, [h("b", { onclick: function () { go("login", { msg: "" }); } }, ["← Voltar ao login"])])
+      ])]),
+      h("div", { class: "foot mono" }, ["Gamaxy 1.0 · canal Dev"])
+    ]);
+  }
+
+  function starfield() {
+    return h("div", { class: "sfield", "aria-hidden": "true", html:
+      "<span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>" });
   }
 
   function entryView() {
