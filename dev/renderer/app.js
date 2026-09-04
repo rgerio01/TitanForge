@@ -62,9 +62,9 @@
 
   /* -------------------------------------------------------------- services */
   var svc = {
-    getSaved: function () { try { return localStorage.getItem("titanforge_license_key") || localStorage.getItem("umbra_license_key") || ""; } catch (e) { return ""; } },
-    save: function (k) { try { localStorage.setItem("titanforge_license_key", String(k || "").toUpperCase()); } catch (e) {} },
-    clear: function () { try { ["titanforge_license_key", "umbra_license_key", "vortex_license_key"].forEach(function (x) { localStorage.removeItem(x); }); } catch (e) {} },
+    getSaved: function () { try { return localStorage.getItem("gx_lic") || ""; } catch (e) { return ""; } },
+    save: function (k) { try { localStorage.setItem("gx_lic", String(k || "").toUpperCase()); } catch (e) {} },
+    clear: function () { try { ["gx_lic", "titanforge_license_key", "umbra_license_key", "vortex_license_key"].forEach(function (x) { localStorage.removeItem(x); }); } catch (e) {} },
     validate: function (k) { return call("licenseValidate", k.trim(), S.hwid, { success: false, message: "IPC indisponivel" }); },
     checkStatus: function (k) { return call("licenseCheckStatus", k.trim(), S.hwid, { success: false, active: false }); },
     info: function (k) { return call("licenseGetInfo", k.trim(), undefined, null); },
@@ -380,13 +380,16 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     setTimeout(proceed, 12000);
   }
 
-  function afterBoot() {
+  function afterBoot(tries) {
+    tries = tries || 0;
     var saved = svc.getSaved();
     if (!saved) return go("login");
+    if (!S.hwid && tries < 12) { mount(bootView("Preparando...")); return void setTimeout(function () { afterBoot(tries + 1); }, 500); }
     mount(bootView("Verificando licenca..."));
+    // regra: so entra sem passar pelo login se o banco confirmar licenca ATIVA + vinculada a este HWID.
     svc.checkStatus(saved).then(function (r) {
-      if (r && (r.active || r.success)) { S.licenseKey = saved.toUpperCase(); authed(); }
-      else go("login", { msg: (r && r.message) || "" });
+      if (r && r.active === true) { S.licenseKey = saved.toUpperCase(); authed(); }
+      else { svc.clear(); go("login", { msg: (r && r.message) || "Faca login para continuar." }); }
     });
   }
 
@@ -403,6 +406,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     try {
       E.licenseWatch && E.licenseWatch(S.licenseKey);
       E.onLicenseChanged && E.onLicenseChanged(function (i) { if (i && i.active === false) logout("Sua licenca foi desativada."); });
+      E.onChargebackDetected && E.onChargebackDetected(function () { logout("Cobranca contestada — licenca suspensa. Fale com o suporte."); });
     } catch (e) {}
     startHb();
     svc.info(S.licenseKey).then(function (i) {
@@ -513,9 +517,13 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
         } else {
           btn.disabled = false; btn.textContent = "Entrar";
           setMsg("err", (r && r.message) || "Nao foi possivel validar sua licenca");
-          if (r && r.errorCode === "HWID_MISMATCH")
+          if (r && r.isSuspended) {
+            msgBox.appendChild(h("button", { class: "go", style: "margin-top:8px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff",
+              onclick: function () { openUrl("https://wa.me/5543988322483?text=" + encodeURIComponent("Minha licenca " + k.toUpperCase() + " esta suspensa/expirada. Quero regularizar.")); } }, ["Licenca suspensa — falar com o suporte"]));
+          } else if (r && r.errorCode === "HWID_MISMATCH") {
             msgBox.appendChild(h("button", { class: "go", style: "margin-top:8px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff",
               onclick: function () { openUrl("https://wa.me/5543988322483?text=" + encodeURIComponent("Ola! Minha licenca " + k.toUpperCase() + " esta vinculada a outro dispositivo.")); } }, ["Falar com o suporte"]));
+          }
         }
       });
     }
