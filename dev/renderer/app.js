@@ -219,9 +219,9 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 .efoot{display:flex;justify-content:space-between;align-items:center;padding:14px var(--px);border-top:1px solid var(--line);color:var(--text-faint);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;max-width:1400px;width:100%;margin:0 auto}\
 .efoot span{cursor:pointer;transition:color .15s}.efoot span:hover{color:var(--steel-2)}\
 \
-.app{position:absolute;inset:40px 0 0 0;display:grid;grid-template-columns:224px 1fr}\
+.app{position:absolute;inset:40px 0 0 0;display:grid;grid-template-columns:224px 1fr;overflow:hidden}\
 @media(max-width:900px){.app{grid-template-columns:66px 1fr}.rail .lbl,.rail .grp,.rail .who span,.rail .logo span{display:none}}\
-.rail{border-right:1px solid var(--line);background:var(--panel-2);display:flex;flex-direction:column;padding:14px 0;overflow:auto}\
+.rail{border-right:1px solid var(--line);background:var(--panel-2);display:flex;flex-direction:column;padding:14px 0;overflow-y:auto;min-height:0}\
 .rail .logo{padding:2px 18px 14px;display:flex;align-items:center;gap:9px;font-family:'Chakra Petch';font-weight:700;letter-spacing:.1em;font-size:14px}\
 .rail .logo svg{width:20px;height:20px;flex:none}\
 .rail .logo .v{font-family:'IBM Plex Mono';font-size:9px;color:var(--text-faint);margin-left:auto}\
@@ -237,7 +237,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 .rail .who .lo{margin-top:6px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);cursor:pointer}\
 .rail .who .lo:hover{color:var(--crit)}\
 \
-.main{display:flex;flex-direction:column;min-width:0}\
+.main{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}\
 .topbar{display:flex;align-items:center;gap:12px;padding:12px 22px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--ground) 45%,transparent)}\
 .topbar h3{font-size:14px;letter-spacing:.14em;text-transform:uppercase}\
 .topbar .exit{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);border:1px solid var(--line);padding:6px 11px}\
@@ -245,7 +245,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 .switch{display:flex;border:1px solid var(--line);margin-left:6px}\
 .switch button{padding:7px 14px;font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}\
 .switch button.on{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--text)}\
-.content{padding:22px;overflow:auto;flex:1}\
+.content{padding:22px;overflow-y:auto;overflow-x:hidden;flex:1;min-height:0}\
 \
 .strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}\
 @media(max-width:720px){.strip{grid-template-columns:repeat(2,1fr)}}\
@@ -363,6 +363,9 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 .toast.on{opacity:1}\
 .adm{display:flex;flex-direction:column;gap:16px}\
 .adm .acard{border:1px solid var(--line-soft);background:var(--panel-2);padding:16px}\
+.pbtn{transition:fill .05s,stroke .05s}.pbtn.on{fill:var(--heat) !important;stroke:var(--heat-2) !important}\
+.stickball.on{fill:var(--steel) !important;stroke:var(--steel-2) !important}\
+.plbl{font-family:'IBM Plex Mono';font-size:8px;fill:var(--text-faint);text-anchor:middle;letter-spacing:.06em}\
 .adm textarea{width:100%;min-height:90px;background:var(--ground);border:1px solid var(--line);color:var(--text);font-family:'IBM Plex Mono';font-size:12px;padding:10px;outline:none}\
 .adm pre{background:var(--ground);border:1px solid var(--line);padding:10px;overflow:auto;max-height:280px;font-family:'IBM Plex Mono';font-size:11px;color:var(--text-dim)}\
 ";
@@ -410,10 +413,13 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 
     var done = false;
     function proceed() { if (done) return; done = true; try { E.bootUpdateFinished && E.bootUpdateFinished(); } catch (e) {} afterBoot(); }
+    var _updVersion = "";
     try {
       if (E.onUpdateNotAvailable) E.onUpdateNotAvailable(proceed);
       if (E.onUpdateError) E.onUpdateError(proceed);
-      if (E.onUpdateAvailable) E.onUpdateAvailable(function (info) { showUpdateModal(info); });
+      if (E.onUpdateAvailable) E.onUpdateAvailable(function (info) { _updVersion = (info && info.version) || ""; updateHud({ phase: "downloading", percent: 0, version: _updVersion }); });
+      if (E.onUpdateDownloadProgress) E.onUpdateDownloadProgress(function (p) { updateHud({ phase: "downloading", percent: p && p.percent, transferred: p && p.transferred, total: p && p.total, version: _updVersion }); });
+      if (E.onUpdateDownloaded) E.onUpdateDownloaded(function (info) { _updVersion = (info && info.version) || _updVersion; updateHud({ phase: "ready", version: _updVersion }); });
     } catch (e) {}
     if (E.bootCheckUpdates) { try { E.bootCheckUpdates(); } catch (e) {} setTimeout(proceed, 7000); }
     else proceed();
@@ -726,7 +732,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     if (S.mode === "retro") {
       return [["home", "Sistemas", "pad"], ["instalados", "Instalados", "games"], ["emu", "Emuladores", "chip"],
         ["__g", "Biblioteca"], ["solicitar", "Solicitar Jogo", "spark"], ["pasta", "Pasta de ROMs", "folder"],
-        ["__g", "Sistema"], ["config", "Configuracoes", "cog"]]
+        ["__g", "Sistema"], ["controles", "Controles", "pad"], ["config", "Configuracoes", "cog"]]
         .concat(S.isAdmin ? [["__g", "Interno"], ["admin", "Painel Admin", "wrench"]] : []);
     }
     var it = [["home", "Meus Jogos", "games"], ["catalogo", "Catalogo", "grid"], ["addgame", "Adicionar Jogo", "spark"],
@@ -744,7 +750,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
   var TITLES = { home: S_home, catalogo: "Catalogo", addgame: "Adicionar Jogo", bypass: "Bypass", multiplayer: "Multiplayer",
     denuvo: "Remover Denuvo", contas: "Contas Oficiais", dlc: "DLCs", nsfw: "+18", novidades: "Novidades", tutoriais: "Tutoriais",
     loja: "Loja", indicacoes: "Indique e Ganha", config: "Configuracoes",
-    instalados: "Instalados", emu: "Emuladores", solicitar: "Solicitar Jogo", pasta: "Pasta de ROMs", admin: "Painel Admin", cadastro: "Criar cadastro" };
+    instalados: "Instalados", emu: "Emuladores", solicitar: "Solicitar Jogo", pasta: "Pasta de ROMs", controles: "Controles", admin: "Painel Admin", cadastro: "Criar cadastro" };
   function S_home() { return S.mode === "retro" ? "Sistemas" : "Meus Jogos"; }
   function titleOf(p) { var t = TITLES[p]; return typeof t === "function" ? t() : (t || "Gamaxy"); }
 
@@ -799,6 +805,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
   }
 
   function renderPage(c) {
+    if (typeof _padPoll !== "undefined" && _padPoll) { cancelAnimationFrame(_padPoll); _padPoll = null; }
     c.innerHTML = "";
     var P = S.page, M = S.mode;
     if (M === "steam") {
@@ -824,6 +831,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       if (P === "emu") return retroEmu(c);
       if (P === "solicitar") return retroRequest(c);
       if (P === "pasta") return retroPath(c);
+      if (P === "controles") return controlesPage(c);
       if (P === "config") return configPage(c);
       if (P === "admin") return adminPage(c);
     }
@@ -843,7 +851,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       [stat("Instalados", String(S.myGames.size) + (!S.isAdmin && S.plan && S.plan.game_limit != null ? " <small>/ " + S.plan.game_limit + "</small>" : ""), 1),
        stat("Plano", "<span style='font-size:15px'>" + esc(S.isAdmin ? "FULL ADMIN" : ((S.plan && S.plan.name) || "ativo")) + "</span>", 1),
        stat("Steam", "<span style='font-size:17px;color:" + (S.steam.found ? "var(--good)" : S.steam.found === false ? "var(--crit)" : "var(--text-faint)") + "'>" + (S.steam.found ? "Detectada" : S.steam.found === false ? "Nao encontrada" : "...") + "</span>", 1),
-       stat("Base local", "<span style='font-size:16px'>ativa</span>", 1)].forEach(function (x) { stripEl.appendChild(x); });
+       statSystemToggle()].forEach(function (x) { stripEl.appendChild(x); });
     }
     stats();
     call("checkSteamSetup").then(function (r) { S.steam.found = !!(r && r.steamFound); stats(); });
@@ -866,9 +874,9 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     function paint() {
       var q = S.search.trim().toLowerCase();
       var src = S.db.length ? S.db : Object.keys(S.names).map(function (id) { return { appid: id, name: S.names[id] }; });
-      var list = src.filter(function (g) { return (!q || (g.name || "").toLowerCase().indexOf(q) >= 0) && !nsfwHide(g.name); }).slice(0, 400)
+      var list = src.filter(function (g) { return (!q || (g.name || "").toLowerCase().indexOf(q) >= 0) && !nsfwHide(g.name); })
         .map(function (g) { var id = String(g.appid || g.id); return { name: g.name, id: id, st: S.myGames.has(id) ? "ok" : "get" }; });
-      fillGrid(grid, list, "steam");
+      fillGridPaged(grid, list, "steam");
     }
     if (S.db.length || Object.keys(S.names).length) paint();
     else call("loadGamesDatabase", undefined, undefined, []).then(function (arr) {
@@ -935,9 +943,9 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     function paint() {
       var q = S.search.trim().toLowerCase();
       var src = S.db.length ? S.db : Object.keys(S.names).map(function (id) { return { appid: id, name: S.names[id] }; });
-      var list = src.filter(function (g) { return NSFW_RE.test(g.name || "") && (!q || (g.name || "").toLowerCase().indexOf(q) >= 0); }).slice(0, 400)
+      var list = src.filter(function (g) { return NSFW_RE.test(g.name || "") && (!q || (g.name || "").toLowerCase().indexOf(q) >= 0); })
         .map(function (g) { var id = String(g.appid || g.id); return { name: g.name, id: id, st: S.myGames.has(id) ? "ok" : "get" }; });
-      fillGrid(grid, list, "steam");
+      fillGridPaged(grid, list, "steam");
     }
     if (S.db.length || Object.keys(S.names).length) paint();
     else call("loadGamesDatabase", undefined, undefined, []).then(function (arr) { S.db = (Array.isArray(arr) ? arr : []).filter(function (g) { return g && (g.appid || g.id) && g.name; }); paint(); });
@@ -1426,10 +1434,85 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     });
   }
 
+  /* ------------------------------------------------------- RETRO: controles */
+  var PAD_SVG = "\
+<svg viewBox='0 0 480 300' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto;overflow:visible'>\
+<circle cx='90' cy='225' r='62' fill='var(--panel-2)' stroke='var(--line)' stroke-width='2'/>\
+<circle cx='390' cy='225' r='62' fill='var(--panel-2)' stroke='var(--line)' stroke-width='2'/>\
+<rect x='50' y='58' width='380' height='150' rx='36' fill='var(--panel-2)' stroke='var(--line)' stroke-width='2'/>\
+<rect data-btn='6' class='pbtn' x='66' y='30' width='96' height='20' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='114' y='44' class='plbl'>L2</text>\
+<rect data-btn='4' class='pbtn' x='66' y='52' width='96' height='22' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='114' y='67' class='plbl'>L1</text>\
+<rect data-btn='7' class='pbtn' x='318' y='30' width='96' height='20' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='366' y='44' class='plbl'>R2</text>\
+<rect data-btn='5' class='pbtn' x='318' y='52' width='96' height='22' rx='7' fill='var(--card)' stroke='var(--line)'/><text x='366' y='67' class='plbl'>R1</text>\
+<rect data-btn='12' class='pbtn' x='136' y='120' width='28' height='28' rx='6' fill='var(--card)' stroke='var(--line)'/>\
+<rect data-btn='13' class='pbtn' x='136' y='172' width='28' height='28' rx='6' fill='var(--card)' stroke='var(--line)'/>\
+<rect data-btn='14' class='pbtn' x='110' y='146' width='28' height='28' rx='6' fill='var(--card)' stroke='var(--line)'/>\
+<rect data-btn='15' class='pbtn' x='162' y='146' width='28' height='28' rx='6' fill='var(--card)' stroke='var(--line)'/>\
+<circle data-btn='3' class='pbtn' cx='335' cy='118' r='16' fill='var(--card)' stroke='var(--steel)' stroke-width='2'/>\
+<circle data-btn='0' class='pbtn' cx='335' cy='182' r='16' fill='var(--card)' stroke='var(--good)' stroke-width='2'/>\
+<circle data-btn='2' class='pbtn' cx='303' cy='150' r='16' fill='var(--card)' stroke='var(--heat)' stroke-width='2'/>\
+<circle data-btn='1' class='pbtn' cx='367' cy='150' r='16' fill='var(--card)' stroke='var(--crit)' stroke-width='2'/>\
+<rect data-btn='8' class='pbtn' x='206' y='96' width='28' height='13' rx='4' fill='var(--card)' stroke='var(--line)'/><text x='220' y='124' class='plbl'>SELECT</text>\
+<rect data-btn='9' class='pbtn' x='246' y='96' width='28' height='13' rx='4' fill='var(--card)' stroke='var(--line)'/><text x='260' y='124' class='plbl'>START</text>\
+<circle data-btn='16' class='pbtn' cx='240' cy='150' r='9' fill='var(--card)' stroke='var(--line)'/>\
+<g transform='translate(150,232)'><circle r='27' fill='var(--ground)' stroke='var(--line)' stroke-width='2'/><circle data-stick='l' data-btn='10' class='pbtn stickball' r='16' fill='var(--card)' stroke='var(--line)'/></g>\
+<g transform='translate(300,232)'><circle r='27' fill='var(--ground)' stroke='var(--line)' stroke-width='2'/><circle data-stick='r' data-btn='11' class='pbtn stickball' r='16' fill='var(--card)' stroke='var(--line)'/></g>\
+<text x='114' y='288' class='plbl'>L3</text><text x='366' y='288' class='plbl'>R3</text>\
+</svg>";
+  var _padPoll = null;
+  function controlesPage(c) {
+    var svgBox = h("div", { style: "max-width:480px", html: PAD_SVG });
+    var status = h("span", { class: "c", id: "gpCount" }, ["nenhum conectado"]);
+    var list = h("div", { class: "rows", id: "gpList", style: "margin-top:14px" }, [h("div", { class: "lrow" }, ["Conecte um controle USB/Bluetooth e aperte qualquer botao."])]);
+    c.appendChild(h("div", { class: "sectionhead" }, [h("h4", {}, ["Controles"]), status]));
+    c.appendChild(h("div", { style: "display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start" }, [svgBox, h("div", { style: "flex:1;min-width:260px" }, [list])]));
+    c.appendChild(h("div", { class: "note", html: "<b>Mapeamento automatico.</b> Assim que o controle aparecer aqui ja funciona nos jogos — nao precisa configurar nada a mais. Essa tela e so pra testar/confirmar (aperte os botoes e veja o desenho acender)." }));
+
+    function poll() {
+      var gps = Array.from(navigator.getGamepads() || []).filter(Boolean);
+      status.textContent = gps.length ? gps.length + " conectado" + (gps.length > 1 ? "s" : "") : "nenhum conectado";
+      list.innerHTML = "";
+      if (!gps.length) list.appendChild(h("div", { class: "lrow" }, ["Conecte um controle USB/Bluetooth e aperte qualquer botao."]));
+      gps.forEach(function (gp) {
+        list.appendChild(h("div", { class: "lrow" }, [
+          h("div", {}, [h("div", { class: "nm2" }, [gp.id || ("Controle " + (gp.index + 1))]), h("div", { class: "sub2" }, [gp.buttons.length + " botoes · " + gp.axes.length + " eixos"])]),
+          h("div", { class: "right" }, [h("span", { class: "pill good" }, ["conectado"])])
+        ]));
+      });
+      var gp = gps[0];
+      $$("[data-btn]", svgBox).forEach(function (el) {
+        var i = Number(el.getAttribute("data-btn"));
+        el.classList.toggle("on", !!(gp && gp.buttons[i] && gp.buttons[i].pressed));
+      });
+      if (gp) {
+        moveStick(svgBox, "l", gp.axes[0], gp.axes[1]);
+        moveStick(svgBox, "r", gp.axes[2], gp.axes[3]);
+      }
+      _padPoll = requestAnimationFrame(poll);
+    }
+    poll();
+  }
+  function moveStick(root, side, ax, ay) {
+    var ball = root.querySelector("[data-stick='" + side + "']");
+    if (!ball || ax == null || ay == null) return;
+    ball.setAttribute("cx", String((Number(ax) || 0) * 9));
+    ball.setAttribute("cy", String((Number(ay) || 0) * 9));
+  }
+
   /* ---------------------------------------------------------------- admin */
+  var ADMIN_TABS = [["conexao", "Conexao"], ["licencas", "Licencas"], ["planos", "Planos"], ["pagamentos", "Pagamentos"], ["indicacoes", "Indicacoes"], ["retroanvil", "RetroAnvil"], ["sql", "SQL"]];
   function adminPage(c) {
     c.innerHTML = "";
-    var wrap = h("div", { class: "adm" }, []); c.appendChild(wrap);
+    if (!S._adminTab) S._adminTab = "conexao";
+    var tabs = h("div", { class: "badgerow" }, ADMIN_TABS.map(function (t) {
+      return h("span", { class: "chip" + (S._adminTab === t[0] ? " on" : ""), style: "cursor:pointer", onclick: function () { S._adminTab = t[0]; adminPage(c); } }, [t[1]]);
+    }));
+    var wrap = h("div", { class: "adm" }, []);
+    c.appendChild(tabs); c.appendChild(wrap);
+    var fn = { conexao: adminConexao, licencas: adminLicencas, planos: adminPlanos, pagamentos: adminPagamentos, indicacoes: adminIndicacoes, retroanvil: adminRetroAnvil, sql: adminSql }[S._adminTab];
+    if (fn) fn(wrap);
+  }
+  function adminConexao(wrap) {
     var cfgCard = h("div", { class: "acard" }, [h("h4", { style: "margin-bottom:8px" }, ["Configuracao"]), h("pre", { id: "admCfg" }, ["carregando..."])]);
     wrap.appendChild(cfgCard);
     call("adminConfigLoad", undefined, undefined, {}).then(function (cfg) { $("#admCfg").textContent = JSON.stringify(cfg, null, 2); });
@@ -1439,6 +1522,8 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
         restOut.textContent = "...";
         call("adminRestQuery", "pix_orders?select=id&limit=1", undefined, { success: false }).then(function (r) { restOut.textContent = r && r.success ? "Conexao OK" : "Erro: " + (r && r.error); });
       } }, ["Pingar pix_orders"]), " ", restOut]));
+  }
+  function adminSql(wrap) {
     var ta = h("textarea", { placeholder: "SELECT ... FROM ... LIMIT 20" });
     var out = h("pre", { id: "admSql" }, ["—"]);
     function run(sql) { ta.value = sql; out.textContent = "executando..."; call("adminDbQuery", sql, [], { success: false, error: "IPC ausente" }).then(function (r) { out.textContent = r && r.success ? JSON.stringify(r.rows, null, 2) : "ERRO: " + (r && r.error); }); }
@@ -1448,8 +1533,108 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       ["Resgates pendentes", "SELECT * FROM referral_redemptions WHERE status='pending' ORDER BY created_at DESC LIMIT 20"],
       ["Planos", "SELECT key,name,price,game_limit,bypass,multiplayer,premiumaccounts,nsfw,emuladores,active FROM plans ORDER BY price"]
     ].map(function (q) { return h("button", { class: "mini", onclick: function () { run(q[1]); } }, [q[0]]); }));
-    wrap.appendChild(h("div", { class: "acard" }, [h("h4", { style: "margin-bottom:8px" }, ["Banco (adminDbQuery — full admin)"]), quick, ta,
+    wrap.appendChild(h("div", { class: "acard" }, [h("h4", { style: "margin-bottom:8px" }, ["Banco (adminDbQuery — SQL livre, full admin)"]), quick, ta,
       h("button", { class: "mini", style: "margin-top:8px", onclick: function () { run(ta.value.trim()); } }, ["Executar SQL"]), out]));
+  }
+  // editor generico de 1 linha de tabela: busca por PK, mostra todo campo escalar
+  // como input, salva com UPDATE parametrizado. Funciona pra qualquer tabela sem
+  // eu precisar saber o schema de antemao.
+  function dbRowEditor(wrap, table, pkCol, pkPlaceholder) {
+    var keyIn = h("input", { class: "field", placeholder: pkPlaceholder || pkCol, style: "max-width:260px" });
+    var status = h("span", { class: "sub2" }, [""]);
+    var formBox = h("div", { style: "margin-top:14px" }, []);
+    function load() {
+      var key = keyIn.value.trim(); if (!key) return;
+      status.textContent = "buscando..."; formBox.innerHTML = "";
+      call("adminDbQuery", "SELECT * FROM " + table + " WHERE " + pkCol + " = $1 LIMIT 1", [key], { success: false }).then(function (r) {
+        if (!r.success || !r.rows || !r.rows.length) { status.textContent = "nao encontrado" + (r.error ? " (" + r.error + ")" : ""); return; }
+        status.textContent = ""; renderForm(r.rows[0]);
+      });
+    }
+    function renderForm(row) {
+      formBox.innerHTML = "";
+      var grid = h("div", { style: "display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px" });
+      var inputs = {};
+      Object.keys(row).forEach(function (k) {
+        var v = row[k];
+        if (v !== null && typeof v === "object") return; // pula json/array
+        var box = h("div", {}, [h("label", { class: "lb", style: "margin-top:0" }, [k + (k === pkCol ? " (chave)" : "")]),
+          h("input", { class: "field", value: v == null ? "" : String(v), disabled: k === pkCol ? "1" : null })]);
+        inputs[k] = box.querySelector("input");
+        grid.appendChild(box);
+      });
+      formBox.appendChild(grid);
+      formBox.appendChild(h("button", { class: "btn pri", style: "margin-top:14px", onclick: function () {
+        var sets = [], vals = [], i = 1;
+        Object.keys(inputs).forEach(function (k) {
+          if (k === pkCol) return;
+          sets.push(k + "=$" + i); vals.push(inputs[k].value === "" ? null : inputs[k].value); i++;
+        });
+        vals.push(row[pkCol]);
+        call("adminDbQuery", "UPDATE " + table + " SET " + sets.join(",") + " WHERE " + pkCol + "=$" + i, vals, { success: false }).then(function (r) {
+          toast(r.success ? "Salvo" : "Erro: " + r.error);
+        });
+      } }, ["Salvar alteracoes"]));
+    }
+    keyIn.addEventListener("keydown", function (e) { if (e.key === "Enter") load(); });
+    wrap.appendChild(h("div", { class: "acard" }, [
+      h("h4", { style: "margin-bottom:8px" }, [table]),
+      h("div", { style: "display:flex;gap:8px;align-items:center" }, [keyIn, h("button", { class: "mini", onclick: load }, ["Buscar"]), status]),
+      formBox
+    ]));
+  }
+  function adminLicencas(wrap) {
+    wrap.appendChild(h("div", { class: "note", html: "<b>Busca por chave.</b> Edite qualquer campo (plano, ativo, expira_em, emuladores, nsfw, multiplayer, premiumaccounts, add_games, game_limit...) e salve." }));
+    dbRowEditor(wrap, "keyvortex", "key", "CHAVE-DA-LICENCA");
+  }
+  function adminPlanos(wrap) {
+    var out = h("pre", {}, ["carregando..."]);
+    wrap.appendChild(h("div", { class: "acard" }, [h("h4", { style: "margin-bottom:8px" }, ["Planos ativos"]), out]));
+    call("adminDbQuery", "SELECT key,name,price,game_limit,bypass,multiplayer,premiumaccounts,nsfw,emuladores,add_games,active FROM plans ORDER BY price", [], { success: false }).then(function (r) {
+      out.textContent = r.success ? JSON.stringify(r.rows, null, 2) : "Erro: " + r.error;
+    });
+    wrap.appendChild(h("div", { class: "note", html: "<b>Editar um plano.</b> Busca pela chave (ex: <span class='mono'>licenca_vitalicia</span>) e altera qualquer campo." }));
+    dbRowEditor(wrap, "plans", "key", "chave do plano");
+  }
+  function adminPagamentos(wrap) {
+    var out = h("pre", {}, ["carregando..."]);
+    wrap.appendChild(h("div", { class: "acard" }, [h("h4", { style: "margin-bottom:8px" }, ["Pedidos PIX/Cartao (24h)"]), out]));
+    call("adminDbQuery", "SELECT txid,license_key,product_name,amount,status,payment_method,created_at FROM pix_orders WHERE created_at > now()-interval '24 hours' ORDER BY created_at DESC LIMIT 50", [], { success: false }).then(function (r) {
+      out.textContent = r.success ? JSON.stringify(r.rows, null, 2) : "Erro: " + r.error;
+    });
+    dbRowEditor(wrap, "pix_orders", "txid", "TXID do pedido");
+  }
+  function adminIndicacoes(wrap) {
+    var out = h("pre", {}, ["carregando..."]);
+    wrap.appendChild(h("div", { class: "acard" }, [h("h4", { style: "margin-bottom:8px" }, ["Resgates pendentes"]), out,
+      h("div", { style: "margin-top:8px;font-size:11px;color:var(--text-faint)" }, ["Aprovar/rejeitar: busca o id abaixo e edita o campo status."])]));
+    call("adminDbQuery", "SELECT * FROM referral_redemptions WHERE status='pending' ORDER BY created_at DESC LIMIT 30", [], { success: false }).then(function (r) {
+      out.textContent = r.success ? JSON.stringify(r.rows, null, 2) : "Erro: " + r.error;
+    });
+    dbRowEditor(wrap, "referral_redemptions", "id", "ID do resgate");
+  }
+  function adminRetroAnvil(wrap) {
+    var status = h("pre", {}, ["carregando..."]);
+    var pathIn = h("input", { class: "field", value: "\\\\192.168.5.40\\roms\\ARENABOX\\sistema\\roms", style: "font-family:'IBM Plex Mono';font-size:12px" });
+    wrap.appendChild(h("div", { class: "note", style: "border-left-color:var(--steel)", html:
+      "<b>Apontar direto pro servidor (LAN).</b> Se este PC esta na mesma rede do R210, aponta a pasta de ROMs pro compartilhamento de rede — joga direto de la, sem baixar/extrair cada jogo antes.<br><br>" +
+      "<b>Aviso real:</b> emuladores <i>libretro</i> (a maioria dos consoles de cartucho/arcade) costumam abrir <span class='mono'>.7z</span> direto. Emuladores standalone (PCSX2/PS2, Dolphin/GameCube-Wii) geralmente NAO abrem .7z — para esses, o download+extracao normal continua sendo necessario." }));
+    wrap.appendChild(h("div", { class: "acard" }, [
+      h("h4", { style: "margin-bottom:8px" }, ["Caminho atual"]), status,
+      h("label", { class: "lb" }, ["Caminho de rede (UNC)"]), pathIn,
+      h("div", { style: "display:flex;gap:8px;margin-top:10px" }, [
+        h("button", { class: "btn pri", onclick: function () {
+          call("arenaRomsPathSetManual", pathIn.value.trim(), undefined, { success: false }).then(function (r) {
+            toast(r.success ? "Apontado pro servidor" : (r.error || "Falha"));
+            refresh();
+          });
+        } }, ["Usar este caminho"]),
+        h("button", { class: "btn", onclick: function () { call("arenaRomsPathSet").then(function () { toast("Pasta local escolhida"); refresh(); }); } }, ["Escolher pasta local..."]),
+        h("button", { class: "btn", onclick: function () { call("arenaRomsPathReset").then(function () { toast("Voltou ao padrao"); refresh(); }); } }, ["Resetar p/ padrao"])
+      ])
+    ]));
+    function refresh() { call("arenaRomsPathGet", undefined, undefined, {}).then(function (r) { status.textContent = JSON.stringify(r, null, 2); }); }
+    refresh();
   }
 
   /* --------------------------------------------------------- card grid */
@@ -1459,6 +1644,32 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     if (cc) cc.textContent = list.length + (ctx === "bypass" ? " bypasses" : ctx === "retro" ? " ROMs" : ctx === "denuvo" ? " jogos" : " titulos");
     if (!list.length) { grid.appendChild(h("div", { class: "empty" }, ["Nada encontrado."])); return; }
     list.forEach(function (it) { grid.appendChild(gameCard(it, ctx)); });
+  }
+  // catalogo local pode ter dezenas de milhares de itens - renderiza em paginas
+  // e carrega mais conforme o scroll chega perto do fim (sem cortar a lista).
+  function fillGridPaged(grid, fullList, ctx) {
+    grid.innerHTML = "";
+    var cc = $("#cCount");
+    if (cc) cc.textContent = fullList.length + (ctx === "bypass" ? " bypasses" : ctx === "retro" ? " ROMs" : ctx === "denuvo" ? " jogos" : " titulos");
+    if (!fullList.length) { grid.appendChild(h("div", { class: "empty" }, ["Nada encontrado."])); return; }
+    var PAGE = 240, shown = 0;
+    function more() {
+      fullList.slice(shown, shown + PAGE).forEach(function (it) { grid.appendChild(gameCard(it, ctx)); });
+      shown = Math.min(shown + PAGE, fullList.length);
+      if (shown < fullList.length) grid.appendChild(more._sentinel = (more._sentinel || h("div", { class: "empty", style: "grid-column:1/-1" }, [h("span", { class: "spin" }), " carregando mais..."])));
+      else if (more._sentinel) { more._sentinel.remove(); more._sentinel = null; }
+    }
+    more();
+    var host = $(".content");
+    if (host._pagedScroll) host.removeEventListener("scroll", host._pagedScroll);
+    host._pagedScroll = function () {
+      if (shown >= fullList.length) return;
+      if (host.scrollTop + host.clientHeight > host.scrollHeight - 900) {
+        if (more._sentinel) more._sentinel.remove();
+        more();
+      }
+    };
+    host.addEventListener("scroll", host._pagedScroll);
   }
   function gameCard(it, ctx) {
     var p = pal(hash(it.name));
@@ -1484,11 +1695,22 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     });
     return card;
   }
+  // le os controles conectados (Gamepad API do Chromium) no formato que o main
+  // espera pra montar os args -pN* do emulatorLauncher.exe - mapeamento e
+  // automatico (guid sintetico por vendor/produto, ou XInput padrao).
+  function liveGamepads() {
+    try {
+      return Array.from(navigator.getGamepads() || []).filter(Boolean).map(function (gp) {
+        return { index: gp.index, id: gp.id, buttonCount: gp.buttons.length, axisCount: gp.axes.length };
+      });
+    } catch (e) { return []; }
+  }
   function playIt(it, ctx) {
     if (ctx === "retro" && it.rom && E.arenaLaunchGame) {
-      toast(it.name + " — abrindo...");
+      var gps = liveGamepads();
+      toast(it.name + " — abrindo..." + (gps.length ? " (" + gps.length + " controle" + (gps.length > 1 ? "s" : "") + ")" : ""));
       var off = E.onArenaEmuProgress ? E.onArenaEmuProgress(function (p) { toast("Preparando emulador " + pctOf(p) + "%"); }) : null;
-      E.arenaLaunchGame({ system: it.rom.console, file: it.rom.file }).then(function (r) {
+      E.arenaLaunchGame({ system: it.rom.console, file: it.rom.file, gamepads: gps }).then(function (r) {
         if (off) try { off(); } catch (e) {}
         if (!r || !r.success) toast((r && r.error) || "Falha ao abrir");
       });
@@ -1644,6 +1866,29 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 
   /* --------------------------------------------------------- shared UI */
   function stat(k, nHtml, isHtml) { return h("div", { class: "stat" }, [h("div", { class: "k" }, [k]), h("div", { class: "n", html: isHtml ? nHtml : esc(nHtml) })]); }
+  // tile clicavel na tela principal pra ligar/desligar o sistema de desbloqueio
+  // (a mesma DLL de controle que Configuracoes tambem mexe) - "como antes".
+  function statSystemToggle() {
+    var box = h("div", { class: "stat", style: "cursor:pointer" }, [
+      h("div", { class: "k" }, ["Sistema"]),
+      h("div", { class: "n", id: "sysToggleN", html: "<span style='font-size:15px;color:var(--text-faint)'>...</span>" })
+    ]);
+    function paint(on, busy) {
+      box.querySelector("#sysToggleN").innerHTML = busy
+        ? "<span class='spin'></span>"
+        : "<span style='font-size:16px;color:" + (on ? "var(--good)" : "var(--crit)") + "'>" + (on ? "ATIVO ●" : "DESATIVADO ○") + "</span>";
+    }
+    call("hidDllStatus", undefined, undefined, {}).then(function (r) { paint(!!(r && r.enabled)); box.dataset.on = (r && r.enabled) ? "1" : "0"; });
+    box.addEventListener("click", function () {
+      var on = box.dataset.on === "1";
+      paint(on, true);
+      call(on ? "disableHidDll" : "enableHidDll").then(function () {
+        box.dataset.on = on ? "0" : "1"; paint(!on);
+        toast(on ? "Sistema desativado" : "Sistema ativado");
+      });
+    });
+    return box;
+  }
   function loadingCell() { return h("div", { class: "empty" }, [h("span", { class: "spin" }), " carregando..."]); }
   function mkSearch(ph) {
     var i = h("input", { class: "search", placeholder: ph, value: S.search });
@@ -1706,8 +1951,35 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       } }
     ]);
   }
-  function showUpdateModal(info) {
-    showModal("Atualizacao disponivel", "Uma nova versao (" + ((info && info.version) || "") + ") esta sendo baixada. Voce pode continuar; ela aplica quando reiniciar.", [{ t: "Ok", pri: true, act: hideModal }]);
+  // HUD de atualizacao: mostra progresso real do download e, quando terminar,
+  // deixa o USUARIO escolher a hora de reiniciar (nunca fecha o app sozinho).
+  function updateHud(state) {
+    var hud = $("#uphud");
+    if (!state) { if (hud) hud.remove(); return; }
+    if (!hud) {
+      hud = h("div", { class: "dlhud on", id: "uphud", style: "left:18px;right:auto" }, []);
+      document.body.appendChild(hud);
+    }
+    hud.innerHTML = "";
+    if (state.phase === "downloading") {
+      var pct = Math.round(state.percent || 0);
+      hud.appendChild(h("div", { class: "hh" }, [h("span", { class: "pulse" }), "Baixando atualizacao " + (state.version ? "v" + state.version : "")]));
+      hud.appendChild(h("div", { class: "it" }, [
+        h("div", { class: "tp" }, [h("b", {}, ["Gamaxy " + (state.version || "")]), h("span", {}, [pct + "%"])]),
+        h("div", { class: "bar" }, [h("i", { style: "width:" + pct + "%" })]),
+        h("small", {}, [state.total ? ((state.transferred / 1048576).toFixed(0) + " / " + (state.total / 1048576).toFixed(0) + " MB") : "preparando..."])
+      ]));
+    } else if (state.phase === "ready") {
+      hud.appendChild(h("div", { class: "hh" }, [h("span", { class: "pulse", style: "background:var(--good);box-shadow:0 0 8px 1px var(--good)" }), "Atualizacao pronta"]));
+      hud.appendChild(h("div", { class: "it" }, [
+        h("div", { class: "nm2", style: "margin-bottom:8px" }, ["Gamaxy " + (state.version || "") + " baixada."]),
+        h("div", { style: "display:flex;gap:6px" }, [
+          h("button", { class: "mini", style: "flex:1;border-color:var(--good);color:var(--good)", onclick: function () { E.restartAndUpdate && E.restartAndUpdate(); } }, ["Reiniciar agora"]),
+          h("button", { class: "mini", style: "flex:1", onclick: function () { updateHud(null); } }, ["Depois"])
+        ]),
+        h("small", { style: "display:block;margin-top:6px" }, ["Se nao reiniciar agora, aplica sozinha na proxima vez que voce fechar o Gamaxy."])
+      ]));
+    }
   }
   function confirmLogout() {
     showModal("Sair da conta", "Vai deslogar do Gamaxy neste PC. Sua chave sera esquecida aqui.", [

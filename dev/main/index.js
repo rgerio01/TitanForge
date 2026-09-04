@@ -13019,9 +13019,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
                         D?.webContents.send("update-downloaded", {
                             version: e.version,
                             path: lastUpdateFilePath
-                        }), console.log("🔁 Instalando automaticamente (silencioso)..."), setTimeout(() => {
-                            try { h.autoUpdater.quitAndInstall(!0, !0) } catch (e) { console.error("❌ Erro ao instalar automaticamente:", e) }
-                        }, 1200)
+                        }), console.log("✅ Atualização baixada — avisando o usuário na tela (sem reiniciar sozinho). Instala no proximo fechar do app (autoInstallOnAppQuit) ou quando o usuário clicar em 'Reiniciar agora'.")
                     }), h.autoUpdater.on("error", e => {
                         console.error("❌ Erro no AutoUpdater:", e), L = !1, D?.webContents.send("update-error", {
                             message: e.message
@@ -20654,6 +20652,30 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
     } catch (e) {
       return { success: false, error: String((e && e.message) || e) };
     }
+  });
+  // Aponta direto pra um caminho (ex: \\servidor\roms\...) sem dialogo - usado
+  // pelo admin quando o PC esta na mesma rede do servidor de ROMs, pra jogar
+  // sem precisar baixar cada jogo primeiro. So aceita se o caminho existir e
+  // tiver pelo menos 1 pasta de sistema dentro (evita salvar caminho quebrado).
+  // Aviso real: emuladores standalone (PS2/GameCube/Wii) normalmente NAO abrem
+  // .7z direto - so os cores libretro com suporte a arquivo compactado abrem.
+  ipcMain.handle("arena-roms-path-set-manual", async (event, romsPath) => {
+    try {
+      const p = String(romsPath || "").trim();
+      if (!p) return { success: false, error: "Caminho vazio" };
+      if (!fs.existsSync(p)) return { success: false, error: "Caminho nao acessivel: " + p };
+      let hasSubdir = false;
+      try { hasSubdir = fs.readdirSync(p, { withFileTypes: true }).some(e => e.isDirectory()); } catch {}
+      if (!hasSubdir) return { success: false, error: "Pasta existe mas parece vazia (sem subpastas de sistema)" };
+      fs.writeFileSync(ARENA_ROMS_CONFIG_PATH, JSON.stringify({ romsPath: p, network: true }, null, 2));
+      return { success: true, path: p };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+  ipcMain.handle("arena-roms-path-reset", async () => {
+    try { fs.existsSync(ARENA_ROMS_CONFIG_PATH) && fs.unlinkSync(ARENA_ROMS_CONFIG_PATH); return { success: true }; }
+    catch (e) { return { success: false, error: String((e && e.message) || e) }; }
   });
 
   // Emulador/core padrão por sistema (extraído do es_systems.cfg do próprio

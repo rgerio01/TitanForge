@@ -223,6 +223,8 @@
                 arenaRemoveGame: r => e.ipcRenderer.invoke("arena-remove-game", r),
                 arenaRomsPathGet: () => e.ipcRenderer.invoke("arena-roms-path-get"),
                 arenaRomsPathSet: () => e.ipcRenderer.invoke("arena-roms-path-set"),
+                arenaRomsPathSetManual: r => e.ipcRenderer.invoke("arena-roms-path-set-manual", r),
+                arenaRomsPathReset: () => e.ipcRenderer.invoke("arena-roms-path-reset"),
                 arenaSystemEmulatorMap: () => e.ipcRenderer.invoke("arena-system-emulator-map"),
                 arenaCoreInstalled: () => e.ipcRenderer.invoke("arena-core-installed"),
                 arenaCoreDownload: () => e.ipcRenderer.invoke("arena-core-download"),
