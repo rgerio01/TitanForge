@@ -47,7 +47,7 @@
     phase: "boot", mode: "steam", page: "home",
     search: "",
     hwid: "", version: "",
-    licenseKey: "", licenseInfo: null, isAdmin: false,
+    licenseKey: "", licenseInfo: null, isAdmin: false, plan: {},
     myGames: new Set(),
     names: {},              // appid -> nome (games.json + almaz_catalog)
     db: [],
@@ -79,6 +79,20 @@
     } catch (e) { return Promise.resolve(fallback); }
   }
   function ipcUpdates() { return call("getUpdates", undefined, undefined, []); }
+
+  // regras de licenca / plano ---------------------------------------------
+  var ADMIN_KEYS = ["ROGERIO3120"]; // full admin (mesma regra do launcher antigo)
+  var NSFW_RE = /(hentai|eroge|rule ?34|r-?18|18\+|18禁|\bxxx\b|\bnsfw\b|succubus|adult only|\bsex\b|erotic|er[oó]tic|doujin|ahegao|onahole|hardcore porn|\bporn\b)/i;
+  function isAdmin() { return ADMIN_KEYS.indexOf((S.licenseKey || "").toUpperCase()) >= 0 || !!(S.licenseInfo && (S.licenseInfo.is_admin || S.licenseInfo.admin)); }
+  function can(feat) {
+    if (isAdmin()) return true;
+    var p = S.plan || {};
+    if (feat === "games") return true;
+    if (feat === "add_games") return p.add_games !== "disable"; // default liberado; signup pode travar
+    if (feat === "game_limit_ok") return p.game_limit == null || S.myGames.size < p.game_limit;
+    return p[feat] === "enable"; // emuladores | nsfw | multiplayer | premiumaccounts
+  }
+  function nsfwHide(name) { return !can("nsfw") && NSFW_RE.test(String(name || "")); }
 
   /* ================================================================ styles */
   var CSS = "\
@@ -410,8 +424,18 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     } catch (e) {}
     startHb();
     svc.info(S.licenseKey).then(function (i) {
-      S.licenseInfo = i || null;
-      S.isAdmin = !!(i && (i.is_admin || i.admin || i.role === "admin" || i.tipo === "admin"));
+      i = i || {};
+      S.licenseInfo = i;
+      S.plan = {
+        emuladores: i.emuladores, nsfw: i.nsfw, multiplayer: i.multiplayer,
+        premiumaccounts: i.premiumaccounts, add_games: i.add_games,
+        game_limit: (i.game_limit == null ? null : Number(i.game_limit)),
+        dlc_limit: (i.dlc_limit == null ? null : Number(i.dlc_limit)),
+        expires_at: i.expires_at || null,
+        name: i.plan_name || i.plano || i.plan || (i.game_limit == null ? "Ilimitado" : "Plano ativo")
+      };
+      S.isAdmin = isAdmin();
+      if (S.phase === "app" || S.phase === "entry") go(S.phase); // re-render com plano carregado
     });
     ipcUpdates().then(function (arr) {
       S.updates = Array.isArray(arr) ? arr : [];
@@ -595,17 +619,19 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 
   function entryView() {
     var info = S.licenseInfo || {};
-    var lic = info.plan_name || info.plano || info.plan || "Licenca ativa";
-    var ownsRetro = true, retroEl;
-    var v = h("div", { class: "screen" }, [h("div", { class: "mid" }, [
+    var lic = S.isAdmin ? "FULL ADMIN" : ((S.plan && S.plan.name) || info.plan_name || info.plano || info.plan || "Licenca ativa");
+    var retroAllowed = can("emuladores");
+    var ownsRetro = retroAllowed, retroEl;
+    var exp = S.plan && S.plan.expires_at ? fmtDate(S.plan.expires_at) : "";
+    var v = h("div", { class: "screen auth" }, [starfield(), h("div", { class: "mid" }, [
       h("div", { class: "frame cut" }, [
         h("div", { class: "hudbar" }, [
           h("span", { class: "mk", html: "GAMAXY" }),
           h("span", { class: "mono", style: "font-size:11px;color:var(--text-faint);letter-spacing:.12em" }, [S.version ? "v" + S.version : "dev"]),
           h("div", { class: "rd" }, [
-            h("i", { html: "<span class='k'>Sistema</span><span class='v'>Gamaxy 1.0</span>" }),
             h("i", { html: "<span class='k'>Licenca</span><span class='v mono'>" + esc(lic) + "</span>" }),
-            h("i", { html: "<span class='k'>HWID</span><span class='v mono'>" + esc((S.hwid || "").slice(0, 12) || "-") + "</span>" }),
+            h("i", { html: "<span class='k'>Chave</span><span class='v mono'>" + esc(S.licenseKey || "-") + "</span>" }),
+            exp ? h("i", { html: "<span class='k'>Expira</span><span class='v'>" + esc(exp) + "</span>" }) : null,
             h("i", { html: "<span class='k'>Servico</span><span class='v'><span class='dot'></span>Online</span>" })
           ])
         ]),
@@ -636,36 +662,58 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
         ])
       ])
     ])]);
-    call("arenaCheckInstalled").then(function (r) {
-      ownsRetro = !!(r && r.installed);
-      if (!ownsRetro) {
-        retroEl.classList.add("locked");
-        retroEl.appendChild(h("div", { class: "lk" }, [
-          h("span", {}, ["Nao instalado neste PC"]),
-          h("button", { class: "btn", onclick: function () { enter("retro"); } }, ["Instalar camada classica"])
-        ]));
-      }
-    });
+    if (!retroAllowed) {
+      retroEl.classList.add("locked");
+      retroEl.appendChild(h("div", { class: "lk" }, [
+        h("span", {}, ["Nao incluido no seu plano"]),
+        h("button", { class: "btn", onclick: function () { enter("steam"); S.page = "loja"; renderPage($("#content")); } }, ["Desbloquear na Loja"])
+      ]));
+    } else {
+      call("arenaCheckInstalled").then(function (r) {
+        if (!(r && r.installed)) {
+          retroEl.classList.add("locked");
+          retroEl.appendChild(h("div", { class: "lk" }, [
+            h("span", {}, ["Nao instalado neste PC"]),
+            h("button", { class: "btn", onclick: function () { enter("retro"); } }, ["Instalar camada classica"])
+          ]));
+        }
+      });
+    }
     return v;
   }
   function enter(mode) {
+    if (mode === "retro" && !can("emuladores")) {
+      S.mode = "steam"; S.page = "loja"; go("app"); toast("Camada Retro nao esta no seu plano — veja a Loja."); return;
+    }
     S.mode = mode; S.page = "home"; S.search = "";
     document.documentElement.style.setProperty("--accent", mode === "steam" ? "var(--heat)" : "var(--steel)");
     go("app");
   }
 
   /* ------------------------------------------------------------ app shell */
-  var NAV = {
-    steam: [["home", "Meus Jogos", "games"], ["catalogo", "Catalogo", "grid"], ["bypass", "Bypass", "shield"],
-      ["denuvo", "Remover Denuvo", "key"], ["contas", "Contas Oficiais", "user"], ["dlc", "DLCs", "dlc"], ["novidades", "Novidades", "bell"],
-      ["__g", "Conta"], ["loja", "Loja", "cart"], ["indicacoes", "Indicacoes", "gift"], ["config", "Configuracoes", "cog"]],
-    retro: [["home", "Sistemas", "pad"], ["instalados", "Instalados", "games"], ["emu", "Emuladores", "chip"],
-      ["__g", "Biblioteca"], ["solicitar", "Solicitar Jogo", "spark"], ["pasta", "Pasta de ROMs", "folder"],
-      ["__g", "Sistema"], ["config", "Configuracoes", "cog"]]
-  };
-  var TITLES = { home: S_home, catalogo: "Catalogo", bypass: "Bypass", denuvo: "Remover Denuvo", contas: "Contas Oficiais",
-    dlc: "DLCs", novidades: "Novidades", loja: "Loja", indicacoes: "Indicacoes", config: "Configuracoes",
-    instalados: "Instalados", emu: "Emuladores", solicitar: "Solicitar Jogo", pasta: "Pasta de ROMs", admin: "Admin", cadastro: "Criar cadastro" };
+  function navItems() {
+    if (S.mode === "retro") {
+      return [["home", "Sistemas", "pad"], ["instalados", "Instalados", "games"], ["emu", "Emuladores", "chip"],
+        ["__g", "Biblioteca"], ["solicitar", "Solicitar Jogo", "spark"], ["pasta", "Pasta de ROMs", "folder"],
+        ["__g", "Sistema"], ["config", "Configuracoes", "cog"]]
+        .concat(S.isAdmin ? [["__g", "Interno"], ["admin", "Painel Admin", "wrench"]] : []);
+    }
+    var it = [["home", "Meus Jogos", "games"], ["catalogo", "Catalogo", "grid"], ["addgame", "Adicionar Jogo", "spark"],
+      ["__g", "Ferramentas"], ["bypass", "Bypass", "shield"]];
+    if (can("multiplayer")) it.push(["multiplayer", "Multiplayer", "pad"]);
+    it.push(["denuvo", "Remover Denuvo", "key"]);
+    if (can("premiumaccounts")) it.push(["contas", "Contas Oficiais", "user"]);
+    it.push(["dlc", "DLCs", "dlc"]);
+    if (can("nsfw")) it.push(["nsfw", "+18", "spark"]);
+    it.push(["__g", "Conta"], ["novidades", "Novidades", "bell"], ["tutoriais", "Tutoriais", "grid"],
+      ["loja", "Loja", "cart"], ["indicacoes", "Indique e Ganhe", "gift"], ["config", "Configuracoes", "cog"]);
+    if (S.isAdmin) it.push(["__g", "Interno"], ["admin", "Painel Admin", "wrench"]);
+    return it;
+  }
+  var TITLES = { home: S_home, catalogo: "Catalogo", addgame: "Adicionar Jogo", bypass: "Bypass", multiplayer: "Multiplayer",
+    denuvo: "Remover Denuvo", contas: "Contas Oficiais", dlc: "DLCs", nsfw: "+18", novidades: "Novidades", tutoriais: "Tutoriais",
+    loja: "Loja", indicacoes: "Indique e Ganha", config: "Configuracoes",
+    instalados: "Instalados", emu: "Emuladores", solicitar: "Solicitar Jogo", pasta: "Pasta de ROMs", admin: "Painel Admin", cadastro: "Criar cadastro" };
   function S_home() { return S.mode === "retro" ? "Sistemas" : "Meus Jogos"; }
   function titleOf(p) { var t = TITLES[p]; return typeof t === "function" ? t() : (t || "Gamaxy"); }
 
@@ -675,15 +723,19 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     var pageTitle = h("h3", { id: "pageTitle" }, [titleOf(S.page)]);
     var modeSwitch = h("div", { class: "switch", id: "modeSwitch" }, [
       h("button", { "data-mode": "steam", onclick: function () { enter("steam"); } }, ["Steam"]),
-      h("button", { "data-mode": "retro", onclick: function () { enter("retro"); } }, ["Retro"])
+      h("button", { "data-mode": "retro", title: can("emuladores") ? "" : "Nao incluido no seu plano", style: can("emuladores") ? "" : "opacity:.5", onclick: function () { enter("retro"); } }, ["Retro"])
     ]);
     var v = h("div", { class: "app" }, [
       h("aside", { class: "rail" }, [
         h("div", { class: "logo", html: LOGO + "<span>GAMAXY&nbsp;1.0</span><span class='v'>" + (S.version || "dev") + "</span>" }),
         railNav,
         h("div", { class: "who" }, [
-          h("b", {}, [(S.licenseInfo && (S.licenseInfo.name || S.licenseInfo.nome)) || "Jogador"]),
-          h("span", {}, [S.mode === "steam" ? "Camada Steam" : "Camada Classica"]),
+          h("b", {}, [((S.licenseInfo && (S.licenseInfo.nome || S.licenseInfo.name)) || "Jogador")]),
+          h("span", { class: "mono", style: "font-size:10px" }, [(S.licenseKey || "")]),
+          h("span", {}, [
+            (S.isAdmin ? "★ FULL ADMIN" : ((S.plan && S.plan.name) || "Licenca ativa")) +
+            (!S.isAdmin && S.plan && S.plan.game_limit != null ? " · " + S.myGames.size + "/" + S.plan.game_limit : "")
+          ]),
           h("div", { class: "lo", onclick: function () { confirmLogout(); } }, ["Sair"])
         ])
       ]),
@@ -700,8 +752,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 
   function renderNav(nav) {
     nav.innerHTML = "";
-    var items = NAV[S.mode].slice();
-    if (S.isAdmin) items = items.concat([["__g", "Interno"], ["admin", "Admin", "wrench"]]);
+    var items = navItems();
     items.forEach(function (it) {
       if (it[0] === "__g") { nav.appendChild(h("div", { class: "grp" }, [it[1]])); return; }
       var b = h("button", { class: it[0] === S.page ? "act" : "", html: ic(it[2]) + "<span class='lbl'>" + esc(it[1]) + "</span>", onclick: function () {
@@ -722,11 +773,15 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     if (M === "steam") {
       if (P === "home") return steamHome(c);
       if (P === "catalogo") return steamCatalog(c);
-      if (P === "bypass") return steamBypass(c);
+      if (P === "addgame") return addGamePage(c);
+      if (P === "bypass") return steamBypass(c, "bypass");
+      if (P === "multiplayer") return steamBypass(c, "multiplayer");
       if (P === "denuvo") return denuvoPage(c);
       if (P === "contas") return contasPage(c);
       if (P === "dlc") return dlcPage(c);
+      if (P === "nsfw") return nsfwPage(c);
       if (P === "novidades") return newsPage(c);
+      if (P === "tutoriais") return tutoriaisPage(c);
       if (P === "loja") return lojaPage(c);
       if (P === "indicacoes") return indicacoesPage(c);
       if (P === "config") return configPage(c);
@@ -754,8 +809,8 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 
     function stats() {
       stripEl.innerHTML = "";
-      [stat("Instalados", String(S.myGames.size)),
-       stat("Desbloqueio", "<em>ON</em>", 1),
+      [stat("Instalados", String(S.myGames.size) + (!S.isAdmin && S.plan && S.plan.game_limit != null ? " <small>/ " + S.plan.game_limit + "</small>" : ""), 1),
+       stat("Plano", "<span style='font-size:15px'>" + esc(S.isAdmin ? "FULL ADMIN" : ((S.plan && S.plan.name) || "ativo")) + "</span>", 1),
        stat("Steam", "<span style='font-size:17px;color:" + (S.steam.found ? "var(--good)" : S.steam.found === false ? "var(--crit)" : "var(--text-faint)") + "'>" + (S.steam.found ? "Detectada" : S.steam.found === false ? "Nao encontrada" : "...") + "</span>", 1),
        stat("Base local", "<span style='font-size:16px'>ativa</span>", 1)].forEach(function (x) { stripEl.appendChild(x); });
     }
@@ -766,6 +821,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       ((r && r.games) || []).forEach(function (g) { S.myGames.add(String(g.appid)); if (g.name) S.names[String(g.appid)] = g.name; });
       stats();
       var list = Array.from(S.myGames).map(function (id) { return { name: nameOf(id), id: id, st: "ok" }; })
+        .filter(function (g) { return !nsfwHide(g.name); })
         .sort(function (a, b) { return a.name.localeCompare(b.name); });
       fillGrid(grid, list, "steam");
     });
@@ -779,7 +835,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     function paint() {
       var q = S.search.trim().toLowerCase();
       var src = S.db.length ? S.db : Object.keys(S.names).map(function (id) { return { appid: id, name: S.names[id] }; });
-      var list = src.filter(function (g) { return !q || (g.name || "").toLowerCase().indexOf(q) >= 0; }).slice(0, 400)
+      var list = src.filter(function (g) { return (!q || (g.name || "").toLowerCase().indexOf(q) >= 0) && !nsfwHide(g.name); }).slice(0, 400)
         .map(function (g) { var id = String(g.appid || g.id); return { name: g.name, id: id, st: S.myGames.has(id) ? "ok" : "get" }; });
       fillGrid(grid, list, "steam");
     }
@@ -790,23 +846,86 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     });
   }
 
+  /* --------------------------------------------------- STEAM: adicionar jogo */
+  function addGamePage(c) {
+    if (!can("add_games")) {
+      c.appendChild(h("div", { class: "note", html: "<b>Seu plano nao permite adicionar jogos avulsos.</b> Voce ainda joga tudo que ja vem no pacote. Veja a Loja para liberar." }));
+      c.appendChild(h("button", { class: "btn pri", style: "margin-top:12px", onclick: function () { S.page = "loja"; renderPage($("#content")); } }, ["Ver planos"]));
+      return;
+    }
+    var appid = h("input", { class: "field", placeholder: "ID Steam do jogo (ex: 1091500)" });
+    var out = h("div", { style: "margin-top:12px" }, []);
+    c.appendChild(h("div", { style: "max-width:420px" }, [
+      h("div", { class: "note", html: "<b>Instalar por ID.</b> Cola o AppID da Steam. A gente instala pela base local (Servidor 2). Fora da base = 'Nao disponivel'." }),
+      h("label", { class: "lb" }, ["AppID"]), appid,
+      h("button", { class: "btn pri", style: "margin-top:12px;width:100%", onclick: function () {
+        var id = (appid.value || "").replace(/\D/g, "");
+        if (!id) return toast("Informe um AppID numerico");
+        if (!can("game_limit_ok")) return toast("Limite do seu plano: " + S.plan.game_limit + " jogos.");
+        out.innerHTML = ""; out.appendChild(h("div", { style: "display:flex;gap:8px;align-items:center;color:var(--text-dim)" }, [h("span", { class: "spin" }), " instalando " + id + "..."]));
+        (E.downloadManifestorLua ? E.downloadManifestorLua(id, nameOf(id, "App " + id), false, 2) : Promise.resolve({ success: false })).then(function (r) {
+          out.innerHTML = "";
+          if (r && r.success) { S.myGames.add(id); out.appendChild(h("div", { class: "msg-o" }, [(r.gameName || nameOf(id)) + " instalado. Reinicie a Steam se preciso."])); }
+          else out.appendChild(h("div", { class: "msg-e" }, [(r && r.error) || "Este jogo ainda nao esta disponivel para instalacao."]));
+        });
+      } }, ["Instalar"]),
+      out
+    ]));
+  }
+
   /* --------------------------------------------------------- STEAM: bypass */
-  function steamBypass(c) {
+  S._bpCache = {};
+  function steamBypass(c, kind) {
+    kind = kind || "bypass";
     var badges = h("div", { class: "badgerow", id: "bB" }, []);
-    var head = h("div", { class: "sectionhead" }, [h("h4", {}, ["Catalogo de Bypass"]), h("span", { class: "c", id: "cCount" }, [""]), mkSearch("Buscar bypass...")]);
+    var head = h("div", { class: "sectionhead" }, [h("h4", {}, [kind === "multiplayer" ? "Bypass Multiplayer" : "Catalogo de Bypass"]), h("span", { class: "c", id: "cCount" }, [""]), mkSearch("Buscar...")]);
     var grid = h("div", { class: "grid", id: "grid" }, [loadingCell()]);
     c.appendChild(badges); c.appendChild(head); c.appendChild(grid); c.appendChild(steamNote());
     function paint() {
-      var total = S.bypass.length, av = S.bypass.filter(function (x) { return x.available !== false; }).length;
+      var arr = S._bpCache[kind] || [];
+      var total = arr.length, av = arr.filter(function (x) { return x.available !== false; }).length;
       badges.innerHTML = "";
       [total + " total", av + " disponiveis", (total - av) + " indisponiveis"].forEach(function (t, i) { badges.appendChild(h("span", { class: "chip" + (i === 0 ? " on" : "") }, [t])); });
       var q = S.search.trim().toLowerCase();
-      var list = S.bypass.filter(function (x) { return !q || (x.name || "").toLowerCase().indexOf(q) >= 0; })
+      var list = arr.filter(function (x) { return !q || (x.name || "").toLowerCase().indexOf(q) >= 0; })
         .map(function (x) { return { name: x.name, id: String(x.appid), st: x.available === false ? "na" : "get", bypass: x }; });
       fillGrid(grid, list, "bypass");
     }
-    if (S.bypass.length) paint();
-    else call("fetchBypassCatalog", "bypass", undefined, { items: [] }).then(function (r) { S.bypass = (r && r.items) || []; paint(); });
+    if (S._bpCache[kind]) paint();
+    else call("fetchBypassCatalog", kind, undefined, { items: [] }).then(function (r) { S._bpCache[kind] = (r && r.items) || []; paint(); });
+  }
+
+  /* ------------------------------------------------------------ STEAM: +18 */
+  function nsfwPage(c) {
+    if (!can("nsfw")) { c.appendChild(h("div", { class: "empty" }, ["Conteudo +18 nao liberado no seu plano."])); return; }
+    var head = h("div", { class: "sectionhead" }, [h("h4", {}, ["Catalogo +18"]), h("span", { class: "c", id: "cCount" }, [""]), mkSearch("Buscar...")]);
+    var grid = h("div", { class: "grid", id: "grid" }, [loadingCell()]);
+    c.appendChild(head); c.appendChild(grid);
+    function paint() {
+      var q = S.search.trim().toLowerCase();
+      var src = S.db.length ? S.db : Object.keys(S.names).map(function (id) { return { appid: id, name: S.names[id] }; });
+      var list = src.filter(function (g) { return NSFW_RE.test(g.name || "") && (!q || (g.name || "").toLowerCase().indexOf(q) >= 0); }).slice(0, 400)
+        .map(function (g) { var id = String(g.appid || g.id); return { name: g.name, id: id, st: S.myGames.has(id) ? "ok" : "get" }; });
+      fillGrid(grid, list, "steam");
+    }
+    if (S.db.length || Object.keys(S.names).length) paint();
+    else call("loadGamesDatabase", undefined, undefined, []).then(function (arr) { S.db = (Array.isArray(arr) ? arr : []).filter(function (g) { return g && (g.appid || g.id) && g.name; }); paint(); });
+  }
+
+  /* ------------------------------------------------------- STEAM: tutoriais */
+  function tutoriaisPage(c) {
+    var box = h("div", {}, [loadingCell()]); c.appendChild(box);
+    call("tutorialsList", undefined, undefined, { tutorials: [] }).then(function (r) {
+      var list = (r && r.tutorials) || [];
+      box.innerHTML = "";
+      if (!list.length) { box.appendChild(h("div", { class: "empty" }, ["Sem tutoriais no momento."])); return; }
+      box.appendChild(h("div", { class: "rows" }, list.map(function (t) {
+        return h("div", { class: "lrow" }, [
+          h("div", {}, [h("div", { class: "nm2" }, [t.title || t.titulo || "Tutorial"]), h("div", { class: "sub2", style: "white-space:pre-line" }, [(t.description || t.descricao || "").slice(0, 300)])]),
+          h("div", { class: "right" }, [(t.url || t.link || t.video_url) ? h("button", { class: "mini", onclick: function () { openUrl(t.url || t.link || t.video_url); } }, ["Abrir"]) : null])
+        ]);
+      })));
+    });
   }
 
   /* --------------------------------------------------------- STEAM: denuvo */
@@ -1289,15 +1408,17 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
         restOut.textContent = "...";
         call("adminRestQuery", "pix_orders?select=id&limit=1", undefined, { success: false }).then(function (r) { restOut.textContent = r && r.success ? "Conexao OK" : "Erro: " + (r && r.error); });
       } }, ["Pingar pix_orders"]), " ", restOut]));
-    var ta = h("textarea", { placeholder: "SELECT key,nome,plano,ativo FROM keyvortex ORDER BY created_at DESC LIMIT 10" });
+    var ta = h("textarea", { placeholder: "SELECT ... FROM ... LIMIT 20" });
     var out = h("pre", { id: "admSql" }, ["—"]);
-    wrap.appendChild(h("div", { class: "acard" }, [h("h4", { style: "margin-bottom:8px" }, ["Query SQL"]), ta,
-      h("button", { class: "mini", style: "margin-top:8px", onclick: function () {
-        out.textContent = "executando...";
-        call("adminDbQuery", ta.value.trim(), [], { success: false, error: "IPC ausente" }).then(function (r) {
-          out.textContent = r && r.success ? JSON.stringify(r.rows, null, 2) : "ERRO: " + (r && r.error);
-        });
-      } }, ["Executar"]), out]));
+    function run(sql) { ta.value = sql; out.textContent = "executando..."; call("adminDbQuery", sql, [], { success: false, error: "IPC ausente" }).then(function (r) { out.textContent = r && r.success ? JSON.stringify(r.rows, null, 2) : "ERRO: " + (r && r.error); }); }
+    var quick = h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px" }, [
+      ["Licencas recentes", "SELECT key,nome,plano,ativo,expira_em,created_at FROM keyvortex ORDER BY created_at DESC LIMIT 20"],
+      ["Pedidos PIX (24h)", "SELECT txid,license_key,product_name,amount,status,created_at FROM pix_orders WHERE created_at > now()-interval '24 hours' ORDER BY created_at DESC LIMIT 30"],
+      ["Resgates pendentes", "SELECT * FROM referral_redemptions WHERE status='pending' ORDER BY created_at DESC LIMIT 20"],
+      ["Planos", "SELECT key,name,price,game_limit,bypass,multiplayer,premiumaccounts,nsfw,emuladores,active FROM plans ORDER BY price"]
+    ].map(function (q) { return h("button", { class: "mini", onclick: function () { run(q[1]); } }, [q[0]]); }));
+    wrap.appendChild(h("div", { class: "acard" }, [h("h4", { style: "margin-bottom:8px" }, ["Banco (adminDbQuery — full admin)"]), quick, ta,
+      h("button", { class: "mini", style: "margin-top:8px", onclick: function () { run(ta.value.trim()); } }, ["Executar SQL"]), out]));
   }
 
   /* --------------------------------------------------------- card grid */
@@ -1346,6 +1467,9 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
   /* ------------------------------------------------------------ install */
   function startInstall(it, ctx, card) {
     if (S.downloads[it.id]) return;
+    if ((ctx === "steam") && !S.myGames.has(it.id) && !can("game_limit_ok")) {
+      return toast("Limite do seu plano: " + S.plan.game_limit + " jogos. Veja a Loja para aumentar.");
+    }
     var d = { name: it.name, pct: 0, phase: ctx === "retro" ? "rom" : ctx === "bypass" ? "bypass" : "lua" };
     S.downloads[it.id] = d; renderHud();
     var st = card && $(".st", card), act = card && $(".act", card), barI;
