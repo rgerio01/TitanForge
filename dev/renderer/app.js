@@ -402,15 +402,11 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 
   function afterBoot(tries) {
     tries = tries || 0;
-    var saved = svc.getSaved();
-    if (!saved) return go("login");
+    // Login SEMPRE aparece antes da escolha do sistema. A chave salva so
+    // pre-preenche o campo — o usuario confirma "Entrar" e revalida no banco a
+    // cada abertura (validate_license + vinculo de HWID).
     if (!S.hwid && tries < 12) { mount(bootView("Preparando...")); return void setTimeout(function () { afterBoot(tries + 1); }, 500); }
-    mount(bootView("Verificando licenca..."));
-    // regra: so entra sem passar pelo login se o banco confirmar licenca ATIVA + vinculada a este HWID.
-    svc.checkStatus(saved).then(function (r) {
-      if (r && r.active === true) { S.licenseKey = saved.toUpperCase(); authed(); }
-      else { svc.clear(); go("login", { msg: (r && r.message) || "Faca login para continuar." }); }
-    });
+    go("login", { prefill: svc.getSaved() });
   }
 
   function authed() {
