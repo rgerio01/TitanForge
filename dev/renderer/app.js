@@ -38,6 +38,36 @@
   function debounce(fn, ms) { var t; return function () { var a = arguments, c = this; clearTimeout(t); t = setTimeout(function () { fn.apply(c, a); }, ms); }; }
   function fmtDate(s) { try { var d = new Date(s); return isNaN(d) ? "" : d.toLocaleDateString("pt-BR"); } catch (e) { return ""; } }
   function capFor(id) { return "https://cdn.cloudflare.steamstatic.com/steam/apps/" + id + "/header.jpg"; }
+  // Capas + video de ROMs: streaming ao vivo via ScreenScraper (nunca baixa/guarda
+  // midia em disco — so pede a URL na hora e usa direto no <img>/<video>). Cache
+  // em memoria (nao em disco) so pra nao repetir a mesma consulta na mesma sessao.
+  var _retroArtObs = null, _retroArtMap = null;
+  function retroArtObserver() {
+    if (_retroArtObs) return { observe: observe };
+    _retroArtMap = new WeakMap();
+    _retroArtObs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        _retroArtObs.unobserve(en.target);
+        var it = _retroArtMap.get(en.target);
+        if (!it) return;
+        fetchRetroMedia(it.rom.console, it.rom.file).then(function (r) {
+          if (r && r.success && r.imageUrl) en.target.style.backgroundImage = "url(" + r.imageUrl + ")";
+        });
+      });
+    }, { rootMargin: "200px" });
+    return { observe: observe };
+    function observe(el, it) { _retroArtMap.set(el, it); _retroArtObs.observe(el); }
+  }
+  var _retroMediaCache = {};
+  function fetchRetroMedia(system, file, size) {
+    var key = system + "|" + file;
+    if (_retroMediaCache[key]) return _retroMediaCache[key];
+    var p = (E.arenaGameMedia ? E.arenaGameMedia({ system: system, file: file, size: size }) : Promise.resolve({ success: false }))
+      .catch(function () { return { success: false }; });
+    _retroMediaCache[key] = p;
+    return p;
+  }
   var PAL = [["#1f2b47", "#0d1220"], ["#3a1f2b", "#160b12"], ["#243a30", "#0c1712"], ["#3a331f", "#171207"], ["#2b1f3a", "#100915"], ["#1f3a3a", "#0a1717"], ["#3a2a1f", "#170f0a"], ["#22314a", "#0c1322"]];
   function pal(i) { return PAL[Math.abs(i) % PAL.length]; }
   function copy(txt) { try { navigator.clipboard.writeText(txt); } catch (e) { var t = h("textarea", { style: "position:fixed;opacity:0" }); t.value = txt; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); } catch (e2) {} t.remove(); } }
@@ -287,6 +317,10 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 .chip.on{border-color:var(--accent);color:var(--text)}\
 \
 .consoles{display:flex;gap:9px;overflow-x:auto;padding-bottom:8px}\
+.recentrow{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}\
+.recentrow .gcard{min-width:160px;max-width:160px;flex:0 0 auto}\
+.gcard .also{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap}\
+.gcard .also .chip{font-size:8.5px;padding:2px 6px}\
 .cbtn{flex:none;width:132px;border:1px solid var(--line-soft);background:var(--panel-2);padding:12px;cursor:pointer;text-align:left}\
 .cbtn.sel{border-color:var(--steel);background:color-mix(in srgb,var(--steel) 10%,transparent)}\
 .cbtn:hover{border-color:color-mix(in srgb,var(--steel) 45%,var(--line))}\
@@ -304,6 +338,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 .pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}\
 .pill.idle{color:var(--text-faint)}\
 .mini{border:1px solid var(--line);padding:5px 12px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}\
+.mini.danger{border-color:#ff4d4d;color:#ff9b9b}\
 .mini:hover{color:var(--text);border-color:var(--accent)}\
 .mini[disabled]{opacity:.5;cursor:not-allowed}\
 .toggleSw{width:38px;height:20px;border:1px solid var(--line);background:var(--panel-2);position:relative;flex:none;cursor:pointer}\
@@ -336,6 +371,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
 .drawer .cta{margin-top:18px;display:flex;gap:8px}\
 .drawer .cta button{flex:1;padding:12px 0;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--line);color:var(--text)}\
 .drawer .cta .go{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,transparent)}\
+.drawer .cta button.danger{border-color:#ff4d4d;background:color-mix(in srgb,#ff4d4d 18%,transparent);color:#ffb3b3}\
 \
 .dlhud{position:fixed;right:18px;bottom:18px;z-index:150;width:290px;background:var(--panel);border:1px solid var(--line);display:none}\
 .dlhud.on{display:block}\
@@ -497,16 +533,10 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       if (S.phase === "app" || S.phase === "entry") go(S.phase); // re-render com plano carregado
     });
     ipcUpdates().then(function (arr) {
+      // Popup automatico de comunicado desativado (pedido explicito) — o
+      // historico continua acessivel na pagina "Novidades", so nao interrompe
+      // mais o login sozinho.
       S.updates = Array.isArray(arr) ? arr : [];
-      try {
-        if (S.updates.length && !sessionStorage.getItem("gx_ann_seen")) {
-          var u = S.updates[0];
-          showModal(u.nome || "Comunicado", u.content || u.conteudo || "", [
-            { t: "Fechar", act: function () { sessionStorage.setItem("gx_ann_seen", "1"); hideModal(); } },
-            { t: "Dar feedback", pri: true, act: function () { sessionStorage.setItem("gx_ann_seen", "1"); openUrl("https://wa.me/5543988322483?text=" + encodeURIComponent("Feedback Gamaxy: ")); hideModal(); } }
-          ]);
-        }
-      } catch (e) {}
     });
     go("entry");
   }
@@ -760,9 +790,12 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
   /* ------------------------------------------------------------ app shell */
   function navItems() {
     if (S.mode === "retro") {
-      return [["home", "Sistemas", "pad"], ["instalados", "Instalados", "games"], ["emu", "Emuladores", "chip"],
-        ["__g", "Biblioteca"], ["solicitar", "Solicitar Jogo", "spark"], ["pasta", "Pasta de ROMs", "folder"],
-        ["__g", "Sistema"], ["controles", "Controles", "pad"], ["config", "Configuracoes", "cog"]]
+      return [["home", "Sistemas", "pad"], ["instalados", "Instalados", "games"]]
+        .concat(S.isAdmin ? [["emu", "Emuladores", "chip"]] : [])
+        .concat([
+          ["__g", "Biblioteca"], ["solicitar", "Solicitar Jogo", "spark"], ["pasta", "Pasta de ROMs", "folder"],
+          ["__g", "Sistema"], ["controles", "Controles", "pad"], ["config", "Configuracoes", "cog"]
+        ])
         .concat(S.isAdmin ? [["__g", "Interno"], ["admin", "Painel Admin", "wrench"]] : []);
     }
     var it = [["home", "Meus Jogos", "games"], ["catalogo", "Catalogo", "grid"], ["addgame", "Adicionar Jogo", "spark"],
@@ -858,7 +891,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     } else {
       if (P === "home") return retroHome(c);
       if (P === "instalados") return retroInstalled(c);
-      if (P === "emu") return retroEmu(c);
+      if (P === "emu") return S.isAdmin ? retroEmu(c) : retroHome(c);
       if (P === "solicitar") return retroRequest(c);
       if (P === "pasta") return retroPath(c);
       if (P === "controles") return controlesPage(c);
@@ -1220,71 +1253,83 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     });
   }
 
+  /* --------------------------------------------------------- config: comum */
+  function cfgCard(title, rows) { return h("div", { class: "acard" }, [h("h4", { style: "font-size:13px;margin-bottom:10px" }, [title]), h("div", { class: "rows" }, rows)]); }
+  function cfgRow(label, val, pill) {
+    return h("div", { class: "lrow" }, [h("div", {}, [h("div", { class: "nm2" }, [label]), h("div", { class: "sub2" }, [String(val)])]),
+      h("div", { class: "right" }, [pill ? h("span", { class: "pill " + pill }, [pill === "good" ? "ok" : pill === "warn" ? "!" : "–"]) : null])]);
+  }
+  function cfgActionRow(label, btn, fn) {
+    var b = h("button", { class: "mini", onclick: function () { fn(b); } }, [btn]);
+    return h("div", { class: "lrow" }, [h("div", { class: "nm2" }, [label]), h("div", { class: "right" }, [b])]);
+  }
+  function cfgToggleRow(label, on, fn) {
+    var sw = h("div", { class: "toggleSw" + (on ? " on" : "") });
+    sw.addEventListener("click", function () { fn(!sw.classList.contains("on"), function (v) { sw.classList.toggle("on", v); }); });
+    return h("div", { class: "lrow" }, [h("div", { class: "nm2" }, [label]), h("div", { class: "right" }, [sw])]);
+  }
+  function cfgAccountCard(ip) {
+    return cfgCard("Atualizacoes & conta", [
+      cfgRow("Versao", S.version || "?", "idle"),
+      cfgRow("HWID", (S.hwid || "").slice(0, 24) || "-", "idle"),
+      cfgRow("IP publico", ip.ip || "?", "idle"),
+      cfgActionRow("Procurar atualizacoes", "Verificar", function (b) { b.disabled = true; call("checkForUpdatesManually").then(function (r) { b.disabled = false; toast(r && r.success ? "Verificado" : "Sem update"); }); }),
+      cfgActionRow("Pasta de atualizacoes", "Abrir", function () { call("openUpdatesFolder"); }),
+      cfgActionRow("Suporte", "Abrir WhatsApp", function () { openUrl("https://wa.me/5543988322483?text=" + encodeURIComponent("Suporte Gamaxy. Licenca: " + S.licenseKey)); }),
+      cfgActionRow("Sair da conta", "Sair", function () { confirmLogout(); })
+    ]);
+  }
   /* --------------------------------------------------------- STEAM: config */
   function configPage(c) {
+    if (S.mode === "retro") return retroConfigPage(c);
     var box = h("div", { class: "adm" }, [loadingCell()]);
     c.appendChild(box);
     Promise.all([
       call("checkSteamSetup", undefined, undefined, {}),
       call("hidDllStatus", undefined, undefined, {}),
       call("denuvoOfflineStatus", undefined, undefined, {}),
-      call("arenaRomsPathGet", undefined, undefined, {}),
       call("getPublicIp", undefined, undefined, {})
     ]).then(function (res) {
-      var steam = res[0] || {}, hid = res[1] || {}, dnv = res[2] || {}, romsP = res[3] || {}, ip = res[4] || {};
+      var steam = res[0] || {}, hid = res[1] || {}, dnv = res[2] || {}, ip = res[3] || {};
       box.innerHTML = "";
-      // Steam
-      box.appendChild(card("Steam", [
-        row("Steam detectada", steam.steamFound ? (steam.steamPath || "sim") : "nao encontrada", steam.steamFound ? "good" : "warn"),
-        actionRow("Escolher pasta da Steam", "Selecionar", function (b) { b.disabled = true; call("selectSteamFolder").then(function () { b.disabled = false; renderPage($("#content")); }); })
+      box.appendChild(cfgCard("Steam", [
+        cfgRow("Steam detectada", steam.steamFound ? (steam.steamPath || "sim") : "nao encontrada", steam.steamFound ? "good" : "warn"),
+        cfgActionRow("Escolher pasta da Steam", "Selecionar", function (b) { b.disabled = true; call("selectSteamFolder").then(function () { b.disabled = false; renderPage($("#content")); }); })
       ]));
-      // HID DLL
-      box.appendChild(card("Controle / HID (xinput1_4.dll)", [
-        toggleRow("DLL de controle ativa", !!hid.enabled, function (on, set) {
+      box.appendChild(cfgCard("Controle / HID (xinput1_4.dll)", [
+        cfgToggleRow("DLL de controle ativa", !!hid.enabled, function (on, set) {
           call(on ? "enableHidDll" : "disableHidDll").then(function () { set(on); toast(on ? "DLL ativada" : "DLL desativada"); });
         })
       ]));
-      // Denuvo offline
-      box.appendChild(card("Modo offline (Denuvo)", [
-        toggleRow("Automatico: Steam offline quando um jogo Denuvo abrir", !!dnv.auto, function (on, set) {
+      box.appendChild(cfgCard("Modo offline (Denuvo)", [
+        cfgToggleRow("Automatico: Steam offline quando um jogo Denuvo abrir", !!dnv.auto, function (on, set) {
           call("denuvoOfflineSetAuto", on).then(function () { set(on); });
         }),
-        actionRow("Forcar Steam offline agora", dnv.offline ? "Voltar online" : "Ficar offline", function (b) {
+        cfgActionRow("Forcar Steam offline agora", dnv.offline ? "Voltar online" : "Ficar offline", function (b) {
           b.disabled = true; call("steamSetOffline", !dnv.offline).then(function (r) { b.disabled = false; toast(r && r.ok ? "OK" : (r && r.error) || "Falha"); renderPage($("#content")); });
         })
       ]));
-      // ROMs path
-      box.appendChild(card("Pasta de ROMs (RetroAnvil)", [
-        row("Pasta atual", romsP.path || "(padrao)", romsP.isDefault ? "idle" : "good"),
-        actionRow("Trocar pasta", "Escolher", function (b) { b.disabled = true; call("arenaRomsPathSet").then(function () { b.disabled = false; renderPage($("#content")); }); })
-      ]));
-      // Updates + conta
-      box.appendChild(card("Atualizacoes & conta", [
-        row("Versao", S.version || "?", "idle"),
-        row("HWID", (S.hwid || "").slice(0, 24) || "-", "idle"),
-        row("IP publico", ip.ip || "?", "idle"),
-        actionRow("Procurar atualizacoes", "Verificar", function (b) { b.disabled = true; call("checkForUpdatesManually").then(function (r) { b.disabled = false; toast(r && r.success ? "Verificado" : "Sem update"); }); }),
-        actionRow("Pasta de atualizacoes", "Abrir", function () { call("openUpdatesFolder"); }),
-        actionRow("Suporte", "Abrir WhatsApp", function () { openUrl("https://wa.me/5543988322483?text=" + encodeURIComponent("Suporte Gamaxy. Licenca: " + S.licenseKey)); }),
-        actionRow("Sair da conta", "Sair", function () { confirmLogout(); })
-      ]));
+      box.appendChild(cfgAccountCard(ip));
     });
-    function card(title, rows) { return h("div", { class: "acard" }, [h("h4", { style: "font-size:13px;margin-bottom:10px" }, [title]), h("div", { class: "rows" }, rows)]); }
-    function row(label, val, pill) {
-      return h("div", { class: "lrow" }, [h("div", {}, [h("div", { class: "nm2" }, [label]), h("div", { class: "sub2" }, [String(val)])]),
-        h("div", { class: "right" }, [pill ? h("span", { class: "pill " + pill }, [pill === "good" ? "ok" : pill === "warn" ? "!" : "–"]) : null])]);
-    }
-    function actionRow(label, btn, fn) {
-      var b = h("button", { class: "mini", onclick: function () { fn(b); } }, [btn]);
-      return h("div", { class: "lrow" }, [h("div", { class: "nm2" }, [label]), h("div", { class: "right" }, [b])]);
-    }
-    function toggleRow(label, on, fn) {
-      var sw = h("div", { class: "toggleSw" + (on ? " on" : "") });
-      sw.addEventListener("click", function () { fn(!sw.classList.contains("on"), function (v) { sw.classList.toggle("on", v); }); });
-      return h("div", { class: "lrow" }, [h("div", { class: "nm2" }, [label]), h("div", { class: "right" }, [sw])]);
-    }
   }
-
+  /* ------------------------------------------------------ RETRO: config */
+  function retroConfigPage(c) {
+    var box = h("div", { class: "adm" }, [loadingCell()]);
+    c.appendChild(box);
+    Promise.all([
+      call("arenaRomsPathGet", undefined, undefined, {}),
+      call("getPublicIp", undefined, undefined, {})
+    ]).then(function (res) {
+      var romsP = res[0] || {}, ip = res[1] || {};
+      box.innerHTML = "";
+      box.appendChild(cfgCard("Pasta de ROMs (RetroAnvil)", [
+        cfgRow("Pasta atual", romsP.path || "(padrao)", romsP.isDefault ? "idle" : "good"),
+        cfgRow("Modo", romsP.network ? "rede (compartilhada)" : "local", romsP.network ? "idle" : "good"),
+        cfgActionRow("Trocar pasta", "Escolher", function (b) { b.disabled = true; call("arenaRomsPathSet").then(function () { b.disabled = false; renderPage($("#content")); }); })
+      ]));
+      box.appendChild(cfgAccountCard(ip));
+    });
+  }
   /* ------------------------------------------------------- STEAM: cadastro */
   function cadastroPage(c) {
     var nome = h("input", { class: "field" }), email = h("input", { class: "field" }), tel = h("input", { class: "field" }), ref = h("input", { class: "field", placeholder: "opcional" });
@@ -1343,10 +1388,23 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       stat("Emuladores", "<span id='cEmu'>...</span>", 1),
       stat("ROMs no PC", "<span id='cInst'>...</span>", 1)
     ]);
+    var recentWrap = h("div", { id: "recentWrap" });
     var band = h("div", { class: "consoles", id: "band" }, [h("span", { class: "empty" }, [h("span", { class: "spin" }), " sistemas..."])]);
     var head = h("div", { class: "sectionhead", style: "margin-top:18px" }, [h("h4", { id: "sysT" }, ["Sistema"]), h("span", { class: "c", id: "cCount" }, [""]), mkSearch("Buscar ROM...")]);
     var grid = h("div", { class: "grid", id: "grid" }, []);
-    c.appendChild(strip); c.appendChild(band); c.appendChild(head); c.appendChild(grid); c.appendChild(retroNote());
+    c.appendChild(strip); c.appendChild(recentWrap); c.appendChild(band); c.appendChild(head); c.appendChild(grid); c.appendChild(retroNote());
+    screenscraperBanner(c);
+
+    call("arenaRecentList", undefined, undefined, { items: [] }).then(function (r) {
+      var items = (r && r.items) || [];
+      if (!items.length) return;
+      recentWrap.appendChild(h("div", { class: "sectionhead", style: "margin-top:18px" }, [h("h4", {}, ["Jogados recentemente"])]));
+      var row = h("div", { class: "recentrow" }, []);
+      items.slice(0, 12).forEach(function (it) {
+        row.appendChild(gameCard({ name: it.name, id: it.system + "|" + it.file, st: "ok", rom: { console: it.system, file: it.file } }, "retro"));
+      });
+      recentWrap.appendChild(row);
+    });
 
     call("arenaListGames", undefined, undefined, { games: [] }).then(function (r) { var el = $("#cInst"); if (el) el.textContent = String(((r && r.games) || []).length); });
     call("arenaEmulatorsInstalled", undefined, undefined, {}).then(function (r) { var el = $("#cEmu"); if (el) el.textContent = String(((r && (r.installed || r.list)) || []).length || r.count || 0); });
@@ -1383,22 +1441,84 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       var q = S.search.trim().toLowerCase();
       var list = cat.filter(function (g) { return !q || String(g.title || g.name || g.file).toLowerCase().indexOf(q) >= 0; }).map(function (g) {
         var file = g.file || g.filename || g.name;
-        return { name: g.title || g.name || file, id: consoleId + "|" + file, file: file, st: instSet.has(file) ? "ok" : "get", rom: { console: consoleId, file: file } };
+        return {
+          name: g.title || g.name || file, id: consoleId + "|" + file, file: file, st: instSet.has(file) ? "ok" : "get",
+          rom: {
+            console: consoleId, file: file, desc: g.desc || "", genre: g.genre || "", developer: g.developer || "",
+            publisher: g.publisher || "", releasedate: g.releasedate || "", players: g.players || ""
+          }
+        };
       });
       fillGrid(grid, list, "retro");
     });
   }
   function retroInstalled(c) {
-    var grid = h("div", { class: "grid", id: "grid" }, [loadingCell()]);
-    c.appendChild(h("div", { class: "sectionhead" }, [h("h4", {}, ["ROMs no PC"]), h("span", { class: "c", id: "cCount" }, [""])]));
-    c.appendChild(grid);
-    call("arenaListGames", undefined, undefined, { games: [] }).then(function (r) {
-      var list = ((r && r.games) || []).map(function (g) {
-        var cons = g.system || g.console;
-        return { name: g.title || g.rawName || g.file, id: cons + "|" + g.file, file: g.file, st: "ok", rom: { console: cons, file: g.file }, removable: true };
+    var gsInput = h("input", { class: "field search", placeholder: "Buscar em todos os consoles..." });
+    var head = h("div", { class: "sectionhead" }, [h("h4", {}, ["Instalados"]), h("span", { class: "c", id: "cCount" }, [""]), gsInput]);
+    var body = h("div", { id: "instBody" }, []);
+    c.appendChild(head); c.appendChild(body);
+
+    function renderBrowse() {
+      body.innerHTML = "";
+      var band = h("div", { class: "consoles", id: "band" }, [h("span", { class: "empty" }, [h("span", { class: "spin" }), " sistemas..."])]);
+      var sub = h("div", { class: "sectionhead", style: "margin-top:14px" }, [h("h4", { id: "sysT" }, ["Sistema"])]);
+      var grid = h("div", { class: "grid", id: "grid" }, []);
+      body.appendChild(band); body.appendChild(sub); body.appendChild(grid);
+      call("arenaRomsListConsoles", undefined, undefined, { consoles: [] }).then(function (r) {
+        var cs = (r && (r.consoles || r.systems || r.list)) || [];
+        S.consoles = cs;
+        band.innerHTML = "";
+        if (!cs.length) { band.appendChild(h("span", { class: "empty" }, ["Nenhum sistema no servidor."])); return; }
+        if (!S.console || !cs.some(function (x) { return (x.id || x.console || x.name) === S.console; })) S.console = cs[0].id || cs[0].console || cs[0].name;
+        cs.forEach(function (cc) {
+          var id = cc.id || cc.console || cc.name;
+          var b = h("div", { class: "cbtn cut cut-sm" + (id === S.console ? " sel" : ""), onclick: function () { S.console = id; renderBrowse(); } }, [
+            h("div", { class: "ab" }, [String(cc.abbr || cc.short || id || "").toUpperCase().slice(0, 5)]),
+            h("div", { class: "fl" }, [String(cc.label || cc.name || id)]),
+            h("div", { class: "ct" }, [(cc.count != null ? cc.count : cc.games != null ? cc.games : "") + (cc.count != null || cc.games != null ? " jogos" : "")])
+          ]);
+          band.appendChild(b);
+        });
+        var t = $("#sysT"); if (t) t.textContent = S.console;
+        var q = "";
+        Promise.all([
+          call("arenaRomsListGames", S.console, undefined, { games: [] }),
+          call("arenaListGames", undefined, undefined, { games: [] })
+        ]).then(function (res) {
+          var cat = (res[0] && res[0].games) || [];
+          var mine = (res[1] && res[1].games) || [];
+          var instSet = new Set(mine.filter(function (g) { return (g.system || g.console) === S.console; }).map(function (g) { return g.file; }));
+          var list = cat.map(function (g) {
+            var file = g.file || g.filename || g.name;
+            return { name: g.title || g.name || file, id: S.console + "|" + file, file: file, st: instSet.has(file) ? "ok" : "get", rom: { console: S.console, file: file } };
+          });
+          fillGrid(grid, list, "retro");
+        });
       });
-      fillGrid(grid, list, "retro");
-    });
+    }
+
+    function renderGlobal(q) {
+      body.innerHTML = "";
+      var grid = h("div", { class: "grid", id: "grid" }, [loadingCell()]);
+      body.appendChild(grid);
+      call("arenaRomsSearchGlobal", q, undefined, { results: [] }).then(function (r) {
+        var results = (r && r.results) || [];
+        var list = results.map(function (g) {
+          return {
+            name: g.title, id: g.system + "|" + g.file, file: g.file, st: "get", rom: { console: g.system, file: g.file },
+            alsoIn: (g.consoles || []).filter(function (s) { return s !== g.system; })
+          };
+        });
+        fillGrid(grid, list, "retro");
+      });
+    }
+
+    gsInput.addEventListener("input", debounce(function () {
+      var q = gsInput.value.trim();
+      if (!q) return renderBrowse();
+      renderGlobal(q);
+    }, 250));
+    renderBrowse();
   }
   function retroEmu(c) {
     var rows = h("div", { class: "rows" }, [h("div", { class: "lrow" }, [h("span", { class: "spin" }), " carregando..."])]);
@@ -1462,6 +1582,76 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
         ])])
       ]));
     });
+    c.appendChild(h("h4", { style: "margin-top:24px" }, ["Conta ScreenScraper (capas e videos)"]));
+    var ssBox = h("div", { style: "max-width:520px" }, [loadingCell()]);
+    c.appendChild(ssBox);
+    call("screenscraperGetStatus", undefined, undefined, {}).then(function (r) {
+      r = r || {};
+      ssBox.innerHTML = "";
+      if (!r.devConfigured) {
+        ssBox.appendChild(h("div", { class: "note", style: "border-left-color:var(--heat)" }, [
+          "Capas e videos ainda nao funcionam nesse build (falta credencial de app do ScreenScraper). Mas ja da pra deixar sua conta pessoal salva aqui, pronta pra quando isso for liberado."
+        ]));
+      }
+      ssBox.appendChild(h("div", { class: "rows" }, [
+        h("div", { class: "lrow" }, [h("div", {}, [h("div", { class: "nm2" }, ["Usuario"]), h("div", { class: "sub2" }, [r.userConfigured ? r.ssid : "nao configurado"])]),
+          h("div", { class: "right" }, [h("span", { class: "pill " + (r.userConfigured ? "good" : "idle") }, [r.userConfigured ? "conectado" : "sem conta"])])])
+      ]));
+      var uEl = h("input", { class: "field", placeholder: "usuario ScreenScraper", style: "margin-top:10px;max-width:220px;display:inline-block" });
+      var pEl = h("input", { class: "field", type: "password", placeholder: "senha", style: "margin-top:10px;max-width:160px;display:inline-block;margin-left:8px" });
+      ssBox.appendChild(h("div", {}, [
+        uEl, pEl,
+        h("button", { class: "mini", style: "margin-left:8px", onclick: function () {
+          var ssid = uEl.value.trim(), sspassword = pEl.value.trim();
+          if (!ssid || !sspassword) return toast("Preencha usuario e senha");
+          call("screenscraperSetCreds", { ssid: ssid, sspassword: sspassword }, undefined, { success: false }).then(function (r2) {
+            if (r2 && r2.success) { toast("ScreenScraper conectado"); c.innerHTML = ""; retroPath(c); }
+            else toast((r2 && r2.error) || "Falha ao salvar");
+          });
+        } }, ["Salvar"]),
+        r.userConfigured ? h("button", { class: "mini", style: "margin-left:8px", onclick: function () {
+          call("screenscraperClearCreds", undefined, undefined, { success: false }).then(function () { c.innerHTML = ""; retroPath(c); });
+        } }, ["Desconectar"]) : null
+      ]));
+      ssBox.appendChild(h("div", { class: "note", style: "margin-top:10px" }, [
+        "Nao tem conta? ",
+        h("a", { href: "#", onclick: function (e) { e.preventDefault(); openUrl("https://www.screenscraper.fr/membreinscription.php"); } }, ["Criar gratis em ScreenScraper.fr"])
+      ]));
+    });
+    c.appendChild(h("h4", { style: "margin-top:24px" }, ["Lixeira"]));
+    c.appendChild(h("div", { class: "note" }, ["Desinstalar nunca apaga de verdade — o jogo fica aqui ate voce restaurar ou apagar em definitivo."]));
+    var trashBox = h("div", { style: "max-width:520px;margin-top:10px" }, [loadingCell()]);
+    c.appendChild(trashBox);
+    function renderTrash() {
+      call("arenaTrashList", undefined, undefined, { items: [] }).then(function (r) {
+        trashBox.innerHTML = "";
+        var items = (r && r.items) || [];
+        if (!items.length) { trashBox.appendChild(h("div", { class: "note" }, ["Lixeira vazia."])); return; }
+        items.sort(function (a, b) { return (b.removedAt || 0) - (a.removedAt || 0); });
+        trashBox.appendChild(h("div", { class: "rows" }, items.map(function (it) {
+          return h("div", { class: "lrow" }, [
+            h("div", {}, [h("div", { class: "nm2" }, [it.file]), h("div", { class: "sub2" }, [it.system.toUpperCase() + (it.removedAt ? " · removido " + fmtDate(it.removedAt) : "")])]),
+            h("div", { class: "right" }, [
+              h("button", { class: "mini", onclick: function () {
+                call("arenaTrashRestore", { system: it.system, trashName: it.trashName }, undefined, { success: false }).then(function (r2) {
+                  if (r2 && r2.success) { toast(it.file + " — restaurado"); renderTrash(); }
+                  else toast((r2 && r2.error) || "Falha ao restaurar");
+                });
+              } }, ["Restaurar"]),
+              h("button", { class: "mini", style: "margin-left:6px", onclick: function (e) {
+                var btn = e.target;
+                if (!btn.dataset.confirm) { btn.dataset.confirm = "1"; btn.textContent = "Confirmar?"; btn.classList.add("danger"); return; }
+                call("arenaTrashPurge", { system: it.system, trashName: it.trashName }, undefined, { success: false }).then(function (r2) {
+                  if (r2 && r2.success) { toast("Apagado em definitivo"); renderTrash(); }
+                  else toast((r2 && r2.error) || "Falha ao apagar");
+                });
+              } }, ["Apagar de vez"])
+            ])
+          ]);
+        })));
+      });
+    }
+    renderTrash();
   }
 
   /* ------------------------------------------------------- RETRO: controles */
@@ -1738,14 +1928,20 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
     var stKey = dl ? "dl" : it.st;
     var stTxt = ({ ok: "Instalado", upd: "Atualizar", get: ctx === "retro" ? "Baixar" : ctx === "denuvo" ? "Comprar" : "Instalar", na: "Indisp.", dl: "Baixando" })[stKey] || "";
     var actTxt = ({ ok: "Jogar", upd: "Atualizar", get: ctx === "retro" ? "Baixar" : ctx === "denuvo" ? "Comprar" : "Instalar", na: "Nao disponivel", dl: dl ? Math.round(dl.pct) + "%" : "..." })[stKey];
-    var art = h("div", { class: "art", style: "--a1:" + p[0] + ";--a2:" + p[1], onclick: function () { if (ctx === "steam" || ctx === "bypass") openDrawer(it, ctx); } }, [
+    var art = h("div", { class: "art", style: "--a1:" + p[0] + ";--a2:" + p[1], onclick: function () { if (ctx === "retro") openRetroPopup(it); else if (ctx === "steam" || ctx === "bypass") openDrawer(it, ctx); } }, [
       h("span", { class: "st " + stKey }, [stTxt]),
       h("span", { class: "k" }, [ctx === "retro" ? (it.rom ? it.rom.console.toUpperCase() : "ROM") : ("APPID " + it.id)])
     ]);
     if (ctx === "steam" || ctx === "bypass") { var im = new Image(); im.onload = function () { art.style.backgroundImage = "url(" + capFor(it.id) + ")"; }; im.src = capFor(it.id); }
+    // Capa de ROM: so busca no ScreenScraper quando o card entra na tela (evita
+    // disparar milhares de consultas de uma vez em listas grandes tipo Mega Drive).
+    if (ctx === "retro" && it.rom) retroArtObserver().observe(art, it);
     var actBtn = h("button", { class: "act" + (stKey === "na" ? " na" : "") + (stKey === "dl" ? " busy" : "") }, [actTxt]);
     var meta = h("div", { class: "meta" }, [h("div", { class: "nm", title: it.name }, [it.name]), actBtn]);
     if (dl) meta.appendChild(h("div", { class: "prog" }, [h("i", { style: "width:" + dl.pct + "%" })]));
+    if (it.alsoIn && it.alsoIn.length) {
+      meta.appendChild(h("div", { class: "also" }, it.alsoIn.slice(0, 4).map(function (s) { return h("span", { class: "chip" }, [String(s).toUpperCase()]); })));
+    }
     var card = h("article", { class: "gcard cut cut-sm", "data-id": it.id }, [art, meta]);
     actBtn.addEventListener("click", function (e) {
       e.stopPropagation();
@@ -1771,7 +1967,7 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       var gps = liveGamepads();
       toast(it.name + " — abrindo..." + (gps.length ? " (" + gps.length + " controle" + (gps.length > 1 ? "s" : "") + ")" : ""));
       var off = E.onArenaEmuProgress ? E.onArenaEmuProgress(function (p) { toast("Preparando emulador " + pctOf(p) + "%"); }) : null;
-      E.arenaLaunchGame({ system: it.rom.console, file: it.rom.file, gamepads: gps }).then(function (r) {
+      E.arenaLaunchGame({ system: it.rom.console, file: it.rom.file, gamepads: gps, name: it.name }).then(function (r) {
         if (off) try { off(); } catch (e) {}
         if (!r || !r.success) toast((r && r.error) || "Falha ao abrir");
       });
@@ -1878,6 +2074,90 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
       else v.src = url;
     } catch (e) {}
   }
+
+  /* -------------------------------------------------------- popup Retro */
+  // Popup de confirmacao pra abrir um jogo de ROM: mostra capa/descricao/genero
+  // e, se o ScreenScraper tiver video pra esse jogo, toca em loop no topo — tudo
+  // via streaming direto da URL deles, sem nunca gravar midia em disco aqui.
+  // Traducao sob demanda (so quando o popup abre, nunca em lote) — cache em
+  // memoria pra nao re-traduzir o mesmo texto se a pessoa reabrir o mesmo jogo.
+  var _translateCache = {};
+  function translatePt(text) {
+    var t = String(text || "").trim();
+    if (!t) return Promise.resolve(t);
+    if (_translateCache[t]) return _translateCache[t];
+    var p = call("translateText", { text: t, target: "pt" }, undefined, { success: false })
+      .then(function (r) { return (r && r.success && r.text) ? r.text : t; })
+      .catch(function () { return t; });
+    _translateCache[t] = p;
+    return p;
+  }
+  function openRetroPopup(it) {
+    var dr = $("#drawer");
+    if (!dr) { dr = buildDrawer(); document.body.appendChild(dr); }
+    dr.dataset.id = it.id;
+    var p = pal(hash(it.name));
+    var head = $("#dHead"), body = $("#dBody");
+    var rom = it.rom || {};
+    head.innerHTML = "<button class='close' data-close>✕</button>";
+    head.style.setProperty("--a1", p[0]); head.style.setProperty("--a2", p[1]);
+    head.style.backgroundImage = "";
+    $$("[data-close]", dr).forEach(function (x) { x.onclick = closeDrawer; });
+    var installed = it.st === "ok";
+    body.innerHTML = "";
+    body.appendChild(h("h3", {}, [it.name]));
+    var meta = h("div", { class: "dmeta", id: "dMeta" }, [h("span", {}, [(rom.console || "").toUpperCase()])]);
+    var genreSpan = rom.genre ? h("span", {}, [rom.genre]) : null;
+    if (genreSpan) meta.appendChild(genreSpan);
+    if (rom.releasedate) { var y = String(rom.releasedate).slice(0, 4); if (y) meta.appendChild(h("span", {}, [y])); }
+    if (rom.players && Number(rom.players) > 1) meta.appendChild(h("span", {}, [rom.players + " jogadores"]));
+    body.appendChild(meta);
+    var descEl = h("p", { id: "dDesc" }, [rom.desc || ((rom.developer || rom.publisher) ? ("Desenvolvido por " + (rom.developer || rom.publisher) + ".") : "Sem descricao disponivel para este jogo.")]);
+    body.appendChild(descEl);
+    var removeBtn = null;
+    var cta = h("div", { class: "cta" }, [
+      installed
+        ? h("button", { class: "go", onclick: function () { closeDrawer(); playIt(it, "retro"); } }, ["Iniciar jogo"])
+        : h("button", { class: "go", onclick: function () { closeDrawer(); startInstall(it, "retro", cardById(it.id)); } }, ["Baixar"]),
+      installed ? (removeBtn = h("button", { onclick: function () { removeRetroGame(it, removeBtn); } }, ["Desinstalar"])) : null
+    ]);
+    body.appendChild(cta);
+    dr.classList.add("on");
+    // Traduz descricao/genero pro portugues (best-effort — se falhar, fica no idioma original).
+    if (rom.desc) translatePt(rom.desc).then(function (t) { if ($("#dDesc") === descEl) descEl.textContent = t; });
+    if (rom.genre && genreSpan) translatePt(rom.genre).then(function (t) { genreSpan.textContent = t; });
+    // Busca capa/video na hora (mesma consulta que ja pode ter vindo do lazy-load
+    // do card — cache em memoria evita repetir). So aplica video se o jogo tiver.
+    fetchRetroMedia(rom.console, rom.file).then(function (r) {
+      if (!r || !r.success) return;
+      if (r.imageUrl) head.style.backgroundImage = "url(" + r.imageUrl + ")";
+      if (r.videoUrl) playTrailer(head, r.videoUrl);
+    });
+  }
+  // Remove uma ROM instalada localmente (libera espaco em disco). Confirmacao em
+  // dois cliques (sem modal extra): primeiro clique so troca o texto do botao.
+  function removeRetroGame(it, btn) {
+    if (!btn) return;
+    if (!btn.dataset.confirm) {
+      btn.dataset.confirm = "1";
+      btn.textContent = "Confirmar remocao?";
+      btn.classList.add("danger");
+      return;
+    }
+    btn.disabled = true; btn.textContent = "Removendo...";
+    call("arenaRemoveGame", { system: it.rom.console, file: it.rom.file }, undefined, { success: false }).then(function (r) {
+      if (r && r.success) {
+        toast(it.name + " — removido");
+        closeDrawer();
+        it.st = "get";
+        var card = cardById(it.id);
+        if (card) card.replaceWith(gameCard(it, "retro"));
+      } else {
+        btn.disabled = false; btn.textContent = "Desinstalar"; delete btn.dataset.confirm; btn.classList.remove("danger");
+        toast((r && r.error) || "Falha ao remover");
+      }
+    });
+  }
   function buildDrawer() {
     return h("div", { class: "drawer", id: "drawer" }, [
       h("div", { class: "veil", "data-close": "1" }),
@@ -1963,6 +2243,31 @@ label.lb{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;text-t
   }
   function steamNote() { return h("div", { class: "note", html: "<b>Gamaxy · Steam.</b> Instala pela base local (Servidor 2). O que nao estiver na base aparece como “Nao disponivel”." }); }
   function retroNote() { return h("div", { class: "note", html: "<b>Gamaxy · Retro.</b> ROM baixa comprimida do servidor, o emulador certo vem sob demanda, extrai e abre." }); }
+  // Aviso de onboarding do ScreenScraper: some sozinho se o recurso ainda nao foi
+  // habilitado no app (sem devid/devpassword) ou se a pessoa ja cadastrou a conta.
+  function screenscraperBanner(c) {
+    var box = h("div", { class: "note", id: "ssBanner", style: "border-left-color:var(--heat);margin-top:12px" }, [h("span", { class: "spin" }), " verificando ScreenScraper..."]);
+    c.appendChild(box);
+    call("screenscraperGetStatus", undefined, undefined, {}).then(function (r) {
+      if (!r || !r.devConfigured || r.userConfigured) { box.remove(); return; }
+      box.innerHTML = "";
+      box.appendChild(h("b", {}, ["Capas e videos dos jogos"]));
+      box.appendChild(h("span", {}, [" — crie uma conta gratis no "]));
+      box.appendChild(h("a", { href: "#", onclick: function (e) { e.preventDefault(); openUrl("https://www.screenscraper.fr/membreinscription.php"); } }, ["ScreenScraper.fr"]));
+      box.appendChild(h("span", {}, [" e informe seu usuario/senha abaixo pra ver capa e video de cada jogo."]));
+      var uEl = h("input", { class: "field", placeholder: "usuario ScreenScraper", style: "margin-top:10px;max-width:220px;display:inline-block" });
+      var pEl = h("input", { class: "field", type: "password", placeholder: "senha", style: "margin-top:10px;max-width:160px;display:inline-block;margin-left:8px" });
+      var saveBtn = h("button", { class: "btn", style: "margin-left:8px", onclick: function () {
+        var ssid = uEl.value.trim(), sspassword = pEl.value.trim();
+        if (!ssid || !sspassword) return toast("Preencha usuario e senha");
+        call("screenscraperSetCreds", { ssid: ssid, sspassword: sspassword }, undefined, { success: false }).then(function (r2) {
+          if (r2 && r2.success) { toast("ScreenScraper conectado"); box.remove(); }
+          else toast((r2 && r2.error) || "Falha ao salvar");
+        });
+      } }, ["Salvar"]);
+      box.appendChild(h("div", {}, [uEl, pEl, saveBtn]));
+    });
+  }
   function pctOf(p) { if (!p) return 0; var v = p.pct != null ? p.pct : (p.percent != null ? p.percent : (p.progress != null ? p.progress : 0)); return Math.round(v > 1 ? v : v * 100); }
 
   function renderHud() {

@@ -220,6 +220,8 @@
                 supportRequest: r => e.ipcRenderer.invoke("support-request", r),
                 arenaListGames: () => e.ipcRenderer.invoke("arena-list-games"),
                 arenaLaunchGame: r => e.ipcRenderer.invoke("arena-launch-game", r),
+                arenaRecentList: () => e.ipcRenderer.invoke("arena-recent-list"),
+                arenaRomsSearchGlobal: q => e.ipcRenderer.invoke("arena-roms-search-global", { q }),
                 arenaRemoveGame: r => e.ipcRenderer.invoke("arena-remove-game", r),
                 arenaRomsPathGet: () => e.ipcRenderer.invoke("arena-roms-path-get"),
                 arenaRomsPathSet: () => e.ipcRenderer.invoke("arena-roms-path-set"),
@@ -237,6 +239,14 @@
                 onArenaEmulatorDownloadProgress: r => {
                     e.ipcRenderer.on("arena-emulator-download-progress", (e, n) => r(n))
                 },
+                arenaGameMedia: r => e.ipcRenderer.invoke("arena-game-media", r),
+                translateText: r => e.ipcRenderer.invoke("translate-text", r),
+                arenaTrashList: () => e.ipcRenderer.invoke("arena-trash-list"),
+                arenaTrashRestore: r => e.ipcRenderer.invoke("arena-trash-restore", r),
+                arenaTrashPurge: r => e.ipcRenderer.invoke("arena-trash-purge", r),
+                screenscraperGetStatus: () => e.ipcRenderer.invoke("screenscraper-get-status"),
+                screenscraperSetCreds: r => e.ipcRenderer.invoke("screenscraper-set-creds", r),
+                screenscraperClearCreds: () => e.ipcRenderer.invoke("screenscraper-clear-creds"),
                 adminConfigLoad: () => e.ipcRenderer.invoke("admin-config-load"),
                 adminConfigSave: r => e.ipcRenderer.invoke("admin-config-save", r),
                 adminDbQuery: (r, n) => e.ipcRenderer.invoke("admin-db-query", {

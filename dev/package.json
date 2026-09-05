@@ -1,7 +1,7 @@
 {
   "name": "titanforge-launcher",
   "productName": "Gamaxy",
-  "version": "4.2.17-dev",
+  "version": "4.2.21-dev",
   "description": "TitanForge Launcher - Sistema de gerenciamento de jogos Steam",
   "main": "dist/main/index.js",
   "author": "TitanForge Team",

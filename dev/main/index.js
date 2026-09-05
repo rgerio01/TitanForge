@@ -20639,7 +20639,18 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
     } catch {}
     return ARENA_ROMS_DIR_DEFAULT;
   }
-  ipcMain.handle("arena-roms-path-get", () => ({ path: getArenaRomsDir(), isDefault: getArenaRomsDir() === ARENA_ROMS_DIR_DEFAULT }));
+  // true quando a pasta de ROMs aponta pra um compartilhamento de rede (config
+  // manual de admin/LAN, arena-roms-path-set-manual) — nesse modo o acervo e
+  // COMPARTILHADO por todo mundo, entao "desinstalar" jamais pode mexer nele:
+  // so afeta copia baixada localmente. So o admin apaga algo do servidor, na
+  // mao, com autorizacao explicita (fora do fluxo normal do app).
+  function isArenaNetworkPath() {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(ARENA_ROMS_CONFIG_PATH, "utf-8"));
+      return !!(cfg && cfg.network);
+    } catch { return false; }
+  }
+  ipcMain.handle("arena-roms-path-get", () => ({ path: getArenaRomsDir(), isDefault: getArenaRomsDir() === ARENA_ROMS_DIR_DEFAULT, network: isArenaNetworkPath() }));
   ipcMain.handle("arena-roms-path-set", async (event, win) => {
     try {
       const focused = require("electron").BrowserWindow.getFocusedWindow();
@@ -20699,7 +20710,44 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
     atari2600: { emulator: "libretro", core: "stella" },
     atari7800: { emulator: "libretro", core: "prosystem" },
     wonderswan: { emulator: "libretro", core: "mednafen_wswan" },
-    wonderswancolor: { emulator: "libretro", core: "mednafen_wswan" }
+    wonderswancolor: { emulator: "libretro", core: "mednafen_wswan" },
+    // --- expansao 2026-09-04: demais sistemas classicos/arcade do catalogo remoto ---
+    "3do": { emulator: "libretro", core: "opera" },
+    arcade: { emulator: "libretro", core: "fbneo", launchSystem: "fbneo" },
+    atari5200: { emulator: "libretro", core: "a5200" },
+    atomiswave: { emulator: "libretro", core: "flycast" },
+    colecovision: { emulator: "libretro", core: "gearcoleco" },
+    cps1: { emulator: "libretro", core: "fbneo" },
+    cps2: { emulator: "libretro", core: "fbneo" },
+    cps3: { emulator: "libretro", core: "fbneo" },
+    dreamcast: { emulator: "libretro", core: "flycast" },
+    fbneo: { emulator: "libretro", core: "fbneo" },
+    fds: { emulator: "libretro", core: "fceumm" },
+    gameandwatch: { emulator: "libretro", core: "gw", launchSystem: "gw" },
+    mame: { emulator: "libretro", core: "mame2003_plus" },
+    mastersystembr: { emulator: "libretro", core: "genesis_plus_gx", launchSystem: "mastersystem" },
+    megadrivebr: { emulator: "libretro", core: "genesis_plus_gx", launchSystem: "megadrive" },
+    model2: { emulator: "model2", core: "model2" },
+    model3: { emulator: "model3", core: "model3" },
+    naomi2: { emulator: "libretro", core: "flycast" },
+    neogeo: { emulator: "libretro", core: "fbneo" },
+    neogeocd: { emulator: "libretro", core: "neocd" },
+    ngp: { emulator: "libretro", core: "mednafen_ngp" },
+    ngpc: { emulator: "libretro", core: "mednafen_ngp" },
+    o2em: { emulator: "libretro", core: "o2em", launchSystem: "odyssey2" },
+    odyssey2: { emulator: "libretro", core: "o2em" },
+    pcenginecd: { emulator: "libretro", core: "mednafen_pce" },
+    psp: { emulator: "ppsspp", core: "ppsspp" },
+    saturn: { emulator: "libretro", core: "mednafen_saturn" },
+    segacd: { emulator: "libretro", core: "genesis_plus_gx", launchSystem: "megacd" },
+    sg1000: { emulator: "libretro", core: "genesis_plus_gx" },
+    snesbr: { emulator: "libretro", core: "snes9x", launchSystem: "snes" },
+    sufami: { emulator: "libretro", core: "snes9x" },
+    supergrafx: { emulator: "libretro", core: "mednafen_supergrafx" },
+    vectrex: { emulator: "libretro", core: "vecx" },
+    virtualboy: { emulator: "libretro", core: "mednafen_vb" },
+    wswanc: { emulator: "libretro", core: "mednafen_wswan" },
+    gamecube: { emulator: "dolphin", core: "dolphin" }
   };
   const ARENA_EMULATOR_LAUNCHER = path.join(ARENA_DIR, "emulationstation", "emulatorLauncher.exe");
 
@@ -20745,6 +20793,8 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
 
   ipcMain.handle("arena-check-installed", async () => {
     try {
+      // Núcleo novo (RetroAnvil: emulationstation/emulatorLauncher.exe) conta como instalado.
+      if (fs.existsSync(ARENA_EMULATOR_LAUNCHER)) return { installed: true, version: "core" };
       if (fs.existsSync(ARENA_MARKER)) {
         const version = fs.readFileSync(ARENA_MARKER, "utf-8").trim();
         return { installed: fs.existsSync(ARENA_EXE), version };
@@ -20813,6 +20863,206 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
         videoUrl: g.video ? ROMS_API_BASE + "/api/consoles/" + encodeURIComponent(consoleId) + "/media/" + encodeURIComponent(g.video).replace(/%2F/g, "/") : null
       }));
       return { success: true, games };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  // Busca global: indice em memoria (titulo -> sistemas) construido puxando o
+  // catalogo de TODOS os consoles do servidor de uma vez. Cacheado por alguns
+  // minutos pra nao martelar o servidor a cada letra digitada na busca.
+  let _globalIndexCache = { at: 0, items: [] };
+  async function buildGlobalIndex() {
+    const consolesRes = await axios.get(ROMS_API_BASE + "/api/consoles", { timeout: 15000 });
+    if (!consolesRes.data || !consolesRes.data.success) return [];
+    const ids = consolesRes.data.consoles.map(c => c.id);
+    const items = [];
+    await Promise.all(ids.map(async id => {
+      try {
+        const r = await axios.get(ROMS_API_BASE + "/api/consoles/" + encodeURIComponent(id) + "/games", { timeout: 20000 });
+        if (!r.data || !r.data.success) return;
+        r.data.games.forEach(g => {
+          const file = g.file || g.filename || g.name;
+          items.push({ system: id, file, title: g.title || g.name || file });
+        });
+      } catch {}
+    }));
+    return items;
+  }
+  ipcMain.handle("arena-roms-search-global", async (event, payload) => {
+    try {
+      const q = String((payload && payload.q) || "").trim().toLowerCase();
+      if (!q) return { success: true, results: [] };
+      if (Date.now() - _globalIndexCache.at > 5 * 60 * 1000 || !_globalIndexCache.items.length) {
+        _globalIndexCache = { at: Date.now(), items: await buildGlobalIndex() };
+      }
+      const items = _globalIndexCache.items;
+      // titulo normalizado -> lista de sistemas que tem esse mesmo jogo
+      const byTitle = new Map();
+      items.forEach(it => {
+        const key = it.title.trim().toLowerCase();
+        if (!byTitle.has(key)) byTitle.set(key, new Set());
+        byTitle.get(key).add(it.system);
+      });
+      const matches = items.filter(it => it.title.toLowerCase().indexOf(q) >= 0).slice(0, 200);
+      const results = matches.map(it => ({
+        system: it.system, file: it.file, title: it.title,
+        consoles: Array.from(byTitle.get(it.title.trim().toLowerCase()) || [it.system])
+      }));
+      return { success: true, results, total: results.length };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  // ─── ScreenScraper (capas + vídeos, 100% streaming — nunca grava mídia em disco) ──
+  // devid/devpassword são credenciais de APLICATIVO (uma só, do Gamaxy), obtidas
+  // registrando o app em https://www.screenscraper.fr/webapi2.php — ATE PREENCHER
+  // COM VALORES REAIS AQUI, esse recurso fica inerte (arena-game-media so retorna
+  // {success:false, notConfigured:true} e o app cai no placeholder de sempre).
+  const SS_DEV = { devid: "PREENCHER_DEVID", devpassword: "PREENCHER_DEVPASSWORD", softname: "gamaxy-retroanvil" };
+  function ssDevConfigured() { return SS_DEV.devid !== "PREENCHER_DEVID" && SS_DEV.devpassword !== "PREENCHER_DEVPASSWORD"; }
+  // ID numerico de sistema do ScreenScraper (proprio deles, nao bate com o nosso
+  // id de pasta/catalogo). Cobre os sistemas mais comuns do catalogo; sistema sem
+  // entrada aqui simplesmente nao busca midia (sem erro, sem crash).
+  const SS_SYSTEM_ID = {
+    nes: 3, fds: 106, snes: 4, snesbr: 4, sufami: 4, gb: 9, gbc: 10, gba: 12, n64: 14, nds: 15,
+    gamecube: 13, virtualboy: 11, gameandwatch: 52,
+    megadrive: 1, megadrivebr: 1, mastersystem: 2, mastersystembr: 2, gamegear: 21, sega32x: 19,
+    segacd: 20, saturn: 22, dreamcast: 23, sg1000: 109,
+    psx: 57, ps2: 58, psp: 61,
+    pcengine: 31, pcenginecd: 114, supergrafx: 105,
+    atari2600: 26, atari5200: 40, atari7800: 41, jaguar: 27, lynx: 28,
+    wswan: 45, wswanc: 46, ngp: 25, ngpc: 82, neogeo: 142, neogeocd: 70,
+    colecovision: 48, vectrex: 102, "3do": 29, odyssey2: 104, o2em: 104,
+    mame: 75, arcade: 75, fbneo: 75, cps1: 6, cps2: 7, cps3: 8
+  };
+  const SS_CFG_PATH = path.join(app.getPath("userData"), "retroanvil-screenscraper.json");
+  function getSsCreds() { try { return JSON.parse(fs.readFileSync(SS_CFG_PATH, "utf-8")); } catch { return null; } }
+
+  ipcMain.handle("screenscraper-get-status", () => {
+    const c = getSsCreds();
+    return { success: true, devConfigured: ssDevConfigured(), userConfigured: !!(c && c.ssid), ssid: (c && c.ssid) || "" };
+  });
+  ipcMain.handle("screenscraper-set-creds", (event, payload) => {
+    try {
+      const ssid = String((payload && payload.ssid) || "").trim();
+      const sspassword = String((payload && payload.sspassword) || "").trim();
+      if (!ssid || !sspassword) return { success: false, error: "Usuario e senha obrigatorios" };
+      fs.writeFileSync(SS_CFG_PATH, JSON.stringify({ ssid, sspassword }), "utf-8");
+      return { success: true };
+    } catch (e) { return { success: false, error: String((e && e.message) || e) }; }
+  });
+  ipcMain.handle("screenscraper-clear-creds", () => {
+    try { fs.rmSync(SS_CFG_PATH, { force: true }); } catch {}
+    return { success: true };
+  });
+
+  // Traducao sob demanda (descricao/genero do catalogo remoto vem em ingles/frances
+  // misturado, dependendo do gamelist.xml original) — endpoint publico do Google
+  // Translate (gtx), sem chave, so pra texto curto/pontual (nunca em lote).
+  // MyMemory (gratis, sem chave) — trocado do truque nao-oficial do Google
+  // (translate.googleapis.com/translate_a/single) depois dele comecar a
+  // devolver 429 (bloqueio por IP, comum nesse endpoint nao documentado).
+  // MyMemory exige par de idiomas explicito (sem "auto") e tem limite duro
+  // de 500 chars por chamada — descricoes de jogo passam disso facil, entao
+  // quebra em pedacos por frase antes de mandar.
+  function splitForTranslate(text, max) {
+    const sentences = text.match(/[^.!?]+[.!?]*\s*/g) || [text];
+    const chunks = [];
+    let cur = "";
+    for (const s of sentences) {
+      if ((cur + s).length > max) { if (cur) chunks.push(cur); cur = s.length > max ? s.slice(0, max) : s; }
+      else cur += s;
+    }
+    if (cur) chunks.push(cur);
+    return chunks;
+  }
+  async function translateChunk(text, target) {
+    const r = await axios.get("https://api.mymemory.translated.net/get", {
+      params: { q: text, langpair: "en|" + target }, timeout: 8000
+    });
+    const translated = r.data && r.data.responseData && r.data.responseData.translatedText;
+    if (!translated || /QUERY LENGTH LIMIT|MYMEMORY WARNING/i.test(translated)) return text;
+    return translated;
+  }
+  ipcMain.handle("translate-text", async (event, payload) => {
+    try {
+      const text = String((payload && payload.text) || "").slice(0, 4000);
+      if (!text.trim()) return { success: true, text: "" };
+      const target = (payload && payload.target) || "pt";
+      const chunks = splitForTranslate(text, 480);
+      const translated = [];
+      for (const chunk of chunks) translated.push(await translateChunk(chunk, target));
+      return { success: true, text: translated.join("") };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  // Cache em memoria: system -> Map(file -> {image,video}), vindo do proprio
+  // roms-server (midia real ja sincronizada la, ver buildMediaIndex/findMedia
+  // no server.js). Consultado ANTES do ScreenScraper — capa/video local sempre
+  // que existir, sem depender de devid/devpassword nenhum.
+  const _romsMediaCache = new Map();
+  async function getRomsMediaMap(system) {
+    const cached = _romsMediaCache.get(system);
+    if (cached && Date.now() - cached.at < 5 * 60 * 1000) return cached.byFile;
+    const byFile = new Map();
+    try {
+      const r = await axios.get(ROMS_API_BASE + "/api/consoles/" + encodeURIComponent(system) + "/games", { timeout: 20000 });
+      if (r.data && r.data.success) r.data.games.forEach(g => byFile.set(g.file, g));
+    } catch {}
+    _romsMediaCache.set(system, { at: Date.now(), byFile });
+    return byFile;
+  }
+  function romsMediaUrl(system, rel) {
+    return rel ? ROMS_API_BASE + "/api/consoles/" + encodeURIComponent(system) + "/media/" + encodeURIComponent(rel).replace(/%2F/g, "/") : null;
+  }
+
+  // Busca capa+video de UM jogo, na hora (sem cache em disco — quem chama de novo,
+  // busca de novo). Prioriza midia com regiao br/wor/us/eu, senao pega a primeira.
+  ipcMain.handle("arena-game-media", async (event, payload) => {
+    try {
+      const system = payload && payload.system;
+      const file = payload && payload.file;
+      const size = payload && payload.size;
+      if (!system || !file) return { success: false, error: "Parametros invalidos" };
+
+      const byFile = await getRomsMediaMap(system);
+      const g = byFile.get(file);
+      if (g && (g.image || g.video)) {
+        return { success: true, imageUrl: romsMediaUrl(system, g.image), videoUrl: romsMediaUrl(system, g.video) };
+      }
+
+      if (!ssDevConfigured()) return { success: false, notConfigured: true };
+      const sysId = SS_SYSTEM_ID[system];
+      if (!sysId) return { success: false, error: "Sistema sem suporte a midia" };
+      const creds = getSsCreds();
+      const params = {
+        devid: SS_DEV.devid, devpassword: SS_DEV.devpassword, softname: SS_DEV.softname,
+        output: "json", systemeid: sysId, romnom: file
+      };
+      if (size) params.romtaille = size;
+      if (creds && creds.ssid && creds.sspassword) { params.ssid = creds.ssid; params.sspassword = creds.sspassword; }
+      const r = await axios.get("https://www.screenscraper.fr/api2/jeuInfos.php", { params, timeout: 12000 });
+      const jeu = r.data && r.data.response && r.data.response.jeu;
+      if (!jeu || !Array.isArray(jeu.medias)) return { success: true, imageUrl: null, videoUrl: null };
+      const REGION_PRI = ["br", "wor", "us", "eu", "ss", "jp"];
+      function pick(types) {
+        var candidates = jeu.medias.filter(m => types.indexOf(m.type) >= 0 && m.url);
+        if (!candidates.length) return null;
+        for (var i = 0; i < REGION_PRI.length; i++) {
+          var m = candidates.find(c => c.region === REGION_PRI[i]);
+          if (m) return m.url;
+        }
+        return candidates[0].url;
+      }
+      return {
+        success: true,
+        imageUrl: pick(["box-2D", "box-2d", "box-3D", "mixrbv1", "mixrbv2"]),
+        videoUrl: pick(["video-normalized", "video"])
+      };
     } catch (e) {
       return { success: false, error: String((e && e.message) || e) };
     }
@@ -20977,11 +21227,34 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
   });
 
   // Lança um jogo direto no emulador correto (sem abrir a UI do RetroBat/ES).
+  // Historico de "jogados recentemente" - so guarda o essencial (sistema/arquivo/nome)
+  // pra montar a estante na tela inicial, sem duplicar o catalogo inteiro.
+  const ARENA_RECENT_PATH = path.join(ARENA_DIR, "recent.json");
+  function arenaRecordRecent(system, file, name) {
+    try {
+      let list = [];
+      try { list = JSON.parse(fs.readFileSync(ARENA_RECENT_PATH, "utf-8")); } catch {}
+      if (!Array.isArray(list)) list = [];
+      list = list.filter(it => !(it.system === system && it.file === file));
+      list.unshift({ system, file, name: name || file, playedAt: Date.now() });
+      list = list.slice(0, 20);
+      fs.mkdirSync(path.dirname(ARENA_RECENT_PATH), { recursive: true });
+      fs.writeFileSync(ARENA_RECENT_PATH, JSON.stringify(list));
+    } catch {}
+  }
+  ipcMain.handle("arena-recent-list", async () => {
+    try {
+      const list = JSON.parse(fs.readFileSync(ARENA_RECENT_PATH, "utf-8"));
+      return { success: true, items: Array.isArray(list) ? list : [] };
+    } catch { return { success: true, items: [] }; }
+  });
+
   ipcMain.handle("arena-launch-game", async (event, payload) => {
     try {
       const system = payload && payload.system;
       const file = payload && payload.file;
       const gamepads = payload && payload.gamepads;
+      const name = payload && payload.name;
       if (!system || !file) return { success: false, error: "Parâmetros inválidos" };
       const launch = SYSTEM_LAUNCH[system];
       if (!launch) return { success: false, error: "Sistema não suportado: " + system };
@@ -20994,37 +21267,116 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
         return { success: false, error: "Jogo não encontrado" };
       }
 
+      // Alguns sistemas do catalogo remoto usam id de pasta/API diferente do id
+      // que o RetroBat espera na flag -system (ex.: pasta "segacd" -> RetroBat "megacd").
+      const launchSystem = launch.launchSystem || system;
+
       // Emulador desse sistema pode não estar baixado ainda (distribuicao v2, sob demanda).
-      const emu = await ensureEmulatorForSystem(system, d => { try { event.sender.send("arena-emu-progress", d); } catch {} });
+      const emu = await ensureEmulatorForSystem(launchSystem, d => { try { event.sender.send("arena-emu-progress", d); } catch {} });
       if (!emu.ok) return { success: false, error: "Falha ao preparar o emulador: " + (emu.error || "desconhecido") };
 
       const controllerArgs = buildControllerArgs(gamepads);
 
       spawn(ARENA_EMULATOR_LAUNCHER, [
         ...controllerArgs,
-        "-system", system,
+        "-system", launchSystem,
         "-emulator", launch.emulator,
         ...(launch.emulator === "libretro" ? ["-core", launch.core] : []),
         "-rom", romPath
       ], { cwd: path.dirname(ARENA_EMULATOR_LAUNCHER), detached: true, stdio: "ignore" }).unref();
+      arenaRecordRecent(system, file, name);
       return { success: true };
     } catch (e) {
       return { success: false, error: String((e && e.message) || e) };
     }
   });
 
+  // "Desinstalar" NUNCA apaga de verdade — move pra uma lixeira dentro do
+  // proprio acervo de ROMs (mesma pasta/compartilhamento, so um subdiretorio
+  // oculto). Um erro de clique (ou de teste) fica sempre recuperavel.
+  function arenaTrashDir(system) { return path.join(getArenaRomsDir(), ".lixeira", system); }
+
   ipcMain.handle("arena-remove-game", async (event, payload) => {
     try {
       const system = payload && payload.system;
       const file = payload && payload.file;
       if (!system || !file) return { success: false, error: "Parâmetros inválidos" };
+      // Pasta de ROMs em modo rede = acervo compartilhado (servidor), nao copia
+      // pessoal de ninguem. "Desinstalar" so pode afetar disco local do cliente.
+      if (isArenaNetworkPath()) {
+        return { success: false, error: "Essa pasta de ROMs esta em modo rede (compartilhada) — remover jogos so e permitido em copias baixadas localmente." };
+      }
       const sysDir = path.join(getArenaRomsDir(), system);
       const romPath = path.join(sysDir, file);
       // Mesma trava do lançamento: impede escapar da pasta de roms do sistema.
       if (path.dirname(romPath) !== sysDir || !fs.existsSync(romPath)) {
         return { success: false, error: "Jogo não encontrado" };
       }
-      fs.unlinkSync(romPath);
+      const trashDir = arenaTrashDir(system);
+      fs.mkdirSync(trashDir, { recursive: true });
+      const trashPath = path.join(trashDir, Date.now() + "_" + file);
+      try {
+        fs.renameSync(romPath, trashPath);
+      } catch (e) {
+        // rename entre dispositivos diferentes (EXDEV) — copia e so entao apaga o original.
+        fs.copyFileSync(romPath, trashPath);
+        fs.unlinkSync(romPath);
+      }
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  ipcMain.handle("arena-trash-list", async () => {
+    try {
+      const root = path.join(getArenaRomsDir(), ".lixeira");
+      if (!fs.existsSync(root)) return { success: true, items: [] };
+      const items = [];
+      for (const system of fs.readdirSync(root)) {
+        const dir = path.join(root, system);
+        if (!fs.statSync(dir).isDirectory()) continue;
+        for (const name of fs.readdirSync(dir)) {
+          const m = name.match(/^(\d+)_(.+)$/);
+          items.push({ system, trashName: name, file: m ? m[2] : name, removedAt: m ? Number(m[1]) : null });
+        }
+      }
+      return { success: true, items };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  ipcMain.handle("arena-trash-restore", async (event, payload) => {
+    try {
+      const system = payload && payload.system;
+      const trashName = payload && payload.trashName;
+      if (!system || !trashName) return { success: false, error: "Parâmetros inválidos" };
+      const trashDir = arenaTrashDir(system);
+      const trashPath = path.join(trashDir, trashName);
+      if (path.dirname(trashPath) !== trashDir || !fs.existsSync(trashPath)) return { success: false, error: "Item não encontrado na lixeira" };
+      const m = trashName.match(/^\d+_(.+)$/);
+      const originalName = m ? m[1] : trashName;
+      const sysDir = path.join(getArenaRomsDir(), system);
+      fs.mkdirSync(sysDir, { recursive: true });
+      const restorePath = path.join(sysDir, originalName);
+      try { fs.renameSync(trashPath, restorePath); }
+      catch (e) { fs.copyFileSync(trashPath, restorePath); fs.unlinkSync(trashPath); }
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: String((e && e.message) || e) };
+    }
+  });
+
+  ipcMain.handle("arena-trash-purge", async (event, payload) => {
+    try {
+      const system = payload && payload.system;
+      const trashName = payload && payload.trashName;
+      if (!system || !trashName) return { success: false, error: "Parâmetros inválidos" };
+      const trashDir = arenaTrashDir(system);
+      const trashPath = path.join(trashDir, trashName);
+      if (path.dirname(trashPath) !== trashDir || !fs.existsSync(trashPath)) return { success: false, error: "Item não encontrado na lixeira" };
+      fs.unlinkSync(trashPath);
       return { success: true };
     } catch (e) {
       return { success: false, error: String((e && e.message) || e) };
@@ -21207,7 +21559,7 @@ try { require("dns").setDefaultResultOrder("ipv4first") } catch {}
       const romsDir = getArenaRomsDir();
       if (!fs.existsSync(romsDir)) return { games: [] };
       const games = [];
-      const systems = fs.readdirSync(romsDir, { withFileTypes: true }).filter(d => d.isDirectory());
+      const systems = fs.readdirSync(romsDir, { withFileTypes: true }).filter(d => d.isDirectory() && d.name !== ".lixeira");
       for (const sys of systems) {
         const sysDir = path.join(romsDir, sys.name);
         const NON_GAME_EXT = new Set([".txt",".xml",".nfo",".db",".cfg",".ini",".png",".jpg",".jpeg",".url",".log",".bak",".md5",".sha1",".dat"]);
